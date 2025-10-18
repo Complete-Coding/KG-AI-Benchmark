@@ -3,6 +3,9 @@ import AppLayout from './components/AppLayout';
 import { BenchmarkProvider } from './context/BenchmarkContext';
 import Dashboard from './pages/Dashboard';
 import NotFound from './pages/NotFound';
+import Profiles from './pages/Profiles';
+import Runs from './pages/Runs';
+import RunDetail from './pages/RunDetail';
 
 const App = () => {
   return (
@@ -11,6 +14,9 @@ const App = () => {
         <Route element={<AppLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/profiles" element={<Profiles />} />
+          <Route path="/runs" element={<Runs />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

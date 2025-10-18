@@ -13,36 +13,35 @@ The Local LLM Benchmark tooling lets admins configure local model profiles, sani
 
 This document tracks the status of the feature set and the upcoming redesign workstream. Treat it as the source of truth until implementation completes.
 
-## Current Capabilities (as of this document)
-- **Model profiles**
-  - Editable form with provider, base URL, model identifier, API key, temperature, benchmark steps.
-  - Save/load/delete named profiles stored in browser local storage.
-- **Diagnostics**
-  - Level selector (handshake vs readiness).
-  - Result panel summarizing JSON validity, sample-step pass rates, raw response payloads, and log stream.
-- **Benchmark creation & runs**
-  - Choose automatic (latest published questions) or manual selection with pagination.
-  - Runs persist in Mongo via `LocalLLMBenchmarkRun` and `LocalLLMBenchmarkAttempt` models.
-  - Run detail view (single page) shows attempts list with step responses/evaluations.
-- **Logging**
-  - UI surface for diagnostic logs (info/warn/error), trimmed to last 50 entries.
-  - Backend winston logs for run execution, step-level failures, and diagnostics.
+## Current Capabilities (Oct 2025)
+- **Tabbed information architecture**
+  - Dashboard, Profiles, Runs, and contextual Run Detail views implemented with React Router.
+  - Shared `BenchmarkContext` manages profiles, diagnostics history, question bank, and persisted runs via browser local storage.
+- **Model profiles & diagnostics**
+  - Create/update/delete LM Studio profiles with form validation, configurable temperature/prompts, and editable benchmark steps.
+  - Level 1 (handshake) and Level 2 (readiness) diagnostics execute against the configured LM Studio endpoint with JSON-mode fallback and structured log capture.
+  - Diagnostics history is retained per profile with status pills, timestamps, and raw log viewer (last 10 entries).
+- **Benchmark creation & execution**
+  - Runs launched from the Runs tab using a filterable, 100-question selector (type, difficulty, PYQ year, free-text search, select all/clear).
+  - Benchmarks execute client-side via `executeBenchmarkRun`, streaming attempt updates into context and persisting tokens/latency/accuracy metrics.
+  - Readiness diagnostics must pass before launch; progress toast shown while run is active.
+- **Analytics & visualizations**
+  - Dashboard surfaces KPI cards, accuracy/latency trend line chart, dataset snapshot, and latest run table with drill-down links.
+  - Run Detail view renders pass/fail vs latency composed chart, dataset filter summary, and per-attempt drawer with reasoning, token usage, and raw responses.
+- **Question dataset integration**
+  - GATE PYQ sample (100 questions) normalized via `questionDataset` loader, exposing topology metadata, accepted answers, and evaluation helpers.
 
 ## Requested Enhancements & Scope
-1. **Run lifecycle management**
-   - Allow admins to delete an entire run (and associated attempts) when it is obsolete or broken.
-2. **Question selection UX**
-   - Remove pagination; always load and display the latest 100 questions for selection context.
-3. **Information architecture overhaul**
-   - Break the single-page dashboard into tabbed views:
-     - **Dashboard** – default landing page. High-level comparison of the latest runs per model, visualized via charts or KPI tiles.
-     - **Profiles** – create/manage model profiles, run connectivity diagnostics.
-     - **Runs** – tabular run history with filters and summary stats. Clicking a run drills into detail view.
-     - **Run Detail** (sub-view) – rich analytics for a single run (pass/fail distribution, step accuracy graphs, attempt table).
-4. **Visualizations**
-   - Provide graphical comparisons (e.g., bar/line charts for accuracy, durations) between recent runs and across models.
-5. **Document maintenance**
-   - Keep this design document updated as new requirements surface and decisions are made.
+1. ✅ **Run lifecycle management**
+   - Runs list supports delete actions with confirmation gates (blocking for active runs) and context persistence.
+2. ✅ **Question selection UX**
+   - Manual selector shows the latest 100 curated questions with filters (type, difficulty, PYQ year, search) and bulk actions.
+3. ✅ **Information architecture overhaul**
+   - Dashboard/Profiles/Runs tabs plus Run Detail route delivered; navigation sidebar updated accordingly.
+4. ✅ **Visualizations**
+   - Dashboard trend chart (accuracy vs latency) and Run Detail composed chart implemented via Recharts.
+5. 🔄 **Document maintenance**
+   - This working doc now reflects the Oct 2025 implementation; continue updating with backend integration status and future enhancements.
 
 ## Proposed UX Structure
 ```
@@ -66,28 +65,22 @@ Local LLM Benchmark
 ```
 
 ## Data & API Considerations
-- **Run deletion**
-  - Add `DELETE /api/v1/admin/local-llm-benchmark/runs/:id`.
-  - Cascade delete attempts (`LocalLLMBenchmarkAttempt.deleteMany({ run: id })`).
-  - Restrict to admins (reuse router middleware).
-- **Run listing**
-  - Enhance `listBenchmarkRuns` to support loading all recent runs (remove pagination limit or set high cap with client-side filtering).
-  - Provide rollups: success counts, average durations per model, last executed timestamp.
-- **Dashboard summary endpoint**
-  - New API to fetch latest run per model and aggregated metrics (accuracy, completion counts, failures).
-- **UI state management**
-  - Consider splitting current component into smaller client components per tab to reduce complexity.
-  - Reuse hooks for shared data fetching (e.g., `useBenchmarkRuns`, `useModelProfiles`).
+- Frontend currently persists profiles and runs locally; no remote API calls beyond LM Studio chat completions/handshake.
+- When wiring to the admin API, replicate current local-storage contracts:
+  - `GET /runs` should return attempts with evaluation metrics and token usage to hydrate charts.
+  - `DELETE /runs/:id` must guard against active executions similar to the UI confirmation.
+  - Consider a `/summary` endpoint that mirrors `DashboardOverview` shape (latest runs, trend points).
+- Backend integration backlog: persist diagnostic history, question metadata, and run attempts to Mongo (replace in-memory store when ready).
 
 ## Implementation Plan (Draft)
-| Phase | Goals | Key Tasks |
+| Phase | Status (Oct 2025) | Notes |
 | --- | --- | --- |
-| **A. Backend support** | Enable lifecycle operations & summary data | - Implement run deletion endpoint<br>- Adjust existing list endpoints to support unpaginated fetch (with server cap)<br>- Add summary aggregation service for dashboard |
-| **B. Data contracts** | Normalize responses for UI | - Extend shared types in `@kg-portal/shared` if needed<br>- Update frontend API util routes |
-| **C. UI refactor** | Introduce tabbed layout | - Split current dashboard into tabs/components<br>- Route state management (URL param or local tabs) |
-| **D. Dashboard analytics** | Visual comparison experience | - Build chart components (reuse existing chart libs)<br>- Surface KPI cards (accuracy, duration, failure counts) |
-| **E. Run detail improvements** | Rich drill-down | - Compose summary panels and charts<br>- Enhance attempts table (search/filter) |
-| **F. Polish & validation** | QA and docs | - Update documentation (this file, README)<br>- Manual QA with mock data and LM Studio<br>- Capture screenshots for PR |
+| **A. Backend support** | Pending | Frontend simulates storage; backend routes still required for multi-user deployments. |
+| **B. Data contracts** | In progress | New TypeScript models defined in `src/types/benchmark.ts`; align REST contracts when backend work starts. |
+| **C. UI refactor** | ✅ Complete | Tabbed layout, navigation overhaul, and context store shipped. |
+| **D. Dashboard analytics** | ✅ Complete | KPI cards + accuracy/latency chart delivered via Recharts. |
+| **E. Run detail improvements** | ✅ Complete | Detailed summary, charts, attempt breakdown, token stats. |
+| **F. Polish & validation** | Ongoing | Lint/build green; manual QA with LM Studio pending once credentials validated. |
 
 ## Dependencies & Risks
 - **Mongo performance**: Loading 100 questions and full run histories may impact load time; may need server-side caching or client virtualization.
@@ -114,10 +107,17 @@ Local LLM Benchmark
 ## Diagnostics Notes
 - Recent Level 2 runs against `openai/gpt-oss-120b` returned HTTP 400 when `response_format` was requested; the service now retries without JSON mode to sustain readiness checks.
 
+## Implementation Notes (Oct 2025)
+- Diagnostics switch automatically retries without `response_format` when LM Studio rejects JSON mode, marking profile metadata with `supportsJsonMode=false` so future runs start in fallback mode.
+- Benchmark evaluation leverages `parseModelResponse` + `evaluateModelAnswer` for MCQ/MSQ/NAT/TRUE_FALSE question types. NAT answers respect numeric ranges and accepted answer lists.
+- `executeBenchmarkRun` streams progress into context, allowing live updates in the Runs table and eventual detail view without reload.
+- Question loader normalizes ProseMirror docs to plain text; any Markdown/math should be reviewed before publishing additional datasets.
+
 ## Next Steps
-1. Review this plan with stakeholders to confirm scope and priorities.
-2. Finalize API contracts (especially summary & deletion endpoints).
-3. Kick off Phase A backend work while preparing UI component scaffolding.
-4. Iterate on dashboard visualization mockups before implementation.
+1. Wire profile/run persistence to backend APIs (mirror local storage schema, add optimistic updates).
+2. Add run cancellation controls and progress indicators (per-attempt progress bar, elapsed timers).
+3. Expand evaluation to support FILL_BLANK and descriptive grading with rubric scoring.
+4. Integrate screenshot capture and export (CSV/JSON) for completed runs.
+5. Validate LM Studio credentials, document setup (base URL, API key) in README once confirmed.
 
 This document will evolve as we implement and learn; update sections with decisions, links to PRs, and any shifts in scope.
