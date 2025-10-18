@@ -70,34 +70,47 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="dashboard">
-      <section className="panel">
-        <header className="panel__header">
-          <h2>Benchmark at a glance</h2>
-          <p className="panel__subtitle">
+    <div className="flex flex-col gap-8">
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+        <header className="flex flex-col gap-2">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            Benchmark at a glance
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
             Track recent benchmark activity, dataset coverage, and cross-run trends.
           </p>
         </header>
-        <div className="summary-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {summaryCards.map((card) => (
-            <article key={card.title} className="summary-card">
-              <h3>{card.title}</h3>
-              <div className="summary-card__value">{card.value}</div>
-              <span className="summary-card__meta">{card.meta}</span>
+            <article
+              key={card.title}
+              className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200"
+            >
+              <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                {card.title}
+              </h3>
+              <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">{card.value}</div>
+              <span className="text-sm text-slate-500 dark:text-slate-400">{card.meta}</span>
             </article>
           ))}
         </div>
       </section>
 
-      <div className="dashboard__grid">
-        <section className="panel">
-          <header className="panel__header">
-            <h2>Accuracy vs latency</h2>
-            <p className="panel__subtitle">Completed runs plotted chronologically.</p>
+      <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              Accuracy vs latency
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+              Completed runs plotted chronologically.
+            </p>
           </header>
-          <div className="chart-container">
+          <div className="w-full h-80">
             {trendData.length === 0 ? (
-              <div className="chart-placeholder">Run a benchmark to see trend data.</div>
+              <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 bg-accent-500/6 dark:bg-accent-500/10 rounded-xl">
+                Run a benchmark to see trend data.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={trendData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
@@ -150,94 +163,154 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <section className="panel">
-          <header className="panel__header">
-            <h2>Dataset snapshot</h2>
-            <p className="panel__subtitle">
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              Dataset snapshot
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
               Showing the latest {questionSummary.total} curated questions used for benchmarking.
             </p>
           </header>
-          <div className="dataset-summary">
+          <div className="flex flex-col gap-4">
             <div>
-              <h3>{questionSummary.label}</h3>
-              <p className="dataset-summary__meta">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-50">
+                {questionSummary.label}
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Generated at {formatDateTime(questionSummary.generatedAt)}
               </p>
             </div>
-            <dl className="dataset-summary__stats">
-              <div>
-                <dt>Total pool</dt>
-                <dd>{questionSummary.stats.poolSize ?? '—'}</dd>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
+                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Total pool
+                </dt>
+                <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
+                  {questionSummary.stats.poolSize ?? '—'}
+                </dd>
               </div>
-              <div>
-                <dt>Without images</dt>
-                <dd>{questionSummary.stats.poolWithoutImages ?? '—'}</dd>
+              <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
+                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Without images
+                </dt>
+                <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
+                  {questionSummary.stats.poolWithoutImages ?? '—'}
+                </dd>
               </div>
             </dl>
             <div>
-              <h4>Filters applied</h4>
-              <ul className="dataset-summary__filters">
+              <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-2">
+                Filters applied
+              </h4>
+              <ul className="flex flex-wrap gap-2">
                 {questionSummary.filters.map((filter) => (
-                  <li key={filter}>{filter}</li>
+                  <li
+                    key={filter}
+                    className="bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm text-slate-700 dark:text-slate-300"
+                  >
+                    {filter}
+                  </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4>Question types</h4>
-              <ul className="dataset-summary__counts">
+              <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-2">
+                Question types
+              </h4>
+              <ul className="flex flex-wrap gap-2">
                 {Object.entries(questionSummary.stats.countsByType ?? {}).map(([type, count]) => (
-                  <li key={type}>
-                    <span>{type}</span>
-                    <span>{count}</span>
+                  <li
+                    key={type}
+                    className="flex items-center justify-between gap-3 min-w-[140px] bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm"
+                  >
+                    <span className="text-slate-700 dark:text-slate-300">{type}</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-50">{count}</span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
-          <Link className="dataset-summary__cta" to="/runs">
-            Launch new benchmark
+          <Link
+            className="self-start font-semibold text-accent-700 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 transition-colors"
+            to="/runs"
+          >
+            Launch new benchmark →
           </Link>
         </section>
       </div>
 
-      <section className="panel">
-        <header className="panel__header">
-          <h2>Recent runs</h2>
-          <p className="panel__subtitle">
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+        <header className="flex flex-col gap-2">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            Recent runs
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
             Latest completed runs by profile and completion timestamp.
           </p>
         </header>
         {overview.latestRuns.length === 0 ? (
-          <p className="empty-state">No completed runs yet. Create a run from the Runs tab.</p>
+          <p className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center">
+            No completed runs yet. Create a run from the Runs tab.
+          </p>
         ) : (
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[0.95rem]">
+              <thead className="text-left text-slate-600 dark:text-slate-400 font-semibold">
                 <tr>
-                  <th scope="col">Run</th>
-                  <th scope="col">Model profile</th>
-                  <th scope="col">Accuracy</th>
-                  <th scope="col">Avg latency</th>
-                  <th scope="col">Completed</th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Run
+                  </th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Model profile
+                  </th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Accuracy
+                  </th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Avg latency
+                  </th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Completed
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {overview.latestRuns.map((run) => (
-                  <tr key={run.runId}>
-                    <th scope="row">
-                      <Link to={`/runs/${run.runId}`} className="data-table__model-name">
+                  <tr
+                    key={run.runId}
+                    className="hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors cursor-pointer"
+                  >
+                    <th
+                      scope="row"
+                      className="px-5 py-4 border-b border-slate-200 dark:border-slate-700"
+                    >
+                      <Link
+                        to={`/runs/${run.runId}`}
+                        className="font-semibold text-slate-900 dark:text-slate-50 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
+                      >
                         {run.label}
                       </Link>
                     </th>
-                    <td>
-                      <div className="data-table__model">
-                        <span className="data-table__model-name">{run.profileName}</span>
-                        <span className="data-table__model-id">{run.profileModelId}</span>
+                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-slate-900 dark:text-slate-50">
+                          {run.profileName}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {run.profileModelId}
+                        </span>
                       </div>
                     </td>
-                    <td>{formatPercent(run.accuracy)}</td>
-                    <td>{formatLatency(run.averageLatencyMs)}</td>
-                    <td>{formatDateTime(run.completedAt)}</td>
+                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {formatPercent(run.accuracy)}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {formatLatency(run.averageLatencyMs)}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {formatDateTime(run.completedAt)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

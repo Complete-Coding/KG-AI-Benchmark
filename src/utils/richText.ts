@@ -1,5 +1,5 @@
 interface RichTextNode {
-  type: string;
+  type?: string;
   text?: string;
   content?: RichTextNode[];
 }
@@ -7,7 +7,7 @@ interface RichTextNode {
 const lineBreak = '\n';
 
 const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?: number) => {
-  if (!node) {
+  if (!node || !node.type) {
     return;
   }
 
@@ -58,7 +58,7 @@ const sanitize = (value: string) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-export const richTextToPlain = (node?: RichTextNode | string | null): string => {
+export const richTextToPlain = (node?: RichTextNode | string | null | any): string => {
   if (!node) {
     return '';
   }
@@ -72,7 +72,7 @@ export const richTextToPlain = (node?: RichTextNode | string | null): string => 
   }
 
   const buffer: string[] = [];
-  collectText(node, buffer);
+  collectText(node as RichTextNode, buffer);
 
   return sanitize(buffer.join(''));
 };

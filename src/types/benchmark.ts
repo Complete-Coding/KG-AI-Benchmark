@@ -158,6 +158,9 @@ export interface ModelProfile {
   temperature: number;
   maxOutputTokens: number;
   requestTimeoutMs: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   benchmarkSteps: BenchmarkStepConfig[];
   defaultSystemPrompt: string;
   createdAt: string;

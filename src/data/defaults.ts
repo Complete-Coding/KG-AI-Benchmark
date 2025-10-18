@@ -42,3 +42,67 @@ export const createEmptyRunMetrics = (): BenchmarkRunMetrics => ({
   passedCount: 0,
   failedCount: 0,
 });
+
+/**
+ * Default values for LM Studio profile parameters.
+ * These are used as intelligent defaults when creating a new profile.
+ */
+export const DEFAULT_PROFILE_VALUES = {
+  /** Profile name */
+  name: 'New Profile',
+
+  /** Provider name (typically "LM Studio" for local models) */
+  provider: 'LM Studio',
+
+  /** Base URL for the LM Studio server */
+  baseUrl: 'http://localhost:1234',
+
+  /** API key (optional for LM Studio) */
+  apiKey: '',
+
+  /** Model identifier (e.g., "openai/gpt-oss-120b") */
+  modelId: '',
+
+  /**
+   * Temperature controls randomness in responses.
+   * Lower values (0.0-0.3) = more focused and deterministic
+   * Higher values (0.7-2.0) = more creative and varied
+   */
+  temperature: 0.2,
+
+  /** Maximum number of tokens in the model's response */
+  maxOutputTokens: 512,
+
+  /** Request timeout in milliseconds (2 minutes default) */
+  requestTimeoutMs: 120000,
+
+  /**
+   * Top P (nucleus sampling) controls response diversity.
+   * Only tokens with cumulative probability <= topP are considered.
+   * Range: 0.0-1.0, where 1.0 considers all tokens.
+   */
+  topP: 0.9,
+
+  /**
+   * Frequency penalty reduces repetition of individual tokens.
+   * Higher values discourage the model from repeating the same words.
+   * Range: 0.0-2.0, where 0.0 = no penalty.
+   */
+  frequencyPenalty: 0.0,
+
+  /**
+   * Presence penalty reduces repetition of topics.
+   * Higher values encourage the model to talk about new topics.
+   * Range: 0.0-2.0, where 0.0 = no penalty.
+   */
+  presencePenalty: 0.0,
+
+  /** Default system prompt for benchmark evaluations */
+  defaultSystemPrompt,
+
+  /** Optional notes about the profile */
+  notes: '',
+
+  /** Benchmark step configurations */
+  benchmarkSteps: defaultBenchmarkSteps,
+} as const;

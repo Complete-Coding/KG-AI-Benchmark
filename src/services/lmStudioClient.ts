@@ -152,6 +152,9 @@ export const sendChatCompletion = async ({
       temperature,
       max_tokens: maxTokens,
       messages,
+      ...(profile.topP !== undefined && { top_p: profile.topP }),
+      ...(profile.frequencyPenalty !== undefined && { frequency_penalty: profile.frequencyPenalty }),
+      ...(profile.presencePenalty !== undefined && { presence_penalty: profile.presencePenalty }),
       ...responseFormat,
     };
 

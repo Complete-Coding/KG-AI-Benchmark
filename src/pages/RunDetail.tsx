@@ -59,14 +59,17 @@ const RunDetail = () => {
 
   if (!run) {
     return (
-      <section className="panel">
-        <header className="panel__header">
-          <h2>Run not found</h2>
-          <p className="panel__subtitle">
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 transition-theme">
+        <header className="flex flex-col gap-2 mb-6">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Run not found</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
             The requested run does not exist. Head back to the runs list and try again.
           </p>
         </header>
-        <Link className="button" to="/runs">
+        <Link
+          className="inline-block bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
+          to="/runs"
+        >
           Back to runs
         </Link>
       </section>
@@ -83,62 +86,89 @@ const RunDetail = () => {
   const durationSeconds = run.durationMs ? run.durationMs / 1000 : 0;
 
   return (
-    <div className="run-detail">
-      <section className="panel run-detail__header">
-        <div>
-          <Link className="button button--ghost" to="/runs">
+    <div className="flex flex-col gap-8">
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 transition-theme flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-3">
+          <Link
+            className="inline-flex items-center gap-1.5 text-accent-700 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 font-semibold transition-colors"
+            to="/runs"
+          >
             ← Back to runs
           </Link>
-          <h2>{run.label}</h2>
-          <p className="panel__subtitle">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">{run.label}</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
             Profile {run.profileName} · {run.profileModelId}
           </p>
         </div>
-        <div className="run-detail__actions">
-          <span className={`status-pill status-pill--${run.status === 'completed' ? 'ready' : 'pending'}`}>
+        <div className="flex items-center gap-3">
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${
+              run.status === 'completed'
+                ? 'bg-success-100 dark:bg-success-900/30 text-success-800 dark:text-success-300'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}
+          >
             {run.status.toUpperCase()}
           </span>
-          <button className="button button--danger" type="button" onClick={handleDelete}>
+          <button
+            className="bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
+            type="button"
+            onClick={handleDelete}
+          >
             Delete run
           </button>
         </div>
       </section>
 
-      <section className="panel">
-        <header className="panel__header">
-          <h3>Summary</h3>
-          <p className="panel__subtitle">
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+        <header className="flex flex-col gap-2">
+          <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Summary</h3>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
             Completed at {formatDateTime(run.completedAt)} · {run.questionIds.length} questions evaluated.
           </p>
         </header>
-        <div className="summary-grid">
-          <article className="summary-card">
-            <h3>Accuracy</h3>
-            <div className="summary-card__value">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200">
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              Accuracy
+            </h3>
+            <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">
               {(run.metrics.accuracy * 100).toFixed(1)}%
             </div>
-            <span className="summary-card__meta">
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               {run.metrics.passedCount} passed · {run.metrics.failedCount} failed
             </span>
           </article>
-          <article className="summary-card">
-            <h3>Average latency</h3>
-            <div className="summary-card__value">{Math.round(run.metrics.averageLatencyMs)} ms</div>
-            <span className="summary-card__meta">
+          <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200">
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              Average latency
+            </h3>
+            <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">
+              {Math.round(run.metrics.averageLatencyMs)} ms
+            </div>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               Total latency {Math.round(run.metrics.totalLatencyMs)} ms
             </span>
           </article>
-          <article className="summary-card">
-            <h3>Duration</h3>
-            <div className="summary-card__value">{durationSeconds.toFixed(1)} s</div>
-            <span className="summary-card__meta">
+          <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200">
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              Duration
+            </h3>
+            <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">
+              {durationSeconds.toFixed(1)} s
+            </div>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               Started {formatDateTime(run.startedAt)} · Completed {formatDateTime(run.completedAt)}
             </span>
           </article>
-          <article className="summary-card">
-            <h3>Token usage</h3>
-            <div className="summary-card__value">{tokenSummary.total.toLocaleString()}</div>
-            <span className="summary-card__meta">
+          <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200">
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              Token usage
+            </h3>
+            <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">
+              {tokenSummary.total.toLocaleString()}
+            </div>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               Prompt {tokenSummary.prompt.toLocaleString()} · Completion{' '}
               {tokenSummary.completion.toLocaleString()}
             </span>
@@ -146,15 +176,19 @@ const RunDetail = () => {
         </div>
       </section>
 
-      <div className="run-detail__grid">
-        <section className="panel">
-          <header className="panel__header">
-            <h3>Latency & pass rate</h3>
-            <p className="panel__subtitle">Per-question latency (ms) and pass/fail outcome.</p>
+      <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Latency & pass rate</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+              Per-question latency (ms) and pass/fail outcome.
+            </p>
           </header>
-          <div className="chart-container">
+          <div className="w-full h-80">
             {latencySeries.length === 0 ? (
-              <div className="chart-placeholder">No attempts recorded.</div>
+              <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 bg-accent-500/6 dark:bg-accent-500/10 rounded-xl">
+                No attempts recorded.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={320}>
                 <ComposedChart data={latencySeries} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
@@ -200,80 +234,133 @@ const RunDetail = () => {
           </div>
         </section>
 
-        <section className="panel">
-          <header className="panel__header">
-            <h3>Dataset</h3>
-            <p className="panel__subtitle">Run executed against the following curated set.</p>
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Dataset</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+              Run executed against the following curated set.
+            </p>
           </header>
-          <dl className="dataset-summary__stats">
-            <div>
-              <dt>Dataset</dt>
-              <dd>{run.dataset.label}</dd>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
+              <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Dataset
+              </dt>
+              <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
+                {run.dataset.label}
+              </dd>
             </div>
-            <div>
-              <dt>Questions</dt>
-              <dd>{run.dataset.totalQuestions}</dd>
+            <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
+              <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Questions
+              </dt>
+              <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
+                {run.dataset.totalQuestions}
+              </dd>
             </div>
           </dl>
-          <h4>Filters</h4>
-          <ul className="dataset-summary__filters">
-            {run.dataset.filters.length === 0 ? <li>None</li> : null}
-            {run.dataset.filters.map((filter) => (
-              <li key={filter}>{filter}</li>
-            ))}
-          </ul>
-          {run.summary ? <p className="run-detail__summary">{run.summary}</p> : null}
+          <div>
+            <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-2">Filters</h4>
+            <ul className="flex flex-wrap gap-2">
+              {run.dataset.filters.length === 0 ? (
+                <li className="bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm text-slate-700 dark:text-slate-300">
+                  None
+                </li>
+              ) : null}
+              {run.dataset.filters.map((filter) => (
+                <li
+                  key={filter}
+                  className="bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm text-slate-700 dark:text-slate-300"
+                >
+                  {filter}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {run.summary ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl">
+              {run.summary}
+            </p>
+          ) : null}
         </section>
       </div>
 
-      <section className="panel run-detail__attempts">
-        <header className="panel__header">
-          <h3>Attempt breakdown</h3>
-          <p className="panel__subtitle">Inspect model responses, evaluations, and metrics.</p>
+      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+        <header className="flex flex-col gap-2">
+          <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Attempt breakdown</h3>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            Inspect model responses, evaluations, and metrics.
+          </p>
         </header>
         {run.attempts.length === 0 ? (
-          <p className="empty-state">This run has no attempts recorded.</p>
+          <p className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center">
+            This run has no attempts recorded.
+          </p>
         ) : (
-          <ul className="attempt-list">
+          <ul className="flex flex-col gap-4">
             {run.attempts.map((attempt, index) => (
               <li
                 key={attempt.id}
-                className={`attempt${attempt.evaluation.passed ? ' attempt--pass' : ' attempt--fail'}`}
+                className={`border-2 rounded-xl p-5 flex flex-col gap-4 ${
+                  attempt.evaluation.passed
+                    ? 'border-success-200 dark:border-success-800 bg-success-50/30 dark:bg-success-900/10'
+                    : 'border-danger-200 dark:border-danger-800 bg-danger-50/30 dark:bg-danger-900/10'
+                }`}
               >
-                <header>
-                  <div>
-                    <strong>
+                <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <strong className="text-lg font-semibold text-slate-900 dark:text-slate-50">
                       #{index + 1} · {attempt.questionSnapshot.type}
                     </strong>
-                    <span className="attempt__meta">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
                       {attempt.questionSnapshot.difficulty} · Latency {Math.round(attempt.latencyMs)} ms
                     </span>
                   </div>
-                  <span className={`status-pill status-pill--${attempt.evaluation.passed ? 'ready' : 'failed'}`}>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${
+                      attempt.evaluation.passed
+                        ? 'bg-success-100 dark:bg-success-900/30 text-success-800 dark:text-success-300'
+                        : 'bg-danger-100 dark:bg-danger-900/30 text-danger-800 dark:text-danger-300'
+                    }`}
+                  >
                     {attempt.evaluation.passed ? 'Pass' : 'Fail'}
                   </span>
                 </header>
-                <p className="attempt__question">{attempt.questionSnapshot.prompt}</p>
-                <div className="attempt__metrics">
-                  <div>
-                    <strong>Expected</strong>
-                    <span>{attempt.evaluation.expected}</span>
+                <p className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900/30 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  {attempt.questionSnapshot.prompt}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex flex-col gap-1 bg-white dark:bg-slate-900/30 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <strong className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                      Expected
+                    </strong>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                      {attempt.evaluation.expected}
+                    </span>
                   </div>
-                  <div>
-                    <strong>Received</strong>
-                    <span>{attempt.evaluation.received || '—'}</span>
+                  <div className="flex flex-col gap-1 bg-white dark:bg-slate-900/30 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <strong className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                      Received
+                    </strong>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                      {attempt.evaluation.received || '—'}
+                    </span>
                   </div>
-                  <div>
-                    <strong>Confidence</strong>
-                    <span>
+                  <div className="flex flex-col gap-1 bg-white dark:bg-slate-900/30 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <strong className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                      Confidence
+                    </strong>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
                       {attempt.evaluation.metrics?.confidence != null
                         ? (attempt.evaluation.metrics.confidence * 100).toFixed(0) + '%'
                         : '—'}
                     </span>
                   </div>
-                  <div>
-                    <strong>Tokens</strong>
-                    <span>
+                  <div className="flex flex-col gap-1 bg-white dark:bg-slate-900/30 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <strong className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                      Tokens
+                    </strong>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
                       {attempt.totalTokens
                         ? `${attempt.totalTokens} (prompt ${attempt.promptTokens ?? 0}, completion ${attempt.completionTokens ?? 0})`
                         : '—'}
@@ -281,17 +368,23 @@ const RunDetail = () => {
                   </div>
                 </div>
                 {attempt.modelResponse?.explanation ? (
-                  <div className="attempt__explanation">
-                    <strong>Explanation</strong>
-                    <p>{attempt.modelResponse.explanation}</p>
+                  <div className="flex flex-col gap-2 bg-accent-50/50 dark:bg-accent-900/10 p-4 rounded-lg border border-accent-200 dark:border-accent-800">
+                    <strong className="text-sm font-semibold text-slate-900 dark:text-slate-50">Explanation</strong>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{attempt.modelResponse.explanation}</p>
                   </div>
                 ) : null}
                 {attempt.error ? (
-                  <p className="attempt__error">Error: {attempt.error}</p>
+                  <p className="text-sm text-danger-700 dark:text-danger-300 bg-danger-100 dark:bg-danger-900/20 p-4 rounded-lg border border-danger-300 dark:border-danger-700">
+                    Error: {attempt.error}
+                  </p>
                 ) : (
-                  <details>
-                    <summary>Raw response</summary>
-                    <pre>{attempt.responseText}</pre>
+                  <details className="bg-slate-100 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                      Raw response
+                    </summary>
+                    <pre className="text-xs text-slate-700 dark:text-slate-300 p-4 overflow-x-auto border-t border-slate-200 dark:border-slate-700">
+                      {attempt.responseText}
+                    </pre>
                   </details>
                 )}
               </li>

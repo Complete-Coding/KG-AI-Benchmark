@@ -1,123 +1,432 @@
-# Local LLM Benchmark – Working Design Document
+# KG AI Benchmark – UI Enhancement Roadmap
 
-## Context
-The Local LLM Benchmark tooling lets admins configure local model profiles, sanity-check connectivity, and execute multi-step evaluations against curated question sets. Recent iterations (Codex, Jan 2025) focused on:
+## Executive Summary
 
-- Removing environment flag dependencies so the feature runs in any non-production deployment.
-- Persisting benchmark form inputs and reusable model profiles in local storage for faster reruns.
-- Introducing granular logging and a diagnostics panel that exercises `testConnection` on demand.
-- Expanding diagnostics into two tiers:
-  - **Level 1 – Handshake** validates JSON-mode responses from the configured model.
-  - **Level 2 – Readiness** runs the full topology/answer/solution pipeline against a sample question to confirm schema compliance before launching a long benchmark.
-- Dropping console noise in the admin UI while presenting structured log entries and response breakdowns.
+**Current State:**
+KG AI Benchmark is a React 19 + TypeScript application for benchmarking local LLMs hosted in LM Studio (or any OpenAI-compatible runtime) using a curated GATE PYQ dataset. The app is fully client-side with all state persisted to browser localStorage.
 
-This document tracks the status of the feature set and the upcoming redesign workstream. Treat it as the source of truth until implementation completes.
+**Technology Stack:**
+- React 19.2.0 with functional components and hooks
+- TypeScript with strict mode
+- React Router 7.9.4
+- Recharts 3.3.0 for data visualization
+- Pure CSS (no framework currently)
+- Vite build system
 
-## Current Capabilities (as of this document)
-- **Model profiles**
-  - Editable form with provider, base URL, model identifier, API key, temperature, benchmark steps.
-  - Save/load/delete named profiles stored in browser local storage.
-- **Diagnostics**
-  - Level selector (handshake vs readiness).
-  - Result panel summarizing JSON validity, sample-step pass rates, raw response payloads, and log stream.
-- **Benchmark creation & runs**
-  - Choose automatic (latest published questions) or manual selection with pagination.
-  - Runs persist in Mongo via `LocalLLMBenchmarkRun` and `LocalLLMBenchmarkAttempt` models.
-  - Run detail view (single page) shows attempts list with step responses/evaluations.
-- **Logging**
-  - UI surface for diagnostic logs (info/warn/error), trimmed to last 50 entries.
-  - Backend winston logs for run execution, step-level failures, and diagnostics.
+**Purpose of This Document:**
+This roadmap tracks our UI enhancement initiative focusing on:
+1. **Tailwind CSS Migration** - Replace 1100+ lines of custom CSS with utility-first framework
+2. **Theme System** - Add auto-detecting dark/light mode with manual override
+3. **Intelligent Defaults** - Implement hybrid form defaults and expand LM Studio parameters
+4. **Layout Improvements** - Fix modals, improve spacing consistency, enhance visual hierarchy
 
-## Requested Enhancements & Scope
-1. **Run lifecycle management**
-   - Allow admins to delete an entire run (and associated attempts) when it is obsolete or broken.
-2. **Question selection UX**
-   - Remove pagination; always load and display the latest 100 questions for selection context.
-3. **Information architecture overhaul**
-   - Break the single-page dashboard into tabbed views:
-     - **Dashboard** – default landing page. High-level comparison of the latest runs per model, visualized via charts or KPI tiles.
-     - **Profiles** – create/manage model profiles, run connectivity diagnostics.
-     - **Runs** – tabular run history with filters and summary stats. Clicking a run drills into detail view.
-     - **Run Detail** (sub-view) – rich analytics for a single run (pass/fail distribution, step accuracy graphs, attempt table).
-4. **Visualizations**
-   - Provide graphical comparisons (e.g., bar/line charts for accuracy, durations) between recent runs and across models.
-5. **Document maintenance**
-   - Keep this design document updated as new requirements surface and decisions are made.
+---
 
-## Proposed UX Structure
+## Previously Completed Features
+
+✅ **Model Profile Management**
+- Create/edit/delete profiles with LM Studio connection configs
+- Save profiles to localStorage with normalization
+- Two-tier diagnostics system:
+  - Level 1 (Handshake): Validates connectivity and JSON-mode support
+  - Level 2 (Readiness): Runs full pipeline with sample question
+- Diagnostics history tracking per profile
+
+✅ **Benchmark Execution Engine**
+- Question selection with filtering (topology, type, year, tags)
+- Progress tracking with attempt-level metrics
+- JSON-mode fallback handling (auto-retry without response_format)
+- Evaluation engine supporting MCQ, MSQ, NAT, TRUE_FALSE question types
+- Runs persist to localStorage with full attempt details
+
+✅ **Dashboard & Analytics**
+- KPI summary cards (accuracy, latency, pass/fail counts)
+- Trend charts with Recharts (accuracy vs latency)
+- Recent runs table with filtering
+- Run detail view with attempt breakdown
+
+✅ **Question Dataset**
+- 100 GATE PYQ questions loaded from JSON
+- Topology catalog (subject/topic/subtopic)
+- Metadata including year, exam, branch, tags
+- Plain-string prompts and options (legacy rich-text removed Oct 2025)
+
+✅ **UI Architecture**
+- React Router with layout wrapper
+- Centralized BenchmarkContext for state management
+- Reducer pattern with actions (UPSERT_PROFILE, UPSERT_RUN, etc.)
+- Automatic localStorage sync via storage service
+
+---
+
+## Current UI Enhancement Initiative
+
+### Phase 1: Tailwind CSS Migration
+
+**Goal:** Replace custom CSS with Tailwind utility classes for better maintainability and consistency.
+
+- [ ] Install dependencies (tailwindcss, postcss, autoprefixer)
+- [ ] Create `tailwind.config.js` with custom theme configuration
+  - Colors: Indigo (accent), Green (success), Red (danger), Amber (warning), Slate (neutrals)
+  - Spacing scale: 4, 8, 12, 16, 20, 24, 32, 48, 64px
+  - Font family: Inter + system fonts
+  - Custom shadows matching current design
+  - Enable dark mode with `class` strategy
+- [ ] Create `postcss.config.js` with Tailwind and Autoprefixer
+- [ ] Update `vite.config.ts` to ensure PostCSS processing
+- [ ] Replace `src/styles/global.css` with Tailwind directives + minimal custom styles
+  - Keep scrollbar styling and base font settings
+  - Remove all 1100+ lines of component CSS
+
+---
+
+### Phase 2: Theme System Implementation
+
+**Goal:** Add auto-detecting dark/light mode with manual override and localStorage persistence.
+
+- [ ] Create `src/context/ThemeContext.tsx`
+  - ThemeProvider component with `useTheme()` hook
+  - Auto-detection via `window.matchMedia('(prefers-color-scheme: dark')`
+  - Listen to system theme changes
+  - Manual toggle support: 'light' | 'dark' | 'auto'
+  - Store preference in localStorage as `theme-preference`
+  - Apply/remove `dark` class on `<html>` element
+- [ ] Configure dark mode colors in `tailwind.config.js`
+  - Light mode: Default Tailwind colors
+  - Dark mode: Custom slate-900/950 backgrounds, slate-100 text, slate-700 borders
+- [ ] Update `src/main.tsx` to wrap app in ThemeProvider
+- [ ] Add theme toggle button in `src/components/AppLayout.tsx`
+  - Three-state toggle: ☀️ Light → 🌙 Dark → Auto
+  - Display in sidebar header
+  - Show current state with tooltip
+
+---
+
+### Phase 3: Intelligent Defaults System
+
+**Goal:** Add intelligent defaults to profile creation form and expand LM Studio parameters.
+
+**3.1 Enhanced Defaults Configuration**
+- [ ] Update `src/data/defaults.ts`
+  - Add new parameter defaults:
+    - `topP: 0.9` (nucleus sampling threshold)
+    - `frequencyPenalty: 0.0` (token repetition penalty)
+    - `presencePenalty: 0.0` (topic repetition penalty)
+  - Create `DEFAULT_PROFILE_VALUES` constant for reuse
+  - Add JSDoc comments explaining each parameter
+
+**3.2 Type Definitions**
+- [ ] Update `src/types/benchmark.ts` - Add to ModelProfile interface:
+  - `topP?: number`
+  - `frequencyPenalty?: number`
+  - `presencePenalty?: number`
+
+**3.3 Profile Form with Hybrid Defaults**
+- [ ] Update `src/pages/Profiles.tsx`
+  - **Pre-filled fields** (critical parameters):
+    - Name: "New Profile"
+    - Provider: "LM Studio"
+    - Base URL: "http://localhost:1234"
+    - Temperature: 0.2
+    - Max Output Tokens: 512
+    - Request Timeout: 120000ms
+    - Top P: 0.9
+    - Frequency Penalty: 0.0
+    - Presence Penalty: 0.0
+  - **Placeholder-only fields** (optional):
+    - API Key: "api-key (optional)"
+    - Model ID: "e.g., openai/gpt-oss-120b"
+    - Notes: "Add notes about this profile..."
+  - Add new parameter inputs in grid layout:
+    - Top P (0-1, step 0.1)
+    - Frequency Penalty (0-2, step 0.1)
+    - Presence Penalty (0-2, step 0.1)
+  - Add helper text below inputs:
+    - Temperature: "Lower = more focused, higher = more creative"
+    - Top P: "Nucleus sampling for response diversity"
+    - Frequency Penalty: "Reduce token repetition in responses"
+    - Presence Penalty: "Reduce topic repetition in responses"
+
+**3.4 LM Studio Client Updates**
+- [ ] Update `src/services/lmStudioClient.ts`
+  - Include new parameters in chat completion payload:
+    ```typescript
+    top_p: profile.topP,
+    frequency_penalty: profile.frequencyPenalty,
+    presence_penalty: profile.presencePenalty
+    ```
+
+---
+
+### Phase 4: Component Migration to Tailwind
+
+**Goal:** Convert all components from custom CSS to Tailwind utility classes.
+
+**4.1 Reusable UI Components**
+- [ ] Create `src/components/Modal.tsx`
+  - Backdrop: `fixed inset-0 bg-black/75 dark:bg-black/90 backdrop-blur-md`
+  - Panel: `bg-white dark:bg-slate-800` with slide-in animation
+  - Escape key handler and click-outside-to-close
+  - Focus trap for modal content
+  - Props: `isOpen`, `onClose`, `title`, `children`
+- [ ] Create `src/components/ui/Button.tsx`
+  - Variants: primary (indigo), danger (red), ghost (transparent)
+  - Sizes: sm, md, lg
+  - Disabled state styling
+- [ ] Create `src/components/ui/Card.tsx`
+  - Base card: `bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6`
+  - Optional hover effect
+
+**4.2 Layout Components**
+- [ ] Migrate `src/components/AppLayout.tsx` to Tailwind
+  - Grid layout: `grid grid-cols-[280px_1fr] lg:grid-cols-1`
+  - Sidebar: `bg-gradient-to-b from-slate-800 to-slate-900 dark:from-slate-900 dark:to-black`
+  - Navigation links: `hover:bg-white/10 transition-colors`
+  - Active state: `bg-indigo-600`
+  - Add theme toggle button
+
+**4.3 Page Components**
+- [ ] Migrate `src/pages/Dashboard.tsx` to Tailwind
+  - Summary cards: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6`
+  - Card styling: `bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:-translate-y-0.5 transition-transform`
+  - Value text: `text-4xl font-bold text-slate-900 dark:text-slate-100`
+  - Label text: `text-sm text-slate-600 dark:text-slate-400`
+  - Charts section: `grid lg:grid-cols-[1.15fr_0.85fr] gap-6`
+- [ ] Migrate `src/pages/Profiles.tsx` to Tailwind
+  - Two-column layout: `grid grid-cols-[minmax(260px,320px)_1fr] lg:grid-cols-1 gap-6`
+  - Profile list: `space-y-2`
+  - Profile item: `backdrop-blur-md bg-white/10 dark:bg-slate-800/50 rounded-lg p-4 cursor-pointer hover:bg-white/20 transition-colors`
+  - Form grid: `grid grid-cols-1 md:grid-cols-2 gap-4`
+  - Wide fields (system prompt, notes): `md:col-span-2`
+  - Input styling: `bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500`
+  - Labels: `text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5`
+- [ ] Migrate `src/pages/Runs.tsx` to Tailwind
+  - **IMPORTANT:** Replace `<aside>` NewRunPanel with `<Modal>` component
+  - Add proper modal state management (open/close)
+  - Table: `bg-white dark:bg-slate-800 rounded-lg overflow-hidden`
+  - Table rows: `even:bg-slate-50 dark:even:bg-slate-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors`
+  - Table cells: `px-5 py-4`
+  - Status pills:
+    - Base: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium`
+    - Ready: `bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400`
+    - Failed: `bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400`
+- [ ] Migrate `src/pages/RunDetail.tsx` to Tailwind
+  - Summary cards: Same grid as Dashboard
+  - Attempt cards: `border-l-4` with color coding
+    - Pass: `border-green-500 dark:border-green-400`
+    - Fail: `border-red-500 dark:border-red-400`
+  - Attempt metrics: `grid grid-cols-2 sm:grid-cols-4 gap-4`
+  - Explanation box: `bg-slate-50 dark:bg-slate-900/50 rounded-md p-4`
+  - Error messages: `text-red-600 dark:text-red-400`
+
+---
+
+### Phase 5: Visual Hierarchy & Polish
+
+**Goal:** Enhance visual hierarchy, improve spacing consistency, and add polish.
+
+- [ ] Apply consistent Tailwind spacing scale
+  - Container gaps: `gap-6` (24px) or `gap-8` (32px)
+  - Card padding: `p-6` (24px)
+  - Section margins: `space-y-6`
+  - Form field spacing: `space-y-4`
+  - Button groups: `gap-3` (12px)
+- [ ] Enhance card and panel styling
+  - Hover effects: `hover:-translate-y-0.5 transition-transform duration-200`
+  - Shadow on hover: `hover:shadow-md`
+  - Border styling: `border border-slate-200 dark:border-slate-700`
+- [ ] Improve status pill contrast
+  - High contrast colors with dark mode variants
+  - Pass/success: `bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400`
+  - Fail/error: `bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400`
+  - Ready/info: `bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400`
+- [ ] Add table hover effects
+  - Row hover: `hover:bg-indigo-50 dark:hover:bg-indigo-900/20`
+  - Smooth transitions: `transition-colors duration-150`
+- [ ] Improve form field styling
+  - Labels: Increase size to `text-sm`, bold `font-medium`
+  - Focus rings: `focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`
+  - Helper text: `text-xs text-slate-500 dark:text-slate-400 mt-1`
+- [ ] Add smooth transitions
+  - All color changes: `transition-colors duration-200`
+  - Transform effects: `transition-transform duration-200`
+  - Theme switching: CSS transitions on background/color/border
+
+---
+
+## Technical Specifications
+
+### Tailwind Configuration
+
+**Color Palette:**
+```javascript
+colors: {
+  accent: colors.indigo,
+  success: colors.green,
+  danger: colors.red,
+  warning: colors.amber,
+  // Extend with custom shades if needed
+}
 ```
-Local LLM Benchmark
-├── Dashboard (default)
-│   ├── Latest run per model (trend cards, charts)
-│   ├── Quick stats (success rate, avg duration)
-│   └── CTA to view full run or launch new run
-├── Profiles
-│   ├── Saved model list
-│   ├── Profile editor + diagnostics panel (Level 1/2)
-│   └── Actions: save, load, delete, test connection
-├── Runs
-│   ├── Filterable table (status, provider, date, user)
-│   ├── Bulk actions (delete run)
-│   └── Row click → Run Detail
-└── Run Detail (contextual view)
-    ├── Summary metrics (duration, status, accuracy per step)
-    ├── Visualizations (step pass/fail, timeline)
-    └── Attempts list (expandable entries with request/response)
+
+**Dark Mode:**
+- Strategy: `darkMode: 'class'`
+- Light backgrounds: `slate-50`, `white`
+- Dark backgrounds: `slate-900`, `slate-950`
+- Light text: `slate-900`
+- Dark text: `slate-100`
+- Borders light: `slate-200`, `slate-300`
+- Borders dark: `slate-700`, `slate-600`
+
+**Spacing Scale:**
+Custom spacing maintained via Tailwind defaults (4, 8, 12, 16, 20, 24, 32, 48, 64px)
+
+**Typography:**
+```javascript
+fontFamily: {
+  sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+}
 ```
 
-## Data & API Considerations
-- **Run deletion**
-  - Add `DELETE /api/v1/admin/local-llm-benchmark/runs/:id`.
-  - Cascade delete attempts (`LocalLLMBenchmarkAttempt.deleteMany({ run: id })`).
-  - Restrict to admins (reuse router middleware).
-- **Run listing**
-  - Enhance `listBenchmarkRuns` to support loading all recent runs (remove pagination limit or set high cap with client-side filtering).
-  - Provide rollups: success counts, average durations per model, last executed timestamp.
-- **Dashboard summary endpoint**
-  - New API to fetch latest run per model and aggregated metrics (accuracy, completion counts, failures).
-- **UI state management**
-  - Consider splitting current component into smaller client components per tab to reduce complexity.
-  - Reuse hooks for shared data fetching (e.g., `useBenchmarkRuns`, `useModelProfiles`).
+### New LM Studio Parameters
 
-## Implementation Plan (Draft)
-| Phase | Goals | Key Tasks |
-| --- | --- | --- |
-| **A. Backend support** | Enable lifecycle operations & summary data | - Implement run deletion endpoint<br>- Adjust existing list endpoints to support unpaginated fetch (with server cap)<br>- Add summary aggregation service for dashboard |
-| **B. Data contracts** | Normalize responses for UI | - Extend shared types in `@kg-portal/shared` if needed<br>- Update frontend API util routes |
-| **C. UI refactor** | Introduce tabbed layout | - Split current dashboard into tabs/components<br>- Route state management (URL param or local tabs) |
-| **D. Dashboard analytics** | Visual comparison experience | - Build chart components (reuse existing chart libs)<br>- Surface KPI cards (accuracy, duration, failure counts) |
-| **E. Run detail improvements** | Rich drill-down | - Compose summary panels and charts<br>- Enhance attempts table (search/filter) |
-| **F. Polish & validation** | QA and docs | - Update documentation (this file, README)<br>- Manual QA with mock data and LM Studio<br>- Capture screenshots for PR |
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `topP` | number | 0.9 | 0-1 | Nucleus sampling threshold for response diversity |
+| `frequencyPenalty` | number | 0.0 | 0-2 | Penalize token repetition (0 = no penalty) |
+| `presencePenalty` | number | 0.0 | 0-2 | Penalize topic repetition (0 = no penalty) |
 
-## Dependencies & Risks
-- **Mongo performance**: Loading 100 questions and full run histories may impact load time; may need server-side caching or client virtualization.
-- **Charting library footprint**: Ensure existing chart.js/react-chartjs does not bloat bundle; lazy-load components where possible.
-- **Run deletion safety**: Provide confirmation dialogs and ensure no benchmarks are mid-run before deletion (optional guard).
-- **Design consistency**: Align tab styling with existing admin theme; coordinate with design if charts require new patterns.
+**Existing Parameters:**
+- `temperature`: 0.2 (0-2 range)
+- `maxOutputTokens`: 512 (min 16, step 16)
+- `requestTimeoutMs`: 120000 (min 1000, step 1000)
 
-## Open Questions
-1. Should run deletion prevent removal of runs in `running` status until completion/cancellation?
-2. Do we need role-based restrictions for dashboard vs. profile management?
-3. What specific metrics/visualizations are most important on the default dashboard (accuracy over time, per-step latency, etc.)?
-4. Should the 100-question display support client-side search/filtering to keep the list usable?
+### Theme System Architecture
 
-## February 2025 UI Adjustments
-- Profiles tab now defaults to a concise saved-profile list, with per-profile diagnostics summaries and log viewers; full configuration forms only appear when creating or editing.
-- Connection tests persist diagnostics data alongside each profile so Level 1/Level 2 handshake details surface directly in the list view.
-- Runs tab exposes a `New run` entry point that reveals run setup; setup requires picking an existing profile and hides raw model fields to reduce duplication.
-- Run setup now surfaces diagnostics status, auto-runs Level 1 then Level 2 in a single action, and blocks launch until readiness passes.
-- Question selection is filter-driven (topology, question type, PYQ, year) with select-all and manual curation instead of relying on counts.
-- Run history stays focused on existing executions, while detailed analytics move into a dedicated drill-down view that opens after selecting a run and provides a back navigation path.
-- Benchmark creation flow now reuses selected profile metadata when POSTing to the backend, keeping evaluation-step selections and filtered question IDs intact.
-- Diagnostics backend falls back when OpenAI-compatible servers reject JSON-mode (`response_format`) so Level 2 checks work against OSS stacks.
+**ThemeContext State:**
+```typescript
+type ThemeMode = 'light' | 'dark' | 'auto';
+type ResolvedTheme = 'light' | 'dark';
 
-## Diagnostics Notes
-- Recent Level 2 runs against `openai/gpt-oss-120b` returned HTTP 400 when `response_format` was requested; the service now retries without JSON mode to sustain readiness checks.
+interface ThemeContextValue {
+  mode: ThemeMode;
+  resolvedTheme: ResolvedTheme;
+  setMode: (mode: ThemeMode) => void;
+}
+```
+
+**Storage:**
+- Key: `theme-preference`
+- Values: `'light'` | `'dark'` | `'auto'`
+- Default: `'auto'` (respects system preference)
+
+**Implementation:**
+- System detection: `window.matchMedia('(prefers-color-scheme: dark)')`
+- Listen for changes: `matchMedia.addEventListener('change', handler)`
+- Apply theme: Toggle `dark` class on `document.documentElement`
+
+### Hybrid Form Defaults Strategy
+
+**Pre-filled Fields (Critical):**
+Fields that users typically need immediately and should have sensible defaults visible in the input.
+- Connection config: Name, Provider, Base URL
+- Model parameters: Temperature, Max Tokens, Timeout, Top P, Frequency Penalty, Presence Penalty
+
+**Placeholder-only Fields (Optional):**
+Fields that are either optional or require user-specific values.
+- API Key (optional for LM Studio)
+- Model ID (user must specify their model)
+- Notes (optional metadata)
+
+**Rationale:**
+This approach reduces friction for new users while making it clear which fields are required vs optional.
+
+---
+
+## Progress Tracking
+
+| Phase | Task | Status | Notes |
+|-------|------|--------|-------|
+| **1** | Install Tailwind dependencies | ✅ Completed | tailwindcss, postcss, autoprefixer installed |
+| **1** | Create tailwind.config.js | ✅ Completed | Custom theme with accent/success/danger colors, dark mode enabled |
+| **1** | Create postcss.config.js | ✅ Completed | Configured with Tailwind and Autoprefixer |
+| **1** | Update vite.config.ts | ✅ Completed | No changes needed - Vite auto-processes PostCSS |
+| **1** | Replace src/styles/global.css | ✅ Completed | Reduced from 1104 to 72 lines - only Tailwind directives + scrollbar styling |
+| **2** | Create ThemeContext | ✅ Completed | Auto-detection, localStorage persistence, system listener |
+| **2** | Configure dark mode in Tailwind | ✅ Completed | Already done in Phase 1 (darkMode: 'class') |
+| **2** | Update main.tsx with ThemeProvider | ✅ Completed | App wrapped in ThemeProvider |
+| **2** | Add theme toggle in AppLayout | ✅ Completed | Cycle button (Light→Dark→Auto) with icons, migrated to Tailwind |
+| **3** | Update defaults.ts | ✅ Completed | Added DEFAULT_PROFILE_VALUES with topP, penalties, JSDoc comments |
+| **3** | Update benchmark.ts types | ✅ Completed | Added topP, frequencyPenalty, presencePenalty to ModelProfile |
+| **3** | Update Profiles.tsx form | ✅ Completed | Hybrid defaults (pre-filled critical, placeholders optional), added topP/penalties inputs |
+| **3** | Add helper text to inputs | ✅ Completed | Added helper text for Temperature, Top P, Frequency/Presence Penalty |
+| **3** | Update lmStudioClient.ts | ✅ Completed | Added top_p, frequency_penalty, presence_penalty to payload |
+| **4** | Create Modal component | ✅ Completed | Translucent backdrop (blur), escape/click-outside handlers, slide-in animation |
+| **4** | Create Button component | ✅ Completed | Variants: primary, danger, ghost, default; Sizes: sm, md, lg |
+| **4** | Create Card component | ✅ Completed | Base card with optional hover effect |
+| **4** | Migrate AppLayout to Tailwind | ✅ Completed | Already done in Phase 2 with theme toggle |
+| **4** | Migrate Dashboard to Tailwind | ✅ Completed | All sections migrated: summary cards, charts, dataset, recent runs table |
+| **4** | Migrate Profiles to Tailwind | ✅ Completed | Profile list, form inputs, textareas, benchmark steps, buttons, diagnostics all migrated |
+| **4** | Migrate Runs to Tailwind | ✅ Completed | NewRunPanel converted to Modal component, filters/table/form all migrated |
+| **4** | Migrate RunDetail to Tailwind | ✅ Completed | Header, summary cards, charts, dataset, attempt breakdown all migrated |
+| **5** | Apply consistent spacing scale | ⬜ Not Started | |
+| **5** | Enhance cards and panels | ⬜ Not Started | |
+| **5** | Improve status pills | ⬜ Not Started | |
+| **5** | Add table hover effects | ⬜ Not Started | |
+| **5** | Improve form field styling | ⬜ Not Started | |
+| **5** | Add smooth transitions | ⬜ Not Started | |
+
+**Status Legend:**
+- ⬜ Not Started
+- 🟡 In Progress
+- ✅ Completed
+- ⏭️ Skipped (if applicable)
+
+---
+
+## Important Notes & Decisions
+
+### Modal Requirements
+- All modals MUST have translucent backdrop with `backdrop-blur-md` or `backdrop-blur-lg`
+- Current issue: NewRunPanel in Runs page is an `<aside>` element, not a proper modal
+- Fix: Convert to Modal component with overlay, escape handler, and click-outside-to-close
+
+### JSON Mode Fallback
+- LM Studio client automatically retries without `response_format` if server rejects it
+- Level 2 diagnostics rely on this fallback for OSS models
+- Fallback status tracked in `profile.metadata.supportsJsonMode`
+
+### Theme Preference Behavior
+- Auto mode: Respects system preference and updates in real-time
+- Manual mode: User override persists in localStorage
+- Toggle sequence: Light → Dark → Auto (cycles through states)
+
+### Scope Limitations
+- **No keyboard navigation enhancements** - Not a priority per user request
+- **No accessibility improvements** - Focusing on visual and functional improvements only
+- **No backend integration** - App remains client-side with localStorage
+
+### Design Consistency
+- All components should use Tailwind utility classes
+- Avoid inline styles unless absolutely necessary
+- Custom CSS limited to global base styles and scrollbar styling
+- Maintain BEM naming for any remaining custom classes
+
+---
 
 ## Next Steps
-1. Review this plan with stakeholders to confirm scope and priorities.
-2. Finalize API contracts (especially summary & deletion endpoints).
-3. Kick off Phase A backend work while preparing UI component scaffolding.
-4. Iterate on dashboard visualization mockups before implementation.
 
-This document will evolve as we implement and learn; update sections with decisions, links to PRs, and any shifts in scope.
+1. ✅ Document created and approved
+2. ⬜ Begin Phase 1: Tailwind CSS setup
+3. ⬜ Update this document's progress table after each completed task
+4. ⬜ Mark tasks 🟡 when starting, ✅ when completed
+
+**How to Use This Document:**
+- Reference this roadmap before starting each task
+- Update the Progress Tracking table as you work
+- Add notes in the rightmost column for any blockers or decisions
+- Keep technical specifications updated if implementation details change
+
+---
+
+**Last Updated:** 2025-10-18 (Phase 4 complete - 8/8 tasks | Phase 5 remaining - 0/6 tasks)
