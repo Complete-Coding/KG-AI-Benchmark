@@ -1,0 +1,267 @@
+{
+  "generatedAt": "2025-10-18T13:45:16.286Z",
+  "subjects": [
+    {
+      "name": "Digital Electronics",
+      "canonicalName": "digital-electronics",
+      "topics": [
+        {
+          "name": "Basics of Digital Electronics",
+          "canonicalName": "basics-of-digital-electronics",
+          "subtopics": [
+            {
+              "name": "Basics of Digital Electronics",
+              "canonicalName": "basics-of-digital-electronics"
+            },
+            {
+              "name": "Boolean Algebra",
+              "canonicalName": "boolean-algebra"
+            }
+          ]
+        },
+        {
+          "name": "Logic Gates",
+          "canonicalName": "logic-gates",
+          "subtopics": [
+            {
+              "name": "Basics of Logic Gates",
+              "canonicalName": "basics-of-logic-gates"
+            },
+            {
+              "name": "Not Gate",
+              "canonicalName": "not-gate"
+            },
+            {
+              "name": "Or Gate",
+              "canonicalName": "or-gate"
+            },
+            {
+              "name": "And Gate",
+              "canonicalName": "and-gate"
+            },
+            {
+              "name": "Nor Gate",
+              "canonicalName": "nor-gate"
+            },
+            {
+              "name": "Nand Gate",
+              "canonicalName": "nand-gate"
+            },
+            {
+              "name": "Exor Gate",
+              "canonicalName": "exor-gate"
+            },
+            {
+              "name": "Exnor Gate",
+              "canonicalName": "exnor-gate"
+            },
+            {
+              "name": "Universal Gates",
+              "canonicalName": "universal-gates"
+            }
+          ]
+        },
+        {
+          "name": "Boolean Expression",
+          "canonicalName": "boolean-expression",
+          "subtopics": [
+            {
+              "name": "Basics of boolaen expressions",
+              "canonicalName": "basics-of-boolaen-expressions"
+            },
+            {
+              "name": "Sop expression",
+              "canonicalName": "sop-expression"
+            },
+            {
+              "name": "Pos expression",
+              "canonicalName": "pos-expression"
+            },
+            {
+              "name": "Boolean Functions",
+              "canonicalName": "boolean-functions"
+            },
+            {
+              "name": "functionally complete function",
+              "canonicalName": "functionally-complete-function"
+            }
+          ]
+        },
+        {
+          "name": "Simplification of Boolean Expression",
+          "canonicalName": "simplification-of-boolean-expression",
+          "subtopics": [
+            {
+              "name": "Basics of simplification",
+              "canonicalName": "basics-of-simplification"
+            },
+            {
+              "name": "Kmap",
+              "canonicalName": "kmap"
+            },
+            {
+              "name": "Kmap pos",
+              "canonicalName": "kmap-pos"
+            },
+            {
+              "name": "Operations on functions",
+              "canonicalName": "operations-on-functions"
+            },
+            {
+              "name": "Irredundant function",
+              "canonicalName": "irredundant-function"
+            },
+            {
+              "name": "Simplification Laws",
+              "canonicalName": "simplification-laws"
+            }
+          ]
+        },
+        {
+          "name": "Combinational Circuit",
+          "canonicalName": "combinational-circuit",
+          "subtopics": [
+            {
+              "name": "Basics of combinational circuits",
+              "canonicalName": "basics-of-combinational-circuits"
+            },
+            {
+              "name": "adder",
+              "canonicalName": "adder"
+            },
+            {
+              "name": "multiplexer",
+              "canonicalName": "multiplexer"
+            },
+            {
+              "name": "demultiplexer",
+              "canonicalName": "demultiplexer"
+            },
+            {
+              "name": "decoder",
+              "canonicalName": "decoder"
+            },
+            {
+              "name": "encoder",
+              "canonicalName": "encoder"
+            },
+            {
+              "name": "hazard",
+              "canonicalName": "hazard"
+            }
+          ]
+        },
+        {
+          "name": "Sequential Circuit",
+          "canonicalName": "sequential-circuit",
+          "subtopics": [
+            {
+              "name": "Basics of sequential circuits",
+              "canonicalName": "basics-of-sequential-circuits"
+            },
+            {
+              "name": "Latch",
+              "canonicalName": "latch"
+            },
+            {
+              "name": "flip flop",
+              "canonicalName": "flip-flop"
+            },
+            {
+              "name": "SR flip flop",
+              "canonicalName": "sr-flip-flop"
+            },
+            {
+              "name": "jk flip flop",
+              "canonicalName": "jk-flip-flop"
+            },
+            {
+              "name": "t flip flop",
+              "canonicalName": "t-flip-flop"
+            },
+            {
+              "name": "d flip flop",
+              "canonicalName": "d-flip-flop"
+            },
+            {
+              "name": "Counters",
+              "canonicalName": "counters"
+            },
+            {
+              "name": "synchronous counters",
+              "canonicalName": "synchronous-counters"
+            },
+            {
+              "name": "asynchronous counters",
+              "canonicalName": "asynchronous-counters"
+            },
+            {
+              "name": "Registers",
+              "canonicalName": "registers"
+            }
+          ]
+        },
+        {
+          "name": "Number System",
+          "canonicalName": "number-system",
+          "subtopics": [
+            {
+              "name": "basics of number system",
+              "canonicalName": "basics-of-number-system"
+            },
+            {
+              "name": "any base to decimal",
+              "canonicalName": "any-base-to-decimal"
+            },
+            {
+              "name": "decimal to any base",
+              "canonicalName": "decimal-to-any-base"
+            },
+            {
+              "name": "any base to any base",
+              "canonicalName": "any-base-to-any-base"
+            },
+            {
+              "name": "number system questions",
+              "canonicalName": "number-system-questions"
+            }
+          ]
+        },
+        {
+          "name": "Number representation",
+          "canonicalName": "number-representation",
+          "subtopics": [
+            {
+              "name": "unsigned number",
+              "canonicalName": "unsigned-number"
+            },
+            {
+              "name": "basics of signed number",
+              "canonicalName": "basics-of-signed-number"
+            },
+            {
+              "name": "signed magnitude",
+              "canonicalName": "signed-magnitude"
+            },
+            {
+              "name": "1's complement",
+              "canonicalName": "1s-complement"
+            },
+            {
+              "name": "2's complement",
+              "canonicalName": "2s-complement"
+            },
+            {
+              "name": "BCD",
+              "canonicalName": "bcd"
+            },
+            {
+              "name": "Excess 3 Code",
+              "canonicalName": "excess-3-code"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

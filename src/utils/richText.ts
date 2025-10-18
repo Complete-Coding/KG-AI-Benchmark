@@ -51,18 +51,28 @@ const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?
   node.content?.forEach((child) => collectText(child, buffer, depth, listIndex));
 };
 
-export const richTextToPlain = (node?: RichTextNode | null): string => {
+const sanitize = (value: string) =>
+  value
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+export const richTextToPlain = (node?: RichTextNode | string | null): string => {
   if (!node) {
+    return '';
+  }
+
+  if (typeof node === 'string') {
+    return sanitize(node);
+  }
+
+  if (typeof node !== 'object') {
     return '';
   }
 
   const buffer: string[] = [];
   collectText(node, buffer);
 
-  return buffer
-    .join('')
-    .replace(/\u00a0/g, ' ')
-    .replace(/\s+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return sanitize(buffer.join(''));
 };

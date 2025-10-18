@@ -14,8 +14,10 @@ import {
   DiagnosticsResult,
   ModelProfile,
   QuestionDatasetSummary,
+  QuestionTopologySubject,
 } from '@/types/benchmark';
 import { questionDataset, questionDatasetSummary } from '@/data/questions';
+import { questionTopology, questionTopologyGeneratedAt } from '@/data/topology';
 import { defaultBenchmarkSteps, defaultSystemPrompt, createEmptyRunMetrics } from '@/data/defaults';
 import { loadProfiles, loadRuns, saveProfiles, saveRuns } from '@/services/storage';
 import createId from '@/utils/createId';
@@ -296,6 +298,8 @@ interface BenchmarkContextValue {
   initialized: boolean;
   questions: BenchmarkQuestion[];
   questionSummary: QuestionDatasetSummary;
+  topology: QuestionTopologySubject[];
+  topologyGeneratedAt?: string;
   profiles: ModelProfile[];
   runs: BenchmarkRun[];
   overview: DashboardOverview;
@@ -393,6 +397,8 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       initialized: state.initialized,
       questions: questionDataset,
       questionSummary: questionDatasetSummary,
+      topology: questionTopology,
+      topologyGeneratedAt: questionTopologyGeneratedAt,
       profiles: state.profiles,
       runs: state.runs,
       overview,

@@ -89,6 +89,28 @@ export interface QuestionDatasetSummary {
   };
 }
 
+export interface QuestionTopologySubtopic {
+  name: string;
+  canonicalName: string;
+}
+
+export interface QuestionTopologyTopic {
+  name: string;
+  canonicalName: string;
+  subtopics: QuestionTopologySubtopic[];
+}
+
+export interface QuestionTopologySubject {
+  name: string;
+  canonicalName: string;
+  topics: QuestionTopologyTopic[];
+}
+
+export interface QuestionTopology {
+  generatedAt?: string;
+  subjects: QuestionTopologySubject[];
+}
+
 export interface DiagnosticsLogEntry {
   id: string;
   timestamp: string;

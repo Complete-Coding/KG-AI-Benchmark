@@ -30,6 +30,7 @@ This document tracks the status of the feature set and the upcoming redesign wor
   - Run Detail view renders pass/fail vs latency composed chart, dataset filter summary, and per-attempt drawer with reasoning, token usage, and raw responses.
 - **Question dataset integration**
   - GATE PYQ sample (100 questions) normalized via `questionDataset` loader, exposing topology metadata, accepted answers, and evaluation helpers.
+  - October 2025 refresh replaces rich-text nodes with plain strings and trims metadata to status-only; standalone topology catalogue (`pyq-gate-sample-topology.json`) now drives subject/topic selection.
 
 ## Requested Enhancements & Scope
 1. ✅ **Run lifecycle management**
@@ -42,6 +43,8 @@ This document tracks the status of the feature set and the upcoming redesign wor
    - Dashboard trend chart (accuracy vs latency) and Run Detail composed chart implemented via Recharts.
 5. 🔄 **Document maintenance**
    - This working doc now reflects the Oct 2025 implementation; continue updating with backend integration status and future enhancements.
+6. 🆕 **Dataset alignment**
+   - Normalize the simplified PYQ payload across the app, wire up the topology tree for filters/diagnostics, and ensure evaluators handle missing legacy fields.
 
 ## Proposed UX Structure
 ```
@@ -81,6 +84,7 @@ Local LLM Benchmark
 | **D. Dashboard analytics** | ✅ Complete | KPI cards + accuracy/latency chart delivered via Recharts. |
 | **E. Run detail improvements** | ✅ Complete | Detailed summary, charts, attempt breakdown, token stats. |
 | **F. Polish & validation** | Ongoing | Lint/build green; manual QA with LM Studio pending once credentials validated. |
+| **G. Dataset alignment** | In progress | Rework question loader for simplified schema, surface topology catalogue, and backfill metadata defaults. |
 
 ## Dependencies & Risks
 - **Mongo performance**: Loading 100 questions and full run histories may impact load time; may need server-side caching or client virtualization.
@@ -111,7 +115,8 @@ Local LLM Benchmark
 - Diagnostics switch automatically retries without `response_format` when LM Studio rejects JSON mode, marking profile metadata with `supportsJsonMode=false` so future runs start in fallback mode.
 - Benchmark evaluation leverages `parseModelResponse` + `evaluateModelAnswer` for MCQ/MSQ/NAT/TRUE_FALSE question types. NAT answers respect numeric ranges and accepted answer lists.
 - `executeBenchmarkRun` streams progress into context, allowing live updates in the Runs table and eventual detail view without reload.
-- Question loader normalizes ProseMirror docs to plain text; any Markdown/math should be reviewed before publishing additional datasets.
+- Question loader now handles plain-string prompts/options from the simplified PYQ dataset while retaining compatibility with legacy rich-text payloads.
+- Topology catalogue (`pyq-gate-sample-topology.json`) will feed subject/topic/subtopic filters once ingestion pipeline lands.
 
 ## Next Steps
 1. Wire profile/run persistence to backend APIs (mirror local storage schema, add optimistic updates).
@@ -119,5 +124,6 @@ Local LLM Benchmark
 3. Expand evaluation to support FILL_BLANK and descriptive grading with rubric scoring.
 4. Integrate screenshot capture and export (CSV/JSON) for completed runs.
 5. Validate LM Studio credentials, document setup (base URL, API key) in README once confirmed.
+6. Deliver dataset alignment work: load simplified PYQ data, expose topology-aware filters, and refresh diagnostics sample selection.
 
 This document will evolve as we implement and learn; update sections with decisions, links to PRs, and any shifts in scope.
