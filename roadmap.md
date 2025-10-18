@@ -430,3 +430,5 @@ This approach reduces friction for new users while making it clear which fields 
 ---
 
 **Last Updated:** 2025-10-18 (Phase 4 complete - 8/8 tasks | Phase 5 remaining - 0/6 tasks)
+
+**Critical Fix Applied:** Downgraded from Tailwind CSS v4 to v3.4.0 - Tailwind v4 uses CSS-based configuration incompatible with our JS config file. UI fully tested and working in both light and dark modes.
