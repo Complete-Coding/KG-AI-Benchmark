@@ -268,3 +268,47 @@ export interface DashboardOverview {
   accuracyTrend: { timestamp: string; accuracy: number; runId: string }[];
   latencyTrend: { timestamp: string; latencyMs: number; runId: string }[];
 }
+
+export type ModelCapability =
+  | 'tool_use'
+  | 'vision'
+  | 'embeddings'
+  | 'audio'
+  | 'function_calling'
+  | string;
+
+export interface DiscoveredModel {
+  id: string;
+  /** Friendly label or alias reported by LM Studio */
+  displayName?: string;
+  /** Model type (llm, vlm, embeddings, etc.) */
+  kind?: string;
+  /** Current load state (loaded, unloaded, etc.) */
+  state?: string;
+  /** Maximum supported context length (tokens) */
+  maxContextLength?: number;
+  /** Quantization descriptor such as Q4_K_M */
+  quantization?: string | null;
+  /** Optional filesystem source or archive name */
+  source?: string | null;
+  /** Capabilities advertised by the runtime */
+  capabilities: ModelCapability[];
+  /** Whether the runtime reports the model as loaded */
+  loaded?: boolean;
+  /** Origin information for the discovery request */
+  origin?: {
+    baseUrl: string;
+    endpoint: string;
+  };
+  /** Raw metadata payload for future use/debugging */
+  metadata?: Record<string, unknown>;
+}
+
+export type ModelDiscoveryStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+export interface ModelDiscoveryState {
+  status: ModelDiscoveryStatus;
+  models: DiscoveredModel[];
+  lastFetchedAt?: string;
+  error?: string;
+}

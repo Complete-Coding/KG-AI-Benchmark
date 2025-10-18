@@ -12,26 +12,39 @@ import {
   BenchmarkRun,
   DashboardOverview,
   DiagnosticsResult,
+  DiscoveredModel,
+  ModelDiscoveryState,
   ModelProfile,
   QuestionDatasetSummary,
   QuestionTopologySubject,
 } from '@/types/benchmark';
 import { questionDataset, questionDatasetSummary } from '@/data/questions';
 import { questionTopology, questionTopologyGeneratedAt } from '@/data/topology';
-import { defaultBenchmarkSteps, defaultSystemPrompt, createEmptyRunMetrics } from '@/data/defaults';
+import {
+  defaultBenchmarkSteps,
+  defaultSystemPrompt,
+  createEmptyRunMetrics,
+  DEFAULT_PROFILE_VALUES,
+} from '@/data/defaults';
 import { loadProfiles, loadRuns, saveProfiles, saveRuns } from '@/services/storage';
+import { discoverLmStudioModels, mergeDiscoveryResults } from '@/services/lmStudioDiscovery';
 import createId from '@/utils/createId';
 
 interface BenchmarkState {
   initialized: boolean;
   profiles: ModelProfile[];
   runs: BenchmarkRun[];
+  discovery: ModelDiscoveryState;
 }
 
 const initialState: BenchmarkState = {
   initialized: false,
   profiles: [],
   runs: [],
+  discovery: {
+    status: 'idle',
+    models: [],
+  },
 };
 
 type Action =
@@ -40,9 +53,54 @@ type Action =
   | { type: 'DELETE_PROFILE'; payload: string }
   | { type: 'UPSERT_RUN'; payload: BenchmarkRun }
   | { type: 'DELETE_RUN'; payload: string }
-  | { type: 'RECORD_DIAGNOSTIC'; payload: DiagnosticsResult };
+  | { type: 'RECORD_DIAGNOSTIC'; payload: DiagnosticsResult }
+  | { type: 'DISCOVERY_REQUEST' }
+  | { type: 'DISCOVERY_SUCCESS'; payload: { models: DiscoveredModel[]; fetchedAt: string } }
+  | { type: 'DISCOVERY_FAILURE'; payload: { error: string; fetchedAt?: string } };
 
 const defaultStepById = new Map(defaultBenchmarkSteps.map((step) => [step.id, step]));
+
+interface DiscoveryTarget {
+  baseUrl: string;
+  apiKey?: string;
+  requestTimeoutMs: number;
+}
+
+const clampTimeout = (value?: number) => {
+  const fallback = DEFAULT_PROFILE_VALUES.requestTimeoutMs;
+  const numeric = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return Math.min(Math.max(numeric, 3000), 20000);
+};
+
+const resolveDiscoveryTargets = (profiles: ModelProfile[]): DiscoveryTarget[] => {
+  const targets = new Map<string, DiscoveryTarget>();
+
+  profiles.forEach((profile) => {
+    const baseUrl = profile.baseUrl?.trim();
+    if (!baseUrl) {
+      return;
+    }
+
+    if (!targets.has(baseUrl)) {
+      targets.set(baseUrl, {
+        baseUrl,
+        apiKey: profile.apiKey,
+        requestTimeoutMs: clampTimeout(profile.requestTimeoutMs),
+      });
+    }
+  });
+
+  if (targets.size === 0) {
+    const fallbackUrl = DEFAULT_PROFILE_VALUES.baseUrl;
+    targets.set(fallbackUrl, {
+      baseUrl: fallbackUrl,
+      apiKey: DEFAULT_PROFILE_VALUES.apiKey || undefined,
+      requestTimeoutMs: clampTimeout(DEFAULT_PROFILE_VALUES.requestTimeoutMs),
+    });
+  }
+
+  return Array.from(targets.values());
+};
 
 const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfile): ModelProfile => {
   const now = new Date().toISOString();
@@ -210,6 +268,7 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         initialized: true,
         profiles: action.payload.profiles,
         runs: action.payload.runs,
+        discovery: state.discovery,
       };
     case 'UPSERT_PROFILE': {
       const index = state.profiles.findIndex((profile) => profile.id === action.payload.id);
@@ -289,6 +348,36 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         profiles,
       };
     }
+    case 'DISCOVERY_REQUEST':
+      return {
+        ...state,
+        discovery: {
+          ...state.discovery,
+          status: 'loading',
+          error: undefined,
+        },
+      };
+    case 'DISCOVERY_SUCCESS':
+      return {
+        ...state,
+        discovery: {
+          status: 'ready',
+          models: action.payload.models,
+          lastFetchedAt: action.payload.fetchedAt,
+          error: undefined,
+        },
+      };
+    case 'DISCOVERY_FAILURE':
+      return {
+        ...state,
+        discovery: {
+          ...state.discovery,
+          status: 'error',
+          error: action.payload.error,
+          lastFetchedAt: action.payload.fetchedAt ?? state.discovery.lastFetchedAt,
+          models: state.discovery.models,
+        },
+      };
     default:
       return state;
   }
@@ -303,6 +392,7 @@ interface BenchmarkContextValue {
   profiles: ModelProfile[];
   runs: BenchmarkRun[];
   overview: DashboardOverview;
+  discovery: ModelDiscoveryState;
   upsertProfile: (profile: Partial<ModelProfile>) => ModelProfile;
   deleteProfile: (profileId: string) => void;
   recordDiagnostic: (diagnostic: DiagnosticsResult) => void;
@@ -310,6 +400,7 @@ interface BenchmarkContextValue {
   deleteRun: (runId: string) => void;
   getProfileById: (profileId: string) => ModelProfile | undefined;
   getRunById: (runId: string) => BenchmarkRun | undefined;
+  refreshDiscoveredModels: () => Promise<void>;
 }
 
 const BenchmarkContext = createContext<BenchmarkContextValue | undefined>(undefined);
@@ -390,6 +481,75 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     [state.runs]
   );
 
+  const refreshDiscoveredModels = useCallback(async (): Promise<void> => {
+    const targets = resolveDiscoveryTargets(state.profiles);
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    dispatch({ type: 'DISCOVERY_REQUEST' });
+
+    const results: Array<{ models: DiscoveredModel[]; endpoint: string }> = [];
+    const errors: Error[] = [];
+
+    for (const target of targets) {
+      try {
+        const result = await discoverLmStudioModels({
+          baseUrl: target.baseUrl,
+          apiKey: target.apiKey,
+          requestTimeoutMs: target.requestTimeoutMs,
+          preferRichMetadata: true,
+        });
+        results.push(result);
+      } catch (error) {
+        errors.push(error as Error);
+      }
+    }
+
+    if (results.length > 0) {
+      if (errors.length > 0) {
+        console.warn('Some LM Studio discovery requests failed', errors);
+      }
+
+      const models = mergeDiscoveryResults(results);
+      dispatch({
+        type: 'DISCOVERY_SUCCESS',
+        payload: { models, fetchedAt: new Date().toISOString() },
+      });
+      return;
+    }
+
+    const errorMessage =
+      errors.length > 0
+        ? errors.map((error) => error.message).join('; ')
+        : 'LM Studio did not return any models.';
+
+    dispatch({
+      type: 'DISCOVERY_FAILURE',
+      payload: { error: errorMessage, fetchedAt: new Date().toISOString() },
+    });
+
+    throw new Error(errorMessage);
+  }, [state.profiles]);
+
+  useEffect(() => {
+    if (!state.initialized) {
+      return;
+    }
+
+    if (state.discovery.status !== 'idle') {
+      return;
+    }
+
+    refreshDiscoveredModels().catch((error) => {
+      if ((error as Error).name === 'AbortError') {
+        return;
+      }
+      console.warn('LM Studio discovery failed', error);
+    });
+  }, [state.initialized, state.discovery.status, refreshDiscoveredModels]);
+
   const overview = useMemo(() => computeDashboardOverview(state.runs), [state.runs]);
 
   const value = useMemo<BenchmarkContextValue>(
@@ -402,6 +562,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       profiles: state.profiles,
       runs: state.runs,
       overview,
+      discovery: state.discovery,
       upsertProfile,
       deleteProfile,
       recordDiagnostic,
@@ -409,11 +570,13 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteRun,
       getProfileById,
       getRunById,
+      refreshDiscoveredModels,
     }),
     [
       state.initialized,
       state.profiles,
       state.runs,
+      state.discovery,
       overview,
       upsertProfile,
       deleteProfile,
@@ -422,6 +585,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteRun,
       getProfileById,
       getRunById,
+      refreshDiscoveredModels,
     ]
   );
 
