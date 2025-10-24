@@ -546,24 +546,30 @@ const Runs = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <header className="flex justify-between items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+            Runs
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem] mt-1">
+            Review historical runs, filter by status, and drill into attempt analytics.
+          </p>
+        </div>
+        <button
+          className="bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+          type="button"
+          onClick={() => setShowNewRunPanel(true)}
+        >
+          New run
+        </button>
+      </header>
+
       <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
-        <header className="flex justify-between items-start gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Benchmark runs
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem] mt-1">
-              Review historical runs, filter by status, and drill into attempt analytics.
-            </p>
-          </div>
-          <button
-            className="bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-            type="button"
-            onClick={() => setShowNewRunPanel(true)}
-          >
-            New run
-          </button>
+        <header className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+            All runs
+          </h2>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

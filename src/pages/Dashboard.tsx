@@ -70,15 +70,21 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+          Dashboard
+        </h1>
+        <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+          Track recent benchmark activity, dataset coverage, and cross-run trends.
+        </p>
+      </header>
+
       <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
         <header className="flex flex-col gap-2">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Benchmark at a glance
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+            Overview
           </h2>
-          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-            Track recent benchmark activity, dataset coverage, and cross-run trends.
-          </p>
         </header>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {summaryCards.map((card) => (

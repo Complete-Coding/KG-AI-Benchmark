@@ -30,8 +30,8 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="grid grid-cols-[280px_1fr] min-h-screen lg:grid-cols-1 transition-theme">
-      <aside className="bg-gradient-to-b from-slate-800 to-slate-900 dark:from-slate-900 dark:to-black text-slate-50 p-10 pr-8 flex flex-col gap-10 transition-theme">
+    <div className="min-h-screen lg:flex lg:overflow-hidden transition-theme">
+      <aside className="bg-gradient-to-b from-slate-800 to-slate-900 dark:from-slate-900 dark:to-black text-slate-50 p-6 lg:p-10 lg:pr-8 flex flex-col gap-6 lg:gap-10 transition-theme lg:fixed lg:inset-y-0 lg:h-screen lg:w-[280px]">
         <div className="flex flex-col gap-3">
           <Logo />
           <p className="text-slate-50/65 text-[0.95rem]">Local LLM benchmarking toolkit</p>
@@ -63,18 +63,10 @@ const AppLayout = () => {
           </button>
         </div>
       </aside>
-      <div className="bg-gradient-to-b from-accent-500/5 to-sky-500/5 dark:from-accent-900/10 dark:to-sky-900/10 p-10 pl-12 flex flex-col gap-8 transition-theme">
-        <header className="flex items-center justify-between gap-4">
-          <h1 className="text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            KG AI Benchmark
-          </h1>
-          <span className="bg-accent-500/12 text-accent-600 dark:text-accent-400 font-semibold px-3 py-2 rounded-full text-sm">
-            Tech preview
-          </span>
-        </header>
-        <main className="flex flex-col gap-8">
+      <div className="flex-1 lg:ml-[280px]">
+        <div className="bg-gradient-to-b from-accent-500/5 to-sky-500/5 dark:from-accent-900/10 dark:to-sky-900/10 p-6 lg:p-10 lg:pl-12 transition-theme min-h-screen lg:h-screen lg:overflow-y-auto">
           <Outlet />
-        </main>
+        </div>
       </div>
     </div>
   );
