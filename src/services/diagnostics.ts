@@ -7,8 +7,34 @@ import {
 } from '@/types/benchmark';
 import createId from '@/utils/createId';
 import { sendChatCompletion, fetchModels } from '@/services/lmStudioClient';
-import { expectedAnswerSummary, evaluateModelAnswer, parseModelResponse } from '@/services/evaluation';
-import { questionDataset } from '@/data/questions';
+import { parseModelResponse } from '@/services/evaluation';
+
+/**
+ * Dummy question used exclusively for L2 readiness checks.
+ * This simple MCQ verifies protocol compliance without testing model intelligence.
+ */
+const READINESS_DUMMY_QUESTION: BenchmarkQuestion = {
+  id: 'diagnostics-dummy',
+  questionId: -1,
+  displayId: null,
+  type: 'MCQ',
+  difficulty: 'easy',
+  prompt: 'What is 2 + 2?',
+  options: [
+    { id: 0, order: 0, text: '3' },
+    { id: 1, order: 1, text: '4' },
+    { id: 2, order: 2, text: '5' },
+    { id: 3, order: 3, text: '6' },
+  ],
+  answer: {
+    kind: 'single',
+    correctOption: 1,
+  },
+  metadata: {
+    status: 'active',
+    tags: ['diagnostics', 'dummy'],
+  },
+};
 
 const createLog = (message: string, severity: 'info' | 'warn' | 'error' = 'info') => ({
   id: createId(),
@@ -49,8 +75,6 @@ const formatQuestionPrompt = (question: BenchmarkQuestion) => {
 
   return lines.join('\n');
 };
-
-const selectSampleQuestion = (question?: BenchmarkQuestion) => question ?? questionDataset[0];
 
 interface HandshakeOutcome {
   success: boolean;
@@ -154,19 +178,28 @@ interface ReadinessOutcome {
   metadata: Record<string, unknown>;
 }
 
-const performReadinessCheck = async (
-  profile: ModelProfile,
-  question: BenchmarkQuestion
-): Promise<ReadinessOutcome> => {
+/**
+ * Performs L2 readiness check using a simple dummy question.
+ * This check verifies protocol compliance only - it does NOT check answer correctness.
+ * Success criteria:
+ * - Response received successfully
+ * - Response can be parsed into expected format
+ * - Response contains required 'answer' field
+ */
+const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOutcome> => {
   const logs: DiagnosticsLogEntry[] = [];
-  logs.push(createLog(`Running Level 2 readiness check using question ${question.questionId}.`));
+  logs.push(
+    createLog(
+      'Running Level 2 readiness check using dummy question to verify protocol compliance.'
+    )
+  );
 
   try {
     const completion = await sendChatCompletion({
       profile,
       messages: [
         { role: 'system', content: profile.defaultSystemPrompt },
-        { role: 'user', content: formatQuestionPrompt(question) },
+        { role: 'user', content: formatQuestionPrompt(READINESS_DUMMY_QUESTION) },
       ],
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
@@ -182,26 +215,50 @@ const performReadinessCheck = async (
     );
 
     const parsed = parseModelResponse(completion.text);
-    const evaluation = evaluateModelAnswer(question, parsed);
 
     logs.push(createLog(`Response body: ${completion.text}`));
-    logs.push(
-      createLog(
-        `Evaluation: received "${evaluation.received}", expected "${evaluation.expected}".`
-      )
-    );
+
+    // Check format compliance, NOT answer correctness
+    const hasAnswer = parsed.answer !== undefined && parsed.answer !== null && parsed.answer !== '';
+    const hasValidFormat = typeof parsed.answer === 'string';
+
+    const formatCompliant = hasAnswer && hasValidFormat;
+
+    if (!formatCompliant) {
+      logs.push(
+        createLog(
+          `Protocol check failed: response missing required 'answer' field or invalid format.`,
+          'warn'
+        )
+      );
+    } else {
+      logs.push(
+        createLog(
+          `Protocol check passed: response contains properly formatted 'answer' field ("${parsed.answer}").`
+        )
+      );
+      if (parsed.explanation) {
+        logs.push(createLog(`Optional 'explanation' field present.`));
+      }
+      if (parsed.confidence !== undefined) {
+        logs.push(createLog(`Optional 'confidence' field present: ${parsed.confidence}.`));
+      }
+    }
 
     return {
-      success: evaluation.passed,
+      success: formatCompliant,
       logs,
       supportsJsonMode: !completion.fallbackUsed,
-      summary: evaluation.passed
-        ? 'Readiness check passed with correct answer.'
-        : 'Readiness check completed but answer was incorrect.',
+      summary: formatCompliant
+        ? 'Protocol compliance verified - response format is correct.'
+        : 'Protocol check failed - response format is invalid.',
       metadata: {
-        evaluation,
-        expected: expectedAnswerSummary(question),
-        questionId: question.id,
+        parsedResponse: {
+          hasAnswer,
+          hasExplanation: parsed.explanation !== undefined,
+          hasConfidence: parsed.confidence !== undefined,
+        },
+        rawResponse: completion.text,
       },
     };
   } catch (error) {
@@ -227,13 +284,11 @@ const performReadinessCheck = async (
 interface DiagnosticsOptions {
   profile: ModelProfile;
   level: DiagnosticsLevel;
-  question?: BenchmarkQuestion;
 }
 
 export const runDiagnostics = async ({
   profile,
   level,
-  question,
 }: DiagnosticsOptions): Promise<DiagnosticsResult> => {
   const startedAt = new Date().toISOString();
   let completedAt: string;
@@ -251,8 +306,7 @@ export const runDiagnostics = async ({
     summary = result.summary;
     supportsJsonMode = result.supportsJsonMode;
   } else {
-    const chosenQuestion = selectSampleQuestion(question);
-    const result = await performReadinessCheck(profile, chosenQuestion);
+    const result = await performReadinessCheck(profile);
     completedAt = new Date().toISOString();
     status = result.success ? 'pass' : 'fail';
     logs = result.logs;

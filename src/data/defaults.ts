@@ -70,8 +70,13 @@ export const DEFAULT_PROFILE_VALUES = {
    */
   temperature: 0.2,
 
-  /** Maximum number of tokens in the model's response */
-  maxOutputTokens: 512,
+  /**
+   * Maximum number of tokens in the model's response.
+   * Set to 4096 to allow for detailed explanations in benchmark responses.
+   * This will be auto-adjusted based on model's max context length when
+   * adopting from LM Studio discovery.
+   */
+  maxOutputTokens: 4096,
 
   /** Request timeout in milliseconds (2 minutes default) */
   requestTimeoutMs: 120000,

@@ -101,7 +101,7 @@ const Profiles = () => {
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined);
   const [formState, setFormState] = useState<ProfileFormState>(() => toFormState());
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
-  const [isProfileDialogOpen, setProfileDialogOpen] = useState(true);
+  const [isProfileDialogOpen, setProfileDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -187,6 +187,12 @@ const Profiles = () => {
         model.quantization ? `Quantization: ${model.quantization}.` : undefined;
       const sourceNote = `Discovered via LM Studio (${baseUrl}).`;
 
+      // Intelligently set maxOutputTokens based on model's max context length
+      // Use 50% of context for output, capping at 8192 tokens
+      const intelligentMaxOutputTokens = model.maxContextLength
+        ? Math.min(Math.floor(model.maxContextLength * 0.5), 8192)
+        : defaults.maxOutputTokens;
+
       setDialogMode('create');
       setFormState({
         ...defaults,
@@ -195,6 +201,7 @@ const Profiles = () => {
         apiKey: matchingProfile?.apiKey ?? defaults.apiKey,
         requestTimeoutMs: matchingProfile?.requestTimeoutMs ?? defaults.requestTimeoutMs,
         modelId: model.id,
+        maxOutputTokens: intelligentMaxOutputTokens,
         notes: [sourceNote, quantizationNote, capabilityNote].filter(Boolean).join(' '),
       });
       setFormError(null);
@@ -395,7 +402,7 @@ const Profiles = () => {
                               </p>
                             </div>
                             <div className="flex flex-wrap items-start justify-end gap-3">
-                              <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-col items-end gap-1 max-w-40">
                                 <span
                                   className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
                                     handshake.status === 'ready'
@@ -412,16 +419,16 @@ const Profiles = () => {
                                     ? 'Failed'
                                     : 'Pending'}
                                 </span>
-                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400">
+                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400 text-right break-words">
                                   {handshake.label}
                                 </span>
-                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500">
+                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500 text-right break-words">
                                   {handshake.lastRunAt
                                     ? `Last run: ${formatTimestamp(handshake.lastRunAt)}`
                                     : 'No runs recorded'}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-col items-end gap-1 max-w-40">
                                 <span
                                   className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
                                     readiness.status === 'ready'
@@ -438,10 +445,10 @@ const Profiles = () => {
                                     ? 'Failed'
                                     : 'Pending'}
                                 </span>
-                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400">
+                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400 text-right break-words">
                                   {readiness.label}
                                 </span>
-                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500">
+                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500 text-right break-words">
                                   {readiness.lastRunAt
                                     ? `Last run: ${formatTimestamp(readiness.lastRunAt)}`
                                     : 'No runs recorded'}
@@ -507,7 +514,12 @@ const Profiles = () => {
                                   event.stopPropagation();
                                   void handleRunDiagnostics(profile, 'READINESS');
                                 }}
-                                disabled={diagnosticsBusy}
+                                disabled={diagnosticsBusy || handshake.status !== 'ready'}
+                                title={
+                                  handshake.status !== 'ready'
+                                    ? 'Run L1 handshake first'
+                                    : 'Run L2 readiness check'
+                                }
                                 className="inline-flex items-center px-3 py-1.5 text-sm font-semibold border border-accent-500/70 text-accent-600 hover:text-accent-700 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 {isRunningForProfile && runningDiagnostics?.level === 'READINESS'
@@ -676,7 +688,12 @@ const Profiles = () => {
                   onClick={() => {
                     void handleRunDiagnostics(selectedProfile, 'READINESS');
                   }}
-                  disabled={Boolean(runningDiagnostics)}
+                  disabled={Boolean(runningDiagnostics) || handshakeStats?.status !== 'ready'}
+                  title={
+                    handshakeStats?.status !== 'ready'
+                      ? 'Run L1 handshake first'
+                      : 'Run L2 readiness check'
+                  }
                   className="inline-flex items-center px-4 py-2.5 text-sm font-semibold border border-accent-400 dark:border-accent-500 bg-accent-500/10 dark:bg-accent-500/15 text-accent-700 dark:text-accent-300 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDetailReadinessRunning ? 'Running…' : 'Run Level 2'}
