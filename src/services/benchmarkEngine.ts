@@ -65,6 +65,7 @@ export interface BenchmarkExecutionOptions {
   profile: ModelProfile;
   questions: BenchmarkQuestion[];
   run: BenchmarkRun;
+  onQuestionStart?: (question: BenchmarkQuestion, index: number) => void;
   onProgress?: (attempt: BenchmarkAttempt, progress: number, metrics: BenchmarkRunMetrics) => void;
   signal?: AbortSignal;
 }
@@ -73,6 +74,7 @@ export const executeBenchmarkRun = async ({
   profile,
   questions,
   run,
+  onQuestionStart,
   onProgress,
   signal,
 }: BenchmarkExecutionOptions): Promise<BenchmarkRun> => {
@@ -81,6 +83,8 @@ export const executeBenchmarkRun = async ({
 
   for (let index = 0; index < questions.length; index += 1) {
     const question = questions[index];
+
+    onQuestionStart?.(question, index);
 
     if (signal?.aborted) {
       throw new DOMException('Benchmark run aborted', 'AbortError');

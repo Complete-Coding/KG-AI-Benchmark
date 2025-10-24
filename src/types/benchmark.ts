@@ -248,6 +248,84 @@ export interface BenchmarkRun {
   summary?: string;
 }
 
+export type ActiveRunPhase = 'starting' | 'running' | 'completed' | 'failed';
+
+export type ActiveRunQuestionStatus = 'queued' | 'running' | 'passed' | 'failed';
+
+export interface ActiveRunQuestionProgress {
+  id: string;
+  order: number;
+  label: string;
+  prompt: string;
+  type: QuestionType;
+  status: ActiveRunQuestionStatus;
+  latencyMs?: number;
+  attemptId?: string;
+  notes?: string;
+}
+
+export interface ActiveRunState {
+  runId: string;
+  label: string;
+  profileName: string;
+  profileModelId: string;
+  datasetLabel: string;
+  filters: string[];
+  totalQuestions: number;
+  status: ActiveRunPhase;
+  startedAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  currentQuestionId?: string;
+  metrics: BenchmarkRunMetrics;
+  questions: ActiveRunQuestionProgress[];
+  summary?: string;
+  error?: string;
+}
+
+export interface ActiveRunStartPayload {
+  runId: string;
+  label: string;
+  profileName: string;
+  profileModelId: string;
+  datasetLabel: string;
+  filters: string[];
+  questions: Array<{
+    id: string;
+    order: number;
+    label: string;
+    prompt: string;
+    type: QuestionType;
+  }>;
+  startedAt: string;
+}
+
+export interface ActiveRunQuestionStartPayload {
+  runId: string;
+  questionId: string;
+  timestamp: string;
+}
+
+export interface ActiveRunAttemptPayload {
+  runId: string;
+  questionId: string;
+  attemptId: string;
+  passed: boolean;
+  latencyMs: number;
+  metrics: BenchmarkRunMetrics;
+  notes?: string;
+  timestamp: string;
+}
+
+export interface ActiveRunCompletePayload {
+  runId: string;
+  status: 'completed' | 'failed';
+  summary: string;
+  metrics: BenchmarkRunMetrics;
+  completedAt: string;
+  error?: string;
+}
+
 export interface DashboardRunSummary {
   runId: string;
   label: string;

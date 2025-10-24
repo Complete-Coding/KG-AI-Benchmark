@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+  ActiveRunPhase,
   BenchmarkQuestion,
   BenchmarkRun,
   RunStatus,
@@ -29,6 +30,24 @@ const statusClass: Record<RunStatus, string> = {
   cancelled: 'failed',
 };
 
+const activeRunStatusLabels: Record<ActiveRunPhase, string> = {
+  starting: 'Starting',
+  running: 'Running',
+  completed: 'Completed',
+  failed: 'Failed',
+};
+
+const activeRunStatusClasses: Record<ActiveRunPhase, string> = {
+  starting:
+    'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400',
+  running:
+    'bg-accent-100 text-accent-800 dark:bg-accent-900/30 dark:text-accent-300',
+  completed:
+    'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400',
+  failed:
+    'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
+};
+
 const formatDateTime = (iso?: string) => {
   if (!iso) {
     return '—';
@@ -38,6 +57,31 @@ const formatDateTime = (iso?: string) => {
     hour: '2-digit',
     minute: '2-digit',
   })}`;
+};
+
+const formatDuration = (startedAt?: string, completedAt?: string) => {
+  if (!startedAt) {
+    return '—';
+  }
+
+  const start = new Date(startedAt).getTime();
+  const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return '—';
+  }
+
+  const totalSeconds = Math.floor((end - start) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
 };
 
 interface LaunchRunPayload {
@@ -105,6 +149,7 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
     pyq: new Set<string>(),
   });
   const [launching, setLaunching] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedProfileId),
     [profiles, selectedProfileId]
@@ -210,9 +255,12 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
           void handleLaunch(event);
         }}
       >
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Select a validated profile and curate the question set (up to 100 items).
-        </p>
+        <div className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <p>Select a validated profile and curate the question set (up to 100 items).</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            After launch we will open a full-screen dashboard so you can watch the run in real time.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="flex flex-col">
@@ -254,93 +302,109 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
           </p>
         ) : null}
 
-        <fieldset className="flex flex-col gap-4 border border-slate-300 dark:border-slate-600 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-900/30">
-          <legend className="font-semibold text-slate-900 dark:text-slate-50 px-2">
-            Filters
-          </legend>
-          <div className="flex flex-col gap-4">
-            <div>
-              <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                Type
-              </strong>
-              <div className="flex flex-wrap gap-2">
-                {uniqueTypes.map((type) => (
-                  <label
-                    key={type}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.types.has(type)}
-                      onChange={handleFilterToggle('types', type)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                    />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{type}</span>
-                  </label>
-                ))}
+        <div className="flex flex-col gap-4 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+            className="flex items-center justify-between w-full px-4 py-3 font-semibold text-slate-900 dark:text-slate-50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-xl transition-colors text-left"
+          >
+            <span>Filters</span>
+            <svg
+              className={`w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform ${filtersExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {filtersExpanded ? (
+            <div className="flex flex-col gap-4 px-4 pb-4">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
+                    Type
+                  </strong>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueTypes.map((type) => (
+                      <label
+                        key={type}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.types.has(type)}
+                          onChange={handleFilterToggle('types', type)}
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
+                        />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
+                    Difficulty
+                  </strong>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueDifficulty.map((difficulty) => (
+                      <label
+                        key={difficulty}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.difficulty.has(difficulty)}
+                          onChange={handleFilterToggle('difficulty', difficulty)}
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
+                        />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">{difficulty}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
+                    PYQ year
+                  </strong>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueYears.map((year) => (
+                      <label
+                        key={year}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.pyq.has(year)}
+                          onChange={handleFilterToggle('pyq', year)}
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
+                        />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">{year}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
+              <label className="flex flex-col">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Search
+                </span>
+                <input
+                  type="search"
+                  value={filters.search}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      search: event.target.value,
+                    }))
+                  }
+                  placeholder="Search question text"
+                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                />
+              </label>
             </div>
-            <div>
-              <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                Difficulty
-              </strong>
-              <div className="flex flex-wrap gap-2">
-                {uniqueDifficulty.map((difficulty) => (
-                  <label
-                    key={difficulty}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.difficulty.has(difficulty)}
-                      onChange={handleFilterToggle('difficulty', difficulty)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                    />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{difficulty}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                PYQ year
-              </strong>
-              <div className="flex flex-wrap gap-2">
-                {uniqueYears.map((year) => (
-                  <label
-                    key={year}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.pyq.has(year)}
-                      onChange={handleFilterToggle('pyq', year)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                    />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{year}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <label className="flex flex-col">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Search
-            </span>
-            <input
-              type="search"
-              value={filters.search}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  search: event.target.value,
-                }))
-              }
-              placeholder="Search question text"
-              className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-            />
-          </label>
-        </fieldset>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-4">
           <header className="flex items-center justify-between">
@@ -419,7 +483,7 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
               !readinessPass
             }
           >
-            {launching ? 'Launching…' : 'Launch benchmark'}
+            {launching ? 'Starting…' : 'Run benchmark'}
           </button>
         </div>
       </form>
@@ -428,13 +492,26 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
 };
 
 const Runs = () => {
-  const { runs, profiles, questionSummary, upsertRun, deleteRun, getProfileById, getRunById } =
-    useBenchmarkContext();
+  const {
+    runs,
+    profiles,
+    questionSummary,
+    upsertRun,
+    deleteRun,
+    getProfileById,
+    getRunById,
+    activeRun,
+    beginActiveRun,
+    setActiveRunCurrentQuestion,
+    recordActiveRunAttempt,
+    finalizeActiveRun,
+    clearActiveRun,
+  } = useBenchmarkContext();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<'all' | RunStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [providerFilter, setProviderFilter] = useState<string>('all');
   const [showNewRunPanel, setShowNewRunPanel] = useState(false);
-  const [launchingRunId, setLaunchingRunId] = useState<string | null>(null);
 
   const filteredRuns = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -473,16 +550,14 @@ const Runs = () => {
       if (!confirmed) {
         return;
       }
-    } else {
-      if (!window.confirm('Delete this run and all attempts?')) {
-        return;
-      }
+    } else if (!window.confirm('Delete this run and all attempts?')) {
+      return;
     }
 
     deleteRun(runId);
   };
 
-  const handleLaunchRun = async (payload: LaunchRunPayload) => {
+  const handleLaunchRun = (payload: LaunchRunPayload): Promise<void> => {
     const profile = getProfileById(payload.profileId);
     if (!profile) {
       throw new Error('Profile not found');
@@ -491,6 +566,18 @@ const Runs = () => {
     const selectedQuestions = payload.questionIds
       .map((id) => questionLookup.get(id))
       .filter((question): question is BenchmarkQuestion => Boolean(question));
+
+    if (selectedQuestions.length === 0) {
+      throw new Error('No questions selected');
+    }
+
+    const questionDescriptors = selectedQuestions.map((question, index) => ({
+      id: question.id,
+      order: index,
+      label: question.displayId ?? `Question ${index + 1}`,
+      prompt: question.prompt,
+      type: question.type,
+    }));
 
     const now = new Date().toISOString();
     const initialRun = upsertRun({
@@ -511,38 +598,110 @@ const Runs = () => {
       attempts: [],
     });
 
-    setLaunchingRunId(initialRun.id);
+    beginActiveRun({
+      runId: initialRun.id,
+      label: initialRun.label,
+      profileName: initialRun.profileName,
+      profileModelId: initialRun.profileModelId,
+      datasetLabel: questionSummary.label,
+      filters: payload.filters,
+      questions: questionDescriptors,
+      startedAt: now,
+    });
+
+    void navigate(`/runs/${initialRun.id}?live=1`);
 
     const attempts: BenchmarkRun['attempts'] = [];
     let latestRun = initialRun;
 
-    try {
-      const completedRun = await executeBenchmarkRun({
-        profile,
-        questions: selectedQuestions,
-        run: initialRun,
-        onProgress: (attempt, _progress, metrics) => {
-          attempts.push(attempt);
-          latestRun = upsertRun({
-            ...latestRun,
-            status: 'running',
-            attempts: [...attempts],
-            metrics,
-          });
-        },
-      });
-      latestRun = upsertRun(completedRun);
-    } catch (error) {
-      latestRun = upsertRun({
-        ...latestRun,
-        status: 'failed',
-        completedAt: new Date().toISOString(),
-        summary: `Run failed: ${(error as Error).message}`,
-      });
-      throw error;
-    } finally {
-      setLaunchingRunId(null);
+    const runTask = async () => {
+      try {
+        const completedRun = await executeBenchmarkRun({
+          profile,
+          questions: selectedQuestions,
+          run: initialRun,
+          onQuestionStart: (question) => {
+            setActiveRunCurrentQuestion({
+              runId: initialRun.id,
+              questionId: question.id,
+              timestamp: new Date().toISOString(),
+            });
+          },
+          onProgress: (attempt, _progress, metrics) => {
+            attempts.push(attempt);
+            recordActiveRunAttempt({
+              runId: initialRun.id,
+              questionId: attempt.questionId,
+              attemptId: attempt.id,
+              passed: attempt.evaluation.passed,
+              latencyMs: attempt.latencyMs,
+              notes: attempt.error ?? attempt.evaluation.notes,
+              metrics,
+              timestamp: new Date().toISOString(),
+            });
+            latestRun = upsertRun({
+              ...latestRun,
+              status: 'running',
+              attempts: [...attempts],
+              metrics,
+            });
+          },
+        });
+
+        latestRun = upsertRun(completedRun);
+        finalizeActiveRun({
+          runId: completedRun.id,
+          status: 'completed',
+          summary: completedRun.summary ?? 'Run completed',
+          metrics: completedRun.metrics,
+          completedAt: completedRun.completedAt ?? new Date().toISOString(),
+        });
+      } catch (error) {
+        const errorMessage = (error as Error).message;
+        latestRun = upsertRun({
+          ...latestRun,
+          status: 'failed',
+          completedAt: new Date().toISOString(),
+          summary: `Run failed: ${errorMessage}`,
+        });
+        finalizeActiveRun({
+          runId: latestRun.id,
+          status: 'failed',
+          summary: latestRun.summary ?? 'Run failed',
+          metrics: latestRun.metrics,
+          completedAt: latestRun.completedAt ?? new Date().toISOString(),
+          error: errorMessage,
+        });
+        console.error('Benchmark run failed', error);
+      }
+    };
+
+    void runTask();
+    return Promise.resolve();
+  };
+
+  const showInlineActiveRun = Boolean(activeRun);
+  const inlineTotalQuestions = activeRun?.totalQuestions ?? 0;
+  const inlineAnsweredCount = activeRun
+    ? activeRun.metrics.passedCount + activeRun.metrics.failedCount
+    : 0;
+  const inlineProgressPercent =
+    activeRun && inlineTotalQuestions > 0
+      ? Math.round((inlineAnsweredCount / inlineTotalQuestions) * 100)
+      : 0;
+  const inlineStatusLabel = activeRun ? activeRunStatusLabels[activeRun.status] : '';
+  const inlineStatusClass = activeRun ? activeRunStatusClasses[activeRun.status] : '';
+  const inlineUpdated = activeRun ? formatDateTime(activeRun.updatedAt) : undefined;
+  const inlineElapsed = activeRun ? formatDuration(activeRun.startedAt, activeRun.completedAt) : '—';
+
+  const handleOpenNewRunPanel = () => setShowNewRunPanel(true);
+  const handleCloseNewRunPanel = () => setShowNewRunPanel(false);
+
+  const handleNavigateToActive = () => {
+    if (!activeRun) {
+      return;
     }
+    void navigate(`/runs/${activeRun.runId}?live=1`);
   };
 
   return (
@@ -559,11 +718,76 @@ const Runs = () => {
         <button
           className="bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
           type="button"
-          onClick={() => setShowNewRunPanel(true)}
+          onClick={handleOpenNewRunPanel}
         >
           New run
         </button>
       </header>
+
+      {showInlineActiveRun && activeRun ? (
+        <section className="bg-accent-50 dark:bg-accent-900/10 border border-accent-200 dark:border-accent-700 rounded-2xl p-5 flex flex-col gap-3 transition-theme">
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-700 dark:text-accent-300">
+                Active benchmark
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                {activeRun.label}
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {activeRun.profileName} · {activeRun.profileModelId}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Dataset {activeRun.datasetLabel} · Elapsed {inlineElapsed}
+              </p>
+              {inlineUpdated ? (
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Updated {inlineUpdated}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <span
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${inlineStatusClass}`}
+              >
+                {inlineStatusLabel}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleNavigateToActive}
+                  className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
+                >
+                  View progress
+                </button>
+                {activeRun.status === 'completed' || activeRun.status === 'failed' ? (
+                  <button
+                    type="button"
+                    onClick={clearActiveRun}
+                    className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs font-semibold text-accent-700 dark:text-accent-300 mb-2">
+              <span>
+                {inlineAnsweredCount} of {inlineTotalQuestions} answered
+              </span>
+              <span>{inlineProgressPercent}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-accent-200/60 dark:bg-accent-900/40 overflow-hidden">
+              <div
+                className="h-full bg-accent-500 transition-all duration-300"
+                style={{ width: `${inlineProgressPercent}%` }}
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
         <header className="flex flex-col gap-2">
@@ -741,14 +965,9 @@ const Runs = () => {
 
       <NewRunPanel
         isOpen={showNewRunPanel}
-        onClose={() => setShowNewRunPanel(false)}
+        onClose={handleCloseNewRunPanel}
         onLaunch={handleLaunchRun}
       />
-      {launchingRunId ? (
-        <div className="fixed bottom-6 right-6 bg-accent-600 text-white px-6 py-4 rounded-xl shadow-lg">
-          <p className="font-semibold">Executing run {launchingRunId}. Track progress from the runs table.</p>
-        </div>
-      ) : null}
     </div>
   );
 };

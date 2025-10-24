@@ -8,6 +8,12 @@ import {
   useReducer,
 } from 'react';
 import {
+  ActiveRunAttemptPayload,
+  ActiveRunCompletePayload,
+  ActiveRunQuestionStatus,
+  ActiveRunQuestionStartPayload,
+  ActiveRunStartPayload,
+  ActiveRunState,
   BenchmarkQuestion,
   BenchmarkRun,
   DashboardOverview,
@@ -35,6 +41,7 @@ interface BenchmarkState {
   profiles: ModelProfile[];
   runs: BenchmarkRun[];
   discovery: ModelDiscoveryState;
+  activeRun: ActiveRunState | null;
 }
 
 const initialState: BenchmarkState = {
@@ -45,6 +52,7 @@ const initialState: BenchmarkState = {
     status: 'idle',
     models: [],
   },
+  activeRun: null,
 };
 
 type Action =
@@ -54,6 +62,11 @@ type Action =
   | { type: 'UPSERT_RUN'; payload: BenchmarkRun }
   | { type: 'DELETE_RUN'; payload: string }
   | { type: 'RECORD_DIAGNOSTIC'; payload: DiagnosticsResult }
+  | { type: 'ACTIVE_RUN_INITIALIZE'; payload: ActiveRunStartPayload }
+  | { type: 'ACTIVE_RUN_SET_CURRENT'; payload: ActiveRunQuestionStartPayload }
+  | { type: 'ACTIVE_RUN_RECORD_ATTEMPT'; payload: ActiveRunAttemptPayload }
+  | { type: 'ACTIVE_RUN_COMPLETE'; payload: ActiveRunCompletePayload }
+  | { type: 'ACTIVE_RUN_CLEAR' }
   | { type: 'DISCOVERY_REQUEST' }
   | { type: 'DISCOVERY_SUCCESS'; payload: { models: DiscoveredModel[]; fetchedAt: string } }
   | { type: 'DISCOVERY_FAILURE'; payload: { error: string; fetchedAt?: string } };
@@ -261,6 +274,32 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
   };
 };
 
+const buildActiveRunState = (payload: ActiveRunStartPayload): ActiveRunState => {
+  const metrics = createEmptyRunMetrics();
+
+  return {
+    runId: payload.runId,
+    label: payload.label,
+    profileName: payload.profileName,
+    profileModelId: payload.profileModelId,
+    datasetLabel: payload.datasetLabel,
+    filters: payload.filters,
+    totalQuestions: payload.questions.length,
+    status: 'starting',
+    startedAt: payload.startedAt,
+    updatedAt: payload.startedAt,
+    metrics,
+    questions: payload.questions.map((question) => ({
+      id: question.id,
+      order: question.order,
+      label: question.label,
+      prompt: question.prompt,
+      type: question.type,
+      status: 'queued' as ActiveRunQuestionStatus,
+    })),
+  };
+};
+
 const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
   switch (action.type) {
     case 'INITIALIZE':
@@ -269,6 +308,7 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         profiles: action.payload.profiles,
         runs: action.payload.runs,
         discovery: state.discovery,
+        activeRun: state.activeRun,
       };
     case 'UPSERT_PROFILE': {
       const index = state.profiles.findIndex((profile) => profile.id === action.payload.id);
@@ -348,6 +388,110 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         profiles,
       };
     }
+    case 'ACTIVE_RUN_INITIALIZE':
+      return {
+        ...state,
+        activeRun: buildActiveRunState(action.payload),
+      };
+    case 'ACTIVE_RUN_SET_CURRENT': {
+      const activeRun = state.activeRun;
+      if (!activeRun || activeRun.runId !== action.payload.runId) {
+        return state;
+      }
+
+      const questions = activeRun.questions.map((question) => {
+        if (question.id === action.payload.questionId) {
+          const status: ActiveRunQuestionStatus =
+            question.status === 'passed' || question.status === 'failed'
+              ? question.status
+              : 'running';
+          return {
+            ...question,
+            status,
+          };
+        }
+
+        if (question.status === 'running') {
+          return {
+            ...question,
+            status: 'queued' as ActiveRunQuestionStatus,
+          };
+        }
+
+        return question;
+      });
+
+      return {
+        ...state,
+        activeRun: {
+          ...activeRun,
+          status: activeRun.status === 'starting' ? 'running' : activeRun.status,
+          currentQuestionId: action.payload.questionId,
+          updatedAt: action.payload.timestamp,
+          questions,
+        },
+      };
+    }
+    case 'ACTIVE_RUN_RECORD_ATTEMPT': {
+      const activeRun = state.activeRun;
+      if (!activeRun || activeRun.runId !== action.payload.runId) {
+        return state;
+      }
+
+      const questions = activeRun.questions.map((question) => {
+        if (question.id !== action.payload.questionId) {
+          return question;
+        }
+
+        return {
+          ...question,
+          status: (action.payload.passed ? 'passed' : 'failed') as ActiveRunQuestionStatus,
+          latencyMs: action.payload.latencyMs,
+          attemptId: action.payload.attemptId,
+          notes: action.payload.notes,
+        };
+      });
+
+      return {
+        ...state,
+        activeRun: {
+          ...activeRun,
+          status: activeRun.status === 'starting' ? 'running' : activeRun.status,
+          questions,
+          metrics: action.payload.metrics,
+          currentQuestionId:
+            activeRun.currentQuestionId === action.payload.questionId
+              ? undefined
+              : activeRun.currentQuestionId,
+          updatedAt: action.payload.timestamp,
+        },
+      };
+    }
+    case 'ACTIVE_RUN_COMPLETE': {
+      const activeRun = state.activeRun;
+      if (!activeRun || activeRun.runId !== action.payload.runId) {
+        return state;
+      }
+
+      return {
+        ...state,
+        activeRun: {
+          ...activeRun,
+          status: action.payload.status,
+          summary: action.payload.summary,
+          metrics: action.payload.metrics,
+          completedAt: action.payload.completedAt,
+          updatedAt: action.payload.completedAt,
+          currentQuestionId: undefined,
+          error: action.payload.error,
+        },
+      };
+    }
+    case 'ACTIVE_RUN_CLEAR':
+      return {
+        ...state,
+        activeRun: null,
+      };
     case 'DISCOVERY_REQUEST':
       return {
         ...state,
@@ -393,6 +537,7 @@ interface BenchmarkContextValue {
   runs: BenchmarkRun[];
   overview: DashboardOverview;
   discovery: ModelDiscoveryState;
+  activeRun: ActiveRunState | null;
   upsertProfile: (profile: Partial<ModelProfile>) => ModelProfile;
   deleteProfile: (profileId: string) => void;
   recordDiagnostic: (diagnostic: DiagnosticsResult) => void;
@@ -400,6 +545,11 @@ interface BenchmarkContextValue {
   deleteRun: (runId: string) => void;
   getProfileById: (profileId: string) => ModelProfile | undefined;
   getRunById: (runId: string) => BenchmarkRun | undefined;
+  beginActiveRun: (payload: ActiveRunStartPayload) => void;
+  setActiveRunCurrentQuestion: (payload: ActiveRunQuestionStartPayload) => void;
+  recordActiveRunAttempt: (payload: ActiveRunAttemptPayload) => void;
+  finalizeActiveRun: (payload: ActiveRunCompletePayload) => void;
+  clearActiveRun: () => void;
   refreshDiscoveredModels: () => Promise<void>;
 }
 
@@ -480,6 +630,26 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     (runId: string) => state.runs.find((run) => run.id === runId),
     [state.runs]
   );
+
+  const beginActiveRun = useCallback((payload: ActiveRunStartPayload) => {
+    dispatch({ type: 'ACTIVE_RUN_INITIALIZE', payload });
+  }, []);
+
+  const setActiveRunCurrentQuestion = useCallback((payload: ActiveRunQuestionStartPayload) => {
+    dispatch({ type: 'ACTIVE_RUN_SET_CURRENT', payload });
+  }, []);
+
+  const recordActiveRunAttempt = useCallback((payload: ActiveRunAttemptPayload) => {
+    dispatch({ type: 'ACTIVE_RUN_RECORD_ATTEMPT', payload });
+  }, []);
+
+  const finalizeActiveRun = useCallback((payload: ActiveRunCompletePayload) => {
+    dispatch({ type: 'ACTIVE_RUN_COMPLETE', payload });
+  }, []);
+
+  const clearActiveRun = useCallback(() => {
+    dispatch({ type: 'ACTIVE_RUN_CLEAR' });
+  }, []);
 
   const refreshDiscoveredModels = useCallback(async (): Promise<void> => {
     const targets = resolveDiscoveryTargets(state.profiles);
@@ -563,6 +733,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       runs: state.runs,
       overview,
       discovery: state.discovery,
+      activeRun: state.activeRun,
       upsertProfile,
       deleteProfile,
       recordDiagnostic,
@@ -570,6 +741,11 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteRun,
       getProfileById,
       getRunById,
+      beginActiveRun,
+      setActiveRunCurrentQuestion,
+      recordActiveRunAttempt,
+      finalizeActiveRun,
+      clearActiveRun,
       refreshDiscoveredModels,
     }),
     [
@@ -577,6 +753,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       state.profiles,
       state.runs,
       state.discovery,
+      state.activeRun,
       overview,
       upsertProfile,
       deleteProfile,
@@ -585,6 +762,11 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteRun,
       getProfileById,
       getRunById,
+      beginActiveRun,
+      setActiveRunCurrentQuestion,
+      recordActiveRunAttempt,
+      finalizeActiveRun,
+      clearActiveRun,
       refreshDiscoveredModels,
     ]
   );
