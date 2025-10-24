@@ -1,0 +1,4351 @@
+{
+  "generatedAt": "2025-10-24T12:47:42.353Z",
+  "subjects": [
+    {
+      "name": "Discrete Mathematics",
+      "canonicalName": "discrete-mathematics",
+      "topics": [
+        {
+          "name": "Set Theory",
+          "canonicalName": "set-theory",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Types of Sets",
+              "canonicalName": "types-of-sets"
+            },
+            {
+              "name": "Subset",
+              "canonicalName": "subset"
+            },
+            {
+              "name": "Power set",
+              "canonicalName": "power-set"
+            },
+            {
+              "name": "Operators",
+              "canonicalName": "operators"
+            },
+            {
+              "name": "Laws",
+              "canonicalName": "laws"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Relations",
+          "canonicalName": "relations",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Reflexive Relation",
+              "canonicalName": "reflexive-relation"
+            },
+            {
+              "name": "Irreflexive Relation",
+              "canonicalName": "irreflexive-relation"
+            },
+            {
+              "name": "Symmetric Relation",
+              "canonicalName": "symmetric-relation"
+            },
+            {
+              "name": "Anti-Symmetric Relation",
+              "canonicalName": "anti-symmetric-relation"
+            },
+            {
+              "name": "Asymmetric relation",
+              "canonicalName": "asymmetric-relation"
+            },
+            {
+              "name": "Transitive Relation",
+              "canonicalName": "transitive-relation"
+            },
+            {
+              "name": "Equivalence Relation",
+              "canonicalName": "equivalence-relation"
+            },
+            {
+              "name": "Partial Order Relation",
+              "canonicalName": "partial-order-relation"
+            },
+            {
+              "name": "Hasse Diagram",
+              "canonicalName": "hasse-diagram"
+            },
+            {
+              "name": "Lattice",
+              "canonicalName": "lattice"
+            },
+            {
+              "name": "Boolean algebra",
+              "canonicalName": "boolean-algebra"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Functions",
+          "canonicalName": "functions",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "One-to-One (Injective)",
+              "canonicalName": "one-to-one-injective"
+            },
+            {
+              "name": "Onto (Surjective)",
+              "canonicalName": "onto-surjective"
+            },
+            {
+              "name": "Bijective",
+              "canonicalName": "bijective"
+            },
+            {
+              "name": "Inverse of a Function",
+              "canonicalName": "inverse-of-a-function"
+            },
+            {
+              "name": "Composition of Functions",
+              "canonicalName": "composition-of-functions"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Graph Theory",
+          "canonicalName": "graph-theory",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Types of Graphs",
+              "canonicalName": "types-of-graphs"
+            },
+            {
+              "name": "Number of Graphs",
+              "canonicalName": "number-of-graphs"
+            },
+            {
+              "name": "Degree of Vertex",
+              "canonicalName": "degree-of-vertex"
+            },
+            {
+              "name": "Minimum Maximum Degree",
+              "canonicalName": "minimum-maximum-degree"
+            },
+            {
+              "name": "Complement of a Graph",
+              "canonicalName": "complement-of-a-graph"
+            },
+            {
+              "name": "Graph Traversal",
+              "canonicalName": "graph-traversal"
+            },
+            {
+              "name": "Graph Planarity",
+              "canonicalName": "graph-planarity"
+            },
+            {
+              "name": "Euler Formula",
+              "canonicalName": "euler-formula"
+            },
+            {
+              "name": "Euler Formula Versions",
+              "canonicalName": "euler-formula-versions"
+            },
+            {
+              "name": "Graph Coloring",
+              "canonicalName": "graph-coloring"
+            },
+            {
+              "name": "Tree",
+              "canonicalName": "tree"
+            },
+            {
+              "name": "Spanning Tree and Forest",
+              "canonicalName": "spanning-tree-and-forest"
+            },
+            {
+              "name": "Cutset and Connectivity",
+              "canonicalName": "cutset-and-connectivity"
+            },
+            {
+              "name": "Graph Isomorphism",
+              "canonicalName": "graph-isomorphism"
+            },
+            {
+              "name": "Graph Matching",
+              "canonicalName": "graph-matching"
+            },
+            {
+              "name": "Graph Covering",
+              "canonicalName": "graph-covering"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Group Theory",
+          "canonicalName": "group-theory",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Closure Property and Algebraic Structure",
+              "canonicalName": "closure-property-and-algebraic-structure"
+            },
+            {
+              "name": "Associative Property and Semi-Groups",
+              "canonicalName": "associative-property-and-semi-groups"
+            },
+            {
+              "name": "Identity Property and Monoid",
+              "canonicalName": "identity-property-and-monoid"
+            },
+            {
+              "name": "Inverse Property and Group",
+              "canonicalName": "inverse-property-and-group"
+            },
+            {
+              "name": "Properties of group",
+              "canonicalName": "properties-of-group"
+            },
+            {
+              "name": "Commutative Property and Abelian Group",
+              "canonicalName": "commutative-property-and-abelian-group"
+            },
+            {
+              "name": "Finite group Vs Infinite Group",
+              "canonicalName": "finite-group-vs-infinite-group"
+            },
+            {
+              "name": "Sub Group",
+              "canonicalName": "sub-group"
+            },
+            {
+              "name": "Cyclic Group",
+              "canonicalName": "cyclic-group"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Proposition",
+          "canonicalName": "proposition",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Operators in Proposition",
+              "canonicalName": "operators-in-proposition"
+            },
+            {
+              "name": "Types of Cases",
+              "canonicalName": "types-of-cases"
+            },
+            {
+              "name": "Questions from Proposition",
+              "canonicalName": "questions-from-proposition"
+            },
+            {
+              "name": "First Order Predicate Logic",
+              "canonicalName": "first-order-predicate-logic"
+            },
+            {
+              "name": "Quantifiers",
+              "canonicalName": "quantifiers"
+            },
+            {
+              "name": "Questions From Quantifier",
+              "canonicalName": "questions-from-quantifier"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Computer Networks",
+      "canonicalName": "computer-networks",
+      "topics": [
+        {
+          "name": "Basics of Computer Networks",
+          "canonicalName": "basics-of-computer-networks",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Data Communication",
+              "canonicalName": "data-communication"
+            },
+            {
+              "name": "Transmission Mode",
+              "canonicalName": "transmission-mode"
+            },
+            {
+              "name": "Type of Connection",
+              "canonicalName": "type-of-connection"
+            },
+            {
+              "name": "Topology",
+              "canonicalName": "topology"
+            },
+            {
+              "name": "OSI model",
+              "canonicalName": "osi-model"
+            },
+            {
+              "name": "Basics of Physical Layer",
+              "canonicalName": "basics-of-physical-layer"
+            },
+            {
+              "name": "Basics of Data Link Layer",
+              "canonicalName": "basics-of-data-link-layer"
+            },
+            {
+              "name": "Basics of Network Layer",
+              "canonicalName": "basics-of-network-layer"
+            },
+            {
+              "name": "Basics of Transport Layer",
+              "canonicalName": "basics-of-transport-layer"
+            },
+            {
+              "name": "Basics of Session Layer",
+              "canonicalName": "basics-of-session-layer"
+            },
+            {
+              "name": "Basics of Presentation Layer",
+              "canonicalName": "basics-of-presentation-layer"
+            },
+            {
+              "name": "Basics of Application Layer",
+              "canonicalName": "basics-of-application-layer"
+            },
+            {
+              "name": "Switching",
+              "canonicalName": "switching"
+            },
+            {
+              "name": "Transmission Medium",
+              "canonicalName": "transmission-medium"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Link Layer - Access Control",
+          "canonicalName": "data-link-layer-access-control",
+          "subtopics": [
+            {
+              "name": "Basics of Multiple Access",
+              "canonicalName": "basics-of-multiple-access"
+            },
+            {
+              "name": "Basics of Random Access",
+              "canonicalName": "basics-of-random-access"
+            },
+            {
+              "name": "Pure Aloha",
+              "canonicalName": "pure-aloha"
+            },
+            {
+              "name": "Slotted Aloha",
+              "canonicalName": "slotted-aloha"
+            },
+            {
+              "name": "CSMA",
+              "canonicalName": "csma"
+            },
+            {
+              "name": "Persistence Methods in CSMA",
+              "canonicalName": "persistence-methods-in-csma"
+            },
+            {
+              "name": "CSMA CD",
+              "canonicalName": "csma-cd"
+            },
+            {
+              "name": "CSMA CA",
+              "canonicalName": "csma-ca"
+            },
+            {
+              "name": "Reservation - Controlled Access",
+              "canonicalName": "reservation-controlled-access"
+            },
+            {
+              "name": "Polling - Controlled Access",
+              "canonicalName": "polling-controlled-access"
+            },
+            {
+              "name": "Token Passing - Controlled Access",
+              "canonicalName": "token-passing-controlled-access"
+            },
+            {
+              "name": "FDMA - Channelization",
+              "canonicalName": "fdma-channelization"
+            },
+            {
+              "name": "TDMA - Channelization",
+              "canonicalName": "tdma-channelization"
+            },
+            {
+              "name": "CDMA - Channelization",
+              "canonicalName": "cdma-channelization"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Link Layer - Flow Control",
+          "canonicalName": "data-link-layer-flow-control",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Simplest Protocol",
+              "canonicalName": "simplest-protocol"
+            },
+            {
+              "name": "Stop and Wait Protocol",
+              "canonicalName": "stop-and-wait-protocol"
+            },
+            {
+              "name": "Stop and Wait Protocol - ARQ",
+              "canonicalName": "stop-and-wait-protocol-arq"
+            },
+            {
+              "name": "Go Back N - ARQ",
+              "canonicalName": "go-back-n-arq"
+            },
+            {
+              "name": "Selective Repeat - ARQ",
+              "canonicalName": "selective-repeat-arq"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Link Layer - Error Control",
+          "canonicalName": "data-link-layer-error-control",
+          "subtopics": [
+            {
+              "name": "Types of Error",
+              "canonicalName": "types-of-error"
+            },
+            {
+              "name": "Basics of Error Detection",
+              "canonicalName": "basics-of-error-detection"
+            },
+            {
+              "name": "Block Coding for Error Detection",
+              "canonicalName": "block-coding-for-error-detection"
+            },
+            {
+              "name": "Basics of Hamming Distance",
+              "canonicalName": "basics-of-hamming-distance"
+            },
+            {
+              "name": "Minimum Hamming Distance for Error Detection and Correction",
+              "canonicalName": "minimum-hamming-distance-for-error-detection-and-correction"
+            },
+            {
+              "name": "One-Dimesional Parity Check",
+              "canonicalName": "one-dimesional-parity-check"
+            },
+            {
+              "name": "Two-Dimesional Parity Check",
+              "canonicalName": "two-dimesional-parity-check"
+            },
+            {
+              "name": "Hamming Codes with error detection and Correction",
+              "canonicalName": "hamming-codes-with-error-detection-and-correction"
+            },
+            {
+              "name": "CheckSum",
+              "canonicalName": "checksum"
+            },
+            {
+              "name": "Cyclic Redundancy Check",
+              "canonicalName": "cyclic-redundancy-check"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Link Layer - Framing",
+          "canonicalName": "data-link-layer-framing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Character Oriented Framing",
+              "canonicalName": "character-oriented-framing"
+            },
+            {
+              "name": "Byte Stuffing",
+              "canonicalName": "byte-stuffing"
+            },
+            {
+              "name": "Bit-Oriented Approach",
+              "canonicalName": "bit-oriented-approach"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Link Layer - Ethernet",
+          "canonicalName": "data-link-layer-ethernet",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Strucutre of Ethernet Frame",
+              "canonicalName": "strucutre-of-ethernet-frame"
+            },
+            {
+              "name": "Manchester Coding",
+              "canonicalName": "manchester-coding"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Network Layer - Basics & Protocols",
+          "canonicalName": "network-layer-basics-protocols",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Basics of IPv4",
+              "canonicalName": "basics-of-ipv4"
+            },
+            {
+              "name": "Version Field in IPv4",
+              "canonicalName": "version-field-in-ipv4"
+            },
+            {
+              "name": "Header Length in IPv4",
+              "canonicalName": "header-length-in-ipv4"
+            },
+            {
+              "name": "Service Field in IPv4",
+              "canonicalName": "service-field-in-ipv4"
+            },
+            {
+              "name": "Total Length Field in IPv4",
+              "canonicalName": "total-length-field-in-ipv4"
+            },
+            {
+              "name": "Identification Field in IPv4",
+              "canonicalName": "identification-field-in-ipv4"
+            },
+            {
+              "name": "Fragmentation in IPv4",
+              "canonicalName": "fragmentation-in-ipv4"
+            },
+            {
+              "name": "Time-To-Live Field in IPv4",
+              "canonicalName": "time-to-live-field-in-ipv4"
+            },
+            {
+              "name": "Protocol Field in IPv4",
+              "canonicalName": "protocol-field-in-ipv4"
+            },
+            {
+              "name": "Header CheckSum Field in IPv4",
+              "canonicalName": "header-checksum-field-in-ipv4"
+            },
+            {
+              "name": "Options Field in IPv4",
+              "canonicalName": "options-field-in-ipv4"
+            },
+            {
+              "name": "IPv4 Multiple Topics",
+              "canonicalName": "ipv4-multiple-topics"
+            },
+            {
+              "name": "ARP",
+              "canonicalName": "arp"
+            },
+            {
+              "name": "RARP",
+              "canonicalName": "rarp"
+            },
+            {
+              "name": "ICMP",
+              "canonicalName": "icmp"
+            },
+            {
+              "name": "IGMP",
+              "canonicalName": "igmp"
+            },
+            {
+              "name": "Congestion Control",
+              "canonicalName": "congestion-control"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Network Layer - IP Addressing",
+          "canonicalName": "network-layer-ip-addressing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Notations Of IP Address",
+              "canonicalName": "notations-of-ip-address"
+            },
+            {
+              "name": "Class A",
+              "canonicalName": "class-a"
+            },
+            {
+              "name": "Class B",
+              "canonicalName": "class-b"
+            },
+            {
+              "name": "Class C",
+              "canonicalName": "class-c"
+            },
+            {
+              "name": "Class D & E",
+              "canonicalName": "class-d-e"
+            },
+            {
+              "name": "Types of Casting",
+              "canonicalName": "types-of-casting"
+            },
+            {
+              "name": "SubNetting in Classfull Addressing",
+              "canonicalName": "subnetting-in-classfull-addressing"
+            },
+            {
+              "name": "SubNetting In CIDR",
+              "canonicalName": "subnetting-in-cidr"
+            },
+            {
+              "name": "Super Netting in ClassFul Addressing",
+              "canonicalName": "super-netting-in-classful-addressing"
+            },
+            {
+              "name": "Special Address 127.0.0.1",
+              "canonicalName": "special-address-127001"
+            },
+            {
+              "name": "Private IP Address",
+              "canonicalName": "private-ip-address"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Network Layer - Routing Protocols",
+          "canonicalName": "network-layer-routing-protocols",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Distance Vector Routing",
+              "canonicalName": "distance-vector-routing"
+            },
+            {
+              "name": "Routing Information Protocol (RIP)",
+              "canonicalName": "routing-information-protocol-rip"
+            },
+            {
+              "name": "Link State Routing",
+              "canonicalName": "link-state-routing"
+            },
+            {
+              "name": "Open Shortest Path First (OSPF)",
+              "canonicalName": "open-shortest-path-first-ospf"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Transport Layer - Basics and Protocols",
+          "canonicalName": "transport-layer-basics-and-protocols",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Port Number and Socket Address",
+              "canonicalName": "port-number-and-socket-address"
+            },
+            {
+              "name": "Transmission Control Protocol",
+              "canonicalName": "transmission-control-protocol"
+            },
+            {
+              "name": "TCP - Source Destination Port Address",
+              "canonicalName": "tcp-source-destination-port-address"
+            },
+            {
+              "name": "TCP - Sequence Acknowledgement Number",
+              "canonicalName": "tcp-sequence-acknowledgement-number"
+            },
+            {
+              "name": "TCP - Wrap Around Time",
+              "canonicalName": "tcp-wrap-around-time"
+            },
+            {
+              "name": "TCP - Header Length Field",
+              "canonicalName": "tcp-header-length-field"
+            },
+            {
+              "name": "TCP - Check Sum Field",
+              "canonicalName": "tcp-check-sum-field"
+            },
+            {
+              "name": "TCP - Window Size Field",
+              "canonicalName": "tcp-window-size-field"
+            },
+            {
+              "name": "TCP - Urgent Pointer Field",
+              "canonicalName": "tcp-urgent-pointer-field"
+            },
+            {
+              "name": "TCP - Control Flags",
+              "canonicalName": "tcp-control-flags"
+            },
+            {
+              "name": "TCP Connection",
+              "canonicalName": "tcp-connection"
+            },
+            {
+              "name": "TCP - Option Field",
+              "canonicalName": "tcp-option-field"
+            },
+            {
+              "name": "SYN Flooding Attack (Denial of Service)",
+              "canonicalName": "syn-flooding-attack-denial-of-service"
+            },
+            {
+              "name": "TCP Retransmission",
+              "canonicalName": "tcp-retransmission"
+            },
+            {
+              "name": "RFC 793",
+              "canonicalName": "rfc-793"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Transport Layer - Congestion Control",
+          "canonicalName": "transport-layer-congestion-control",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Slow Start Phase (Exponential Increase)",
+              "canonicalName": "slow-start-phase-exponential-increase"
+            },
+            {
+              "name": "Congestion Avoidance",
+              "canonicalName": "congestion-avoidance"
+            },
+            {
+              "name": "Congestion Detection",
+              "canonicalName": "congestion-detection"
+            },
+            {
+              "name": "Types of Timers",
+              "canonicalName": "types-of-timers"
+            },
+            {
+              "name": "Silly Window Syndrome & Nagle's Algo",
+              "canonicalName": "silly-window-syndrome-nagles-algo"
+            },
+            {
+              "name": "UNIX Socket API",
+              "canonicalName": "unix-socket-api"
+            },
+            {
+              "name": "User Datagram Protocol",
+              "canonicalName": "user-datagram-protocol"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Application Layer",
+          "canonicalName": "application-layer",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Electronic Mail",
+              "canonicalName": "electronic-mail"
+            },
+            {
+              "name": "WWW Architecture",
+              "canonicalName": "www-architecture"
+            },
+            {
+              "name": "Client Server Architecture",
+              "canonicalName": "client-server-architecture"
+            },
+            {
+              "name": "Cookies",
+              "canonicalName": "cookies"
+            },
+            {
+              "name": "HTTP",
+              "canonicalName": "http"
+            },
+            {
+              "name": "Proxy Server",
+              "canonicalName": "proxy-server"
+            },
+            {
+              "name": "Connection Types",
+              "canonicalName": "connection-types"
+            },
+            {
+              "name": "File Transfer Protocol",
+              "canonicalName": "file-transfer-protocol"
+            },
+            {
+              "name": "Domain Name System",
+              "canonicalName": "domain-name-system"
+            },
+            {
+              "name": "Hierarchical Name Space",
+              "canonicalName": "hierarchical-name-space"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Hardware basics",
+          "canonicalName": "hardware-basics",
+          "subtopics": [
+            {
+              "name": "Repeater",
+              "canonicalName": "repeater"
+            },
+            {
+              "name": "Hub",
+              "canonicalName": "hub"
+            },
+            {
+              "name": "Bridge",
+              "canonicalName": "bridge"
+            },
+            {
+              "name": "Switch",
+              "canonicalName": "switch"
+            },
+            {
+              "name": "Router",
+              "canonicalName": "router"
+            },
+            {
+              "name": "Gateway",
+              "canonicalName": "gateway"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Cryptography",
+          "canonicalName": "cryptography",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Symmetric Key",
+              "canonicalName": "symmetric-key"
+            },
+            {
+              "name": "Asymmetric Key",
+              "canonicalName": "asymmetric-key"
+            },
+            {
+              "name": "Confidentiality",
+              "canonicalName": "confidentiality"
+            },
+            {
+              "name": "Authentication",
+              "canonicalName": "authentication"
+            },
+            {
+              "name": "RSA Algorithm",
+              "canonicalName": "rsa-algorithm"
+            },
+            {
+              "name": "Fermat Little Theorem",
+              "canonicalName": "fermat-little-theorem"
+            },
+            {
+              "name": "Diffie Hellman",
+              "canonicalName": "diffie-hellman"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Digital Electronics",
+      "canonicalName": "digital-electronics",
+      "topics": [
+        {
+          "name": "Basics of Digital Electronics",
+          "canonicalName": "basics-of-digital-electronics",
+          "subtopics": [
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            },
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Boolean Algebra",
+              "canonicalName": "boolean-algebra"
+            }
+          ]
+        },
+        {
+          "name": "Logic Gates",
+          "canonicalName": "logic-gates",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Not Gate",
+              "canonicalName": "not-gate"
+            },
+            {
+              "name": "Or Gate",
+              "canonicalName": "or-gate"
+            },
+            {
+              "name": "And Gate",
+              "canonicalName": "and-gate"
+            },
+            {
+              "name": "Nor Gate",
+              "canonicalName": "nor-gate"
+            },
+            {
+              "name": "Nand Gate",
+              "canonicalName": "nand-gate"
+            },
+            {
+              "name": "Exor Gate",
+              "canonicalName": "exor-gate"
+            },
+            {
+              "name": "Exnor Gate",
+              "canonicalName": "exnor-gate"
+            },
+            {
+              "name": "Exor Exnor relationship",
+              "canonicalName": "exor-exnor-relationship"
+            },
+            {
+              "name": "Universal Gates",
+              "canonicalName": "universal-gates"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Boolean Expression",
+          "canonicalName": "boolean-expression",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "SOP Expression",
+              "canonicalName": "sop-expression"
+            },
+            {
+              "name": "POS Expression",
+              "canonicalName": "pos-expression"
+            },
+            {
+              "name": "Boolean Functions",
+              "canonicalName": "boolean-functions"
+            },
+            {
+              "name": "Duality",
+              "canonicalName": "duality"
+            },
+            {
+              "name": "Functionally Complete Function",
+              "canonicalName": "functionally-complete-function"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Simplification of Boolean Expression",
+          "canonicalName": "simplification-of-boolean-expression",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Kmap SOP",
+              "canonicalName": "kmap-sop"
+            },
+            {
+              "name": "Kmap POS",
+              "canonicalName": "kmap-pos"
+            },
+            {
+              "name": "Kmap Prime Emplicant",
+              "canonicalName": "kmap-prime-emplicant"
+            },
+            {
+              "name": "Kmap Multiple Topic Questions",
+              "canonicalName": "kmap-multiple-topic-questions"
+            },
+            {
+              "name": "Operations on Functions",
+              "canonicalName": "operations-on-functions"
+            },
+            {
+              "name": "Irredundant Function",
+              "canonicalName": "irredundant-function"
+            },
+            {
+              "name": "Simplification Laws",
+              "canonicalName": "simplification-laws"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Combinational Circuit",
+          "canonicalName": "combinational-circuit",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Adder",
+              "canonicalName": "adder"
+            },
+            {
+              "name": "Adder-Subtractor",
+              "canonicalName": "adder-subtractor"
+            },
+            {
+              "name": "Look Ahead Carry Adder",
+              "canonicalName": "look-ahead-carry-adder"
+            },
+            {
+              "name": "Multiplexer",
+              "canonicalName": "multiplexer"
+            },
+            {
+              "name": "Multiplexer Expansion",
+              "canonicalName": "multiplexer-expansion"
+            },
+            {
+              "name": "Demultiplexer",
+              "canonicalName": "demultiplexer"
+            },
+            {
+              "name": "Demultiplexer Expansion",
+              "canonicalName": "demultiplexer-expansion"
+            },
+            {
+              "name": "Decoder",
+              "canonicalName": "decoder"
+            },
+            {
+              "name": "Encoder",
+              "canonicalName": "encoder"
+            },
+            {
+              "name": "Priority Encoder",
+              "canonicalName": "priority-encoder"
+            },
+            {
+              "name": "Hazards",
+              "canonicalName": "hazards"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Sequential Circuit",
+          "canonicalName": "sequential-circuit",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Latch",
+              "canonicalName": "latch"
+            },
+            {
+              "name": "SR Flip Flop",
+              "canonicalName": "sr-flip-flop"
+            },
+            {
+              "name": "JK Flip Flop",
+              "canonicalName": "jk-flip-flop"
+            },
+            {
+              "name": "T Flip Flop",
+              "canonicalName": "t-flip-flop"
+            },
+            {
+              "name": "D Flip Flop",
+              "canonicalName": "d-flip-flop"
+            },
+            {
+              "name": "Flip Flop Conversion",
+              "canonicalName": "flip-flop-conversion"
+            },
+            {
+              "name": "Basics of Counters",
+              "canonicalName": "basics-of-counters"
+            },
+            {
+              "name": "Synchronous Counters",
+              "canonicalName": "synchronous-counters"
+            },
+            {
+              "name": "Asynchronous Counters",
+              "canonicalName": "asynchronous-counters"
+            },
+            {
+              "name": "Self Starting & Free Running",
+              "canonicalName": "self-starting-free-running"
+            },
+            {
+              "name": "Restricted Mode Counter",
+              "canonicalName": "restricted-mode-counter"
+            },
+            {
+              "name": "Registers",
+              "canonicalName": "registers"
+            },
+            {
+              "name": "Ring Counter Johnson Counter",
+              "canonicalName": "ring-counter-johnson-counter"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Number System",
+          "canonicalName": "number-system",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Any Base to Decimal",
+              "canonicalName": "any-base-to-decimal"
+            },
+            {
+              "name": "Decimal to any Base",
+              "canonicalName": "decimal-to-any-base"
+            },
+            {
+              "name": "Any Base to any Base",
+              "canonicalName": "any-base-to-any-base"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Number Representation",
+          "canonicalName": "number-representation",
+          "subtopics": [
+            {
+              "name": "Unsigned Number",
+              "canonicalName": "unsigned-number"
+            },
+            {
+              "name": "Basics of Signed Number",
+              "canonicalName": "basics-of-signed-number"
+            },
+            {
+              "name": "Signed Magnitude",
+              "canonicalName": "signed-magnitude"
+            },
+            {
+              "name": "1's Complement",
+              "canonicalName": "1s-complement"
+            },
+            {
+              "name": "2's Complement",
+              "canonicalName": "2s-complement"
+            },
+            {
+              "name": "BCD",
+              "canonicalName": "bcd"
+            },
+            {
+              "name": "Excess 3 Code",
+              "canonicalName": "excess-3-code"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "COA",
+      "canonicalName": "coa",
+      "topics": [
+        {
+          "name": "Basics of COA",
+          "canonicalName": "basics-of-coa",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            }
+          ]
+        },
+        {
+          "name": "Floating Point Representation",
+          "canonicalName": "floating-point-representation",
+          "subtopics": [
+            {
+              "name": "Basic",
+              "canonicalName": "basic"
+            },
+            {
+              "name": "Explicit Normalisation",
+              "canonicalName": "explicit-normalisation"
+            },
+            {
+              "name": "Implicit Normalisation",
+              "canonicalName": "implicit-normalisation"
+            },
+            {
+              "name": "IEEE 754",
+              "canonicalName": "ieee-754"
+            },
+            {
+              "name": "Booths Algorithm",
+              "canonicalName": "booths-algorithm"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Memory Management",
+          "canonicalName": "memory-management",
+          "subtopics": [
+            {
+              "name": "Memory Hierarchy",
+              "canonicalName": "memory-hierarchy"
+            },
+            {
+              "name": "Locality of Reference",
+              "canonicalName": "locality-of-reference"
+            },
+            {
+              "name": "Cache Hit, Cache Miss",
+              "canonicalName": "cache-hit-cache-miss"
+            },
+            {
+              "name": "Basics of Cache Mapping",
+              "canonicalName": "basics-of-cache-mapping"
+            },
+            {
+              "name": "Units for Memory Management",
+              "canonicalName": "units-for-memory-management"
+            },
+            {
+              "name": "Direct Mapping",
+              "canonicalName": "direct-mapping"
+            },
+            {
+              "name": "Associative Mapping",
+              "canonicalName": "associative-mapping"
+            },
+            {
+              "name": "Set Associative Mapping",
+              "canonicalName": "set-associative-mapping"
+            },
+            {
+              "name": "Cache Replacement Policies",
+              "canonicalName": "cache-replacement-policies"
+            },
+            {
+              "name": "FIFO",
+              "canonicalName": "fifo"
+            },
+            {
+              "name": "Optimal",
+              "canonicalName": "optimal"
+            },
+            {
+              "name": "LRU",
+              "canonicalName": "lru"
+            },
+            {
+              "name": "Miss Type",
+              "canonicalName": "miss-type"
+            },
+            {
+              "name": "Basic of Memory Organisation",
+              "canonicalName": "basic-of-memory-organisation"
+            },
+            {
+              "name": "Cache Coherence Problem",
+              "canonicalName": "cache-coherence-problem"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Input Output Organisation",
+          "canonicalName": "input-output-organisation",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "System Bus",
+              "canonicalName": "system-bus"
+            },
+            {
+              "name": "Memory Mapped IO",
+              "canonicalName": "memory-mapped-io"
+            },
+            {
+              "name": "Isolated IO",
+              "canonicalName": "isolated-io"
+            },
+            {
+              "name": "IO Processor",
+              "canonicalName": "io-processor"
+            },
+            {
+              "name": "Programmed IO",
+              "canonicalName": "programmed-io"
+            },
+            {
+              "name": "Interrupt Initiated IO",
+              "canonicalName": "interrupt-initiated-io"
+            },
+            {
+              "name": "Direct Memory Access (DMA)",
+              "canonicalName": "direct-memory-access-dma"
+            },
+            {
+              "name": "Circular Disk Organization",
+              "canonicalName": "circular-disk-organization"
+            },
+            {
+              "name": "Circular Disk Transfer Time",
+              "canonicalName": "circular-disk-transfer-time"
+            },
+            {
+              "name": "Disk Interleaving",
+              "canonicalName": "disk-interleaving"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Pipelining",
+          "canonicalName": "pipelining",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Speed up",
+              "canonicalName": "speed-up"
+            },
+            {
+              "name": "Clock Per Instruction",
+              "canonicalName": "clock-per-instruction"
+            },
+            {
+              "name": "Structural Hazards",
+              "canonicalName": "structural-hazards"
+            },
+            {
+              "name": "Control Hazards",
+              "canonicalName": "control-hazards"
+            },
+            {
+              "name": "Data Hazards",
+              "canonicalName": "data-hazards"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Instruction Format and Addressing Mode",
+          "canonicalName": "instruction-format-and-addressing-mode",
+          "subtopics": [
+            {
+              "name": "Instruction Format",
+              "canonicalName": "instruction-format"
+            },
+            {
+              "name": "Questions on Instruction Format",
+              "canonicalName": "questions-on-instruction-format"
+            },
+            {
+              "name": "Addressing Modes",
+              "canonicalName": "addressing-modes"
+            },
+            {
+              "name": "Immediate Mode Addressing",
+              "canonicalName": "immediate-mode-addressing"
+            },
+            {
+              "name": "Direct / Absolute Addressing Mode",
+              "canonicalName": "direct-absolute-addressing-mode"
+            },
+            {
+              "name": "Indirect Mode Addressing",
+              "canonicalName": "indirect-mode-addressing"
+            },
+            {
+              "name": "Implied Mode",
+              "canonicalName": "implied-mode"
+            },
+            {
+              "name": "Register Mode",
+              "canonicalName": "register-mode"
+            },
+            {
+              "name": "Register Indirect Mode",
+              "canonicalName": "register-indirect-mode"
+            },
+            {
+              "name": "Base Register",
+              "canonicalName": "base-register"
+            },
+            {
+              "name": "Index Addressing",
+              "canonicalName": "index-addressing"
+            },
+            {
+              "name": "PC Relative Addressing Mode",
+              "canonicalName": "pc-relative-addressing-mode"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Control Unit Design",
+          "canonicalName": "control-unit-design",
+          "subtopics": [
+            {
+              "name": "History of Computer Systems",
+              "canonicalName": "history-of-computer-systems"
+            },
+            {
+              "name": "Von Neumann Architecture",
+              "canonicalName": "von-neumann-architecture"
+            },
+            {
+              "name": "Types of Computers",
+              "canonicalName": "types-of-computers"
+            },
+            {
+              "name": "General Operations Order",
+              "canonicalName": "general-operations-order"
+            },
+            {
+              "name": "Basics of Register",
+              "canonicalName": "basics-of-register"
+            },
+            {
+              "name": "Register Transfer",
+              "canonicalName": "register-transfer"
+            },
+            {
+              "name": "Memory Extention",
+              "canonicalName": "memory-extention"
+            },
+            {
+              "name": "Control Unit",
+              "canonicalName": "control-unit"
+            },
+            {
+              "name": "Hardwired Control Unit",
+              "canonicalName": "hardwired-control-unit"
+            },
+            {
+              "name": "Microprogrammed Control Unit",
+              "canonicalName": "microprogrammed-control-unit"
+            },
+            {
+              "name": "RISC AND CISC",
+              "canonicalName": "risc-and-cisc"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Data Base Management System",
+      "canonicalName": "data-base-management-system",
+      "topics": [
+        {
+          "name": "Basics of DBMS",
+          "canonicalName": "basics-of-dbms",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            }
+          ]
+        },
+        {
+          "name": "ER Diagram",
+          "canonicalName": "er-diagram",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Entity and Entity Set",
+              "canonicalName": "entity-and-entity-set"
+            },
+            {
+              "name": "Attribute",
+              "canonicalName": "attribute"
+            },
+            {
+              "name": "Relationship",
+              "canonicalName": "relationship"
+            },
+            {
+              "name": "Mapping Participation Constraints",
+              "canonicalName": "mapping-participation-constraints"
+            },
+            {
+              "name": "Strong Vs Weak Entity Set",
+              "canonicalName": "strong-vs-weak-entity-set"
+            },
+            {
+              "name": "Conversion ER Diagram to Relational Model",
+              "canonicalName": "conversion-er-diagram-to-relational-model"
+            },
+            {
+              "name": "Trap",
+              "canonicalName": "trap"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Functional Dependencies",
+          "canonicalName": "functional-dependencies",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Functional Dependency",
+              "canonicalName": "functional-dependency"
+            },
+            {
+              "name": "Closure Set of Attributes",
+              "canonicalName": "closure-set-of-attributes"
+            },
+            {
+              "name": "Armstrong's Axioms",
+              "canonicalName": "armstrongs-axioms"
+            },
+            {
+              "name": "Operation on Closure Set of Attributes",
+              "canonicalName": "operation-on-closure-set-of-attributes"
+            },
+            {
+              "name": "Basics of Keys",
+              "canonicalName": "basics-of-keys"
+            },
+            {
+              "name": "Super Key",
+              "canonicalName": "super-key"
+            },
+            {
+              "name": "Candidate Key",
+              "canonicalName": "candidate-key"
+            },
+            {
+              "name": "Primary Key",
+              "canonicalName": "primary-key"
+            },
+            {
+              "name": "Foreign Key",
+              "canonicalName": "foreign-key"
+            },
+            {
+              "name": "Other Keys",
+              "canonicalName": "other-keys"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Normalisation using FD",
+          "canonicalName": "normalisation-using-fd",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "1 NF",
+              "canonicalName": "1-nf"
+            },
+            {
+              "name": "2 NF",
+              "canonicalName": "2-nf"
+            },
+            {
+              "name": "3 NF",
+              "canonicalName": "3-nf"
+            },
+            {
+              "name": "BCNF",
+              "canonicalName": "bcnf"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Normalisation without FD",
+          "canonicalName": "normalisation-without-fd",
+          "subtopics": [
+            {
+              "name": "Multivaluated Dependency",
+              "canonicalName": "multivaluated-dependency"
+            },
+            {
+              "name": "4 NF",
+              "canonicalName": "4-nf"
+            },
+            {
+              "name": "Lossy-Lossless Decomposition",
+              "canonicalName": "lossy-lossless-decomposition"
+            },
+            {
+              "name": "Dependency Preserving Decomposition",
+              "canonicalName": "dependency-preserving-decomposition"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Indexing",
+          "canonicalName": "indexing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Primary Indexing",
+              "canonicalName": "primary-indexing"
+            },
+            {
+              "name": "Clustered Indexing",
+              "canonicalName": "clustered-indexing"
+            },
+            {
+              "name": "Secondary Indexing",
+              "canonicalName": "secondary-indexing"
+            },
+            {
+              "name": "Multilevel Indexing",
+              "canonicalName": "multilevel-indexing"
+            },
+            {
+              "name": "Indexing Mix Questions",
+              "canonicalName": "indexing-mix-questions"
+            },
+            {
+              "name": "B Tree Insertion",
+              "canonicalName": "b-tree-insertion"
+            },
+            {
+              "name": "B Tree Deletion",
+              "canonicalName": "b-tree-deletion"
+            },
+            {
+              "name": "Bplus Tree Insertion",
+              "canonicalName": "bplus-tree-insertion"
+            },
+            {
+              "name": "Bplus Tree Deletion",
+              "canonicalName": "bplus-tree-deletion"
+            },
+            {
+              "name": "B Tree Structure",
+              "canonicalName": "b-tree-structure"
+            },
+            {
+              "name": "Bplus Tree Structure",
+              "canonicalName": "bplus-tree-structure"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Relational Algebra",
+          "canonicalName": "relational-algebra",
+          "subtopics": [
+            {
+              "name": "Basics of Query Language",
+              "canonicalName": "basics-of-query-language"
+            },
+            {
+              "name": "Basics of Relational Algebra",
+              "canonicalName": "basics-of-relational-algebra"
+            },
+            {
+              "name": "Project Operator",
+              "canonicalName": "project-operator"
+            },
+            {
+              "name": "Select Operator",
+              "canonicalName": "select-operator"
+            },
+            {
+              "name": "Set Operator",
+              "canonicalName": "set-operator"
+            },
+            {
+              "name": "Cartesian Product",
+              "canonicalName": "cartesian-product"
+            },
+            {
+              "name": "Natural Join Operator",
+              "canonicalName": "natural-join-operator"
+            },
+            {
+              "name": "Thetha Join-Conditional Join",
+              "canonicalName": "thetha-join-conditional-join"
+            },
+            {
+              "name": "Outer Join",
+              "canonicalName": "outer-join"
+            },
+            {
+              "name": "Rename Operation",
+              "canonicalName": "rename-operation"
+            },
+            {
+              "name": "Division Operator",
+              "canonicalName": "division-operator"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "SQL",
+          "canonicalName": "sql",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Select Clause",
+              "canonicalName": "select-clause"
+            },
+            {
+              "name": "Where Clause",
+              "canonicalName": "where-clause"
+            },
+            {
+              "name": "Set Operations In SQL",
+              "canonicalName": "set-operations-in-sql"
+            },
+            {
+              "name": "Cartesian Product",
+              "canonicalName": "cartesian-product"
+            },
+            {
+              "name": "Natural Join",
+              "canonicalName": "natural-join"
+            },
+            {
+              "name": "Different Versions Of Natual Join",
+              "canonicalName": "different-versions-of-natual-join"
+            },
+            {
+              "name": "Outer Join",
+              "canonicalName": "outer-join"
+            },
+            {
+              "name": "Rename Operations",
+              "canonicalName": "rename-operations"
+            },
+            {
+              "name": "Aggregate Functions",
+              "canonicalName": "aggregate-functions"
+            },
+            {
+              "name": "Order by clause",
+              "canonicalName": "order-by-clause"
+            },
+            {
+              "name": "String Operations in SQL",
+              "canonicalName": "string-operations-in-sql"
+            },
+            {
+              "name": "Group by Clause",
+              "canonicalName": "group-by-clause"
+            },
+            {
+              "name": "Division Operator",
+              "canonicalName": "division-operator"
+            },
+            {
+              "name": "Nested Query",
+              "canonicalName": "nested-query"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Relational Calculus",
+          "canonicalName": "relational-calculus",
+          "subtopics": [
+            {
+              "name": "Basic",
+              "canonicalName": "basic"
+            },
+            {
+              "name": "Tuple Relational Calculus",
+              "canonicalName": "tuple-relational-calculus"
+            },
+            {
+              "name": "TRC Mix Questions",
+              "canonicalName": "trc-mix-questions"
+            },
+            {
+              "name": "Domain Relational Calculus",
+              "canonicalName": "domain-relational-calculus"
+            },
+            {
+              "name": "DRC Mix Questions",
+              "canonicalName": "drc-mix-questions"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Transaction Management",
+          "canonicalName": "transaction-management",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "ACID Properties",
+              "canonicalName": "acid-properties"
+            },
+            {
+              "name": "Transaction States",
+              "canonicalName": "transaction-states"
+            },
+            {
+              "name": "Problem With Concurrent Executions",
+              "canonicalName": "problem-with-concurrent-executions"
+            },
+            {
+              "name": "Lost Update Problem",
+              "canonicalName": "lost-update-problem"
+            },
+            {
+              "name": "Dirty Read Problem",
+              "canonicalName": "dirty-read-problem"
+            },
+            {
+              "name": "Unrepeatable Read Problem",
+              "canonicalName": "unrepeatable-read-problem"
+            },
+            {
+              "name": "Phantom Read Problem",
+              "canonicalName": "phantom-read-problem"
+            },
+            {
+              "name": "Basics of Schedule",
+              "canonicalName": "basics-of-schedule"
+            },
+            {
+              "name": "Conflict Serializable",
+              "canonicalName": "conflict-serializable"
+            },
+            {
+              "name": "View Serializable",
+              "canonicalName": "view-serializable"
+            },
+            {
+              "name": "Recoverable Schedule",
+              "canonicalName": "recoverable-schedule"
+            },
+            {
+              "name": "Cascadeless Schedule",
+              "canonicalName": "cascadeless-schedule"
+            },
+            {
+              "name": "Strict Schedule",
+              "canonicalName": "strict-schedule"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            },
+            {
+              "name": "Locked Based Protocols",
+              "canonicalName": "locked-based-protocols"
+            },
+            {
+              "name": "Basic 2PL",
+              "canonicalName": "basic-2pl"
+            },
+            {
+              "name": "Conservative 2PL",
+              "canonicalName": "conservative-2pl"
+            },
+            {
+              "name": "Strict 2PL",
+              "canonicalName": "strict-2pl"
+            }
+          ]
+        },
+        {
+          "name": "Concurrency Control",
+          "canonicalName": "concurrency-control",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Time Stamp Protocol",
+              "canonicalName": "time-stamp-protocol"
+            },
+            {
+              "name": "Thomas Write Rule",
+              "canonicalName": "thomas-write-rule"
+            },
+            {
+              "name": "Locked Based Protocols",
+              "canonicalName": "locked-based-protocols"
+            },
+            {
+              "name": "Basic 2PL",
+              "canonicalName": "basic-2pl"
+            },
+            {
+              "name": "Conservative 2PL",
+              "canonicalName": "conservative-2pl"
+            },
+            {
+              "name": "Rigorous 2PL",
+              "canonicalName": "rigorous-2pl"
+            },
+            {
+              "name": "Strict 2PL",
+              "canonicalName": "strict-2pl"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Operating System",
+      "canonicalName": "operating-system",
+      "topics": [
+        {
+          "name": "Basics of operating system",
+          "canonicalName": "basics-of-operating-system",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Evolution of Operating System",
+              "canonicalName": "evolution-of-operating-system"
+            },
+            {
+              "name": "Types of Operating System",
+              "canonicalName": "types-of-operating-system"
+            },
+            {
+              "name": "Interface to Operating System",
+              "canonicalName": "interface-to-operating-system"
+            },
+            {
+              "name": "Structure of Operating System",
+              "canonicalName": "structure-of-operating-system"
+            },
+            {
+              "name": "System Call",
+              "canonicalName": "system-call"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Process Management",
+          "canonicalName": "process-management",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Process Control Block",
+              "canonicalName": "process-control-block"
+            },
+            {
+              "name": "Process Life Cycle",
+              "canonicalName": "process-life-cycle"
+            },
+            {
+              "name": "System Queues",
+              "canonicalName": "system-queues"
+            },
+            {
+              "name": "Schedulers",
+              "canonicalName": "schedulers"
+            },
+            {
+              "name": "CPU & I:O Bound process",
+              "canonicalName": "cpu-io-bound-process"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "CPU Scheduling",
+          "canonicalName": "cpu-scheduling",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "FCFS Scheduling",
+              "canonicalName": "fcfs-scheduling"
+            },
+            {
+              "name": "SJF Scheduling",
+              "canonicalName": "sjf-scheduling"
+            },
+            {
+              "name": "Priority Scheduling",
+              "canonicalName": "priority-scheduling"
+            },
+            {
+              "name": "Round Robin Scheduling",
+              "canonicalName": "round-robin-scheduling"
+            },
+            {
+              "name": "LRTF",
+              "canonicalName": "lrtf"
+            },
+            {
+              "name": "HRRN",
+              "canonicalName": "hrrn"
+            },
+            {
+              "name": "Multi Level Queue Scheduling",
+              "canonicalName": "multi-level-queue-scheduling"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Process Synchronisation",
+          "canonicalName": "process-synchronisation",
+          "subtopics": [
+            {
+              "name": "Race Condition",
+              "canonicalName": "race-condition"
+            },
+            {
+              "name": "Critical Section Problem",
+              "canonicalName": "critical-section-problem"
+            },
+            {
+              "name": "Criterian to Solve Critical Section Problem",
+              "canonicalName": "criterian-to-solve-critical-section-problem"
+            },
+            {
+              "name": "Two Process Solutions",
+              "canonicalName": "two-process-solutions"
+            },
+            {
+              "name": "Semaphore",
+              "canonicalName": "semaphore"
+            },
+            {
+              "name": "Critical Section Using Semaphore",
+              "canonicalName": "critical-section-using-semaphore"
+            },
+            {
+              "name": "Ordering Process Using Semaphore",
+              "canonicalName": "ordering-process-using-semaphore"
+            },
+            {
+              "name": "Avoiding Deadlock Using Semaphore",
+              "canonicalName": "avoiding-deadlock-using-semaphore"
+            },
+            {
+              "name": "Producer Consumer Problem",
+              "canonicalName": "producer-consumer-problem"
+            },
+            {
+              "name": "Reader Writer Problem",
+              "canonicalName": "reader-writer-problem"
+            },
+            {
+              "name": "Dining Philospher Problem",
+              "canonicalName": "dining-philospher-problem"
+            },
+            {
+              "name": "Types of Semaphore",
+              "canonicalName": "types-of-semaphore"
+            },
+            {
+              "name": "Hardware Solution",
+              "canonicalName": "hardware-solution"
+            },
+            {
+              "name": "Fork",
+              "canonicalName": "fork"
+            },
+            {
+              "name": "Threading",
+              "canonicalName": "threading"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Deadlock",
+          "canonicalName": "deadlock",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Necessary Conditions for Deadlock",
+              "canonicalName": "necessary-conditions-for-deadlock"
+            },
+            {
+              "name": "Deadlock Handling Methods",
+              "canonicalName": "deadlock-handling-methods"
+            },
+            {
+              "name": "Deadlock Prevention",
+              "canonicalName": "deadlock-prevention"
+            },
+            {
+              "name": "Deadlock Avoidance",
+              "canonicalName": "deadlock-avoidance"
+            },
+            {
+              "name": "Banker's Algorithm",
+              "canonicalName": "bankers-algorithm"
+            },
+            {
+              "name": "Resource Alocation Graph",
+              "canonicalName": "resource-alocation-graph"
+            },
+            {
+              "name": "Deadlock Detection & Recovery",
+              "canonicalName": "deadlock-detection-recovery"
+            },
+            {
+              "name": "Deadlock Ignorance",
+              "canonicalName": "deadlock-ignorance"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Memory Management",
+          "canonicalName": "memory-management",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Contiguous Allocation - Address Translation",
+              "canonicalName": "contiguous-allocation-address-translation"
+            },
+            {
+              "name": "Contiguous Allocation - Space Allocation",
+              "canonicalName": "contiguous-allocation-space-allocation"
+            },
+            {
+              "name": "Fragmentation",
+              "canonicalName": "fragmentation"
+            },
+            {
+              "name": "Paging",
+              "canonicalName": "paging"
+            },
+            {
+              "name": "Multilevel Paging",
+              "canonicalName": "multilevel-paging"
+            },
+            {
+              "name": "Segmentation",
+              "canonicalName": "segmentation"
+            },
+            {
+              "name": "Segmentation with Paging",
+              "canonicalName": "segmentation-with-paging"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Virtual Memory",
+          "canonicalName": "virtual-memory",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Pure Demand Paging",
+              "canonicalName": "pure-demand-paging"
+            },
+            {
+              "name": "Page Fault & Service Time",
+              "canonicalName": "page-fault-service-time"
+            },
+            {
+              "name": "Page Replacement",
+              "canonicalName": "page-replacement"
+            },
+            {
+              "name": "First in First Out Replacement",
+              "canonicalName": "first-in-first-out-replacement"
+            },
+            {
+              "name": "Optimal Page Replacement",
+              "canonicalName": "optimal-page-replacement"
+            },
+            {
+              "name": "Least Recently Used Replacement",
+              "canonicalName": "least-recently-used-replacement"
+            },
+            {
+              "name": "Counting Base Page Replacement",
+              "canonicalName": "counting-base-page-replacement"
+            },
+            {
+              "name": "Frame Allocation Policy",
+              "canonicalName": "frame-allocation-policy"
+            },
+            {
+              "name": "Thrashing",
+              "canonicalName": "thrashing"
+            },
+            {
+              "name": "Working Set Strategy",
+              "canonicalName": "working-set-strategy"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Disc Scheduling",
+          "canonicalName": "disc-scheduling",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "First Come First Serve",
+              "canonicalName": "first-come-first-serve"
+            },
+            {
+              "name": "Shortest Seek Time First",
+              "canonicalName": "shortest-seek-time-first"
+            },
+            {
+              "name": "Scan Scheduling",
+              "canonicalName": "scan-scheduling"
+            },
+            {
+              "name": "C-Scan Scheduling",
+              "canonicalName": "c-scan-scheduling"
+            },
+            {
+              "name": "Look Scheduling",
+              "canonicalName": "look-scheduling"
+            },
+            {
+              "name": "C-Look Scheduling",
+              "canonicalName": "c-look-scheduling"
+            },
+            {
+              "name": "Disk Interleaving",
+              "canonicalName": "disk-interleaving"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "File Management",
+          "canonicalName": "file-management",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Contiguous File Allocation",
+              "canonicalName": "contiguous-file-allocation"
+            },
+            {
+              "name": "Linked File Allocation",
+              "canonicalName": "linked-file-allocation"
+            },
+            {
+              "name": "Index File Allocation",
+              "canonicalName": "index-file-allocation"
+            },
+            {
+              "name": "File Allocation Table",
+              "canonicalName": "file-allocation-table"
+            },
+            {
+              "name": "Free Space Management",
+              "canonicalName": "free-space-management"
+            },
+            {
+              "name": "Bit Victor Free Space Management",
+              "canonicalName": "bit-victor-free-space-management"
+            },
+            {
+              "name": "Linked list Free Space Management",
+              "canonicalName": "linked-list-free-space-management"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Data Structure",
+      "canonicalName": "data-structure",
+      "topics": [
+        {
+          "name": "Basics of Data Structure",
+          "canonicalName": "basics-of-data-structure",
+          "subtopics": [
+            {
+              "name": "Basics of Data Structure",
+              "canonicalName": "basics-of-data-structure"
+            }
+          ]
+        },
+        {
+          "name": "Array",
+          "canonicalName": "array",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "1D Array",
+              "canonicalName": "1d-array"
+            },
+            {
+              "name": "2D Array",
+              "canonicalName": "2d-array"
+            },
+            {
+              "name": "3D Array",
+              "canonicalName": "3d-array"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Stack",
+          "canonicalName": "stack",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Stack Permutation",
+              "canonicalName": "stack-permutation"
+            },
+            {
+              "name": "Conversion Of Expression",
+              "canonicalName": "conversion-of-expression"
+            },
+            {
+              "name": "Evaluation of Expression",
+              "canonicalName": "evaluation-of-expression"
+            },
+            {
+              "name": "Recursion",
+              "canonicalName": "recursion"
+            },
+            {
+              "name": "Recursion Case Study",
+              "canonicalName": "recursion-case-study"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Queue",
+          "canonicalName": "queue",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Circular Queue",
+              "canonicalName": "circular-queue"
+            },
+            {
+              "name": "Priority Queue",
+              "canonicalName": "priority-queue"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Link List",
+          "canonicalName": "link-list",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Link List Traversal",
+              "canonicalName": "link-list-traversal"
+            },
+            {
+              "name": "Searching",
+              "canonicalName": "searching"
+            },
+            {
+              "name": "Insertion Deletion",
+              "canonicalName": "insertion-deletion"
+            },
+            {
+              "name": "Reversing",
+              "canonicalName": "reversing"
+            },
+            {
+              "name": "Versions of Link List",
+              "canonicalName": "versions-of-link-list"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Tree",
+          "canonicalName": "tree",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Binary Tree",
+              "canonicalName": "binary-tree"
+            },
+            {
+              "name": "Tree Traversal",
+              "canonicalName": "tree-traversal"
+            },
+            {
+              "name": "BST",
+              "canonicalName": "bst"
+            },
+            {
+              "name": "AVL tree",
+              "canonicalName": "avl-tree"
+            },
+            {
+              "name": "CBT",
+              "canonicalName": "cbt"
+            },
+            {
+              "name": "Heap",
+              "canonicalName": "heap"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Graph",
+          "canonicalName": "graph",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Graph Representation",
+              "canonicalName": "graph-representation"
+            },
+            {
+              "name": "DFS",
+              "canonicalName": "dfs"
+            },
+            {
+              "name": "BFS",
+              "canonicalName": "bfs"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Hashing",
+          "canonicalName": "hashing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Linear Probing",
+              "canonicalName": "linear-probing"
+            },
+            {
+              "name": "Quadratic Probing",
+              "canonicalName": "quadratic-probing"
+            },
+            {
+              "name": "Chaining",
+              "canonicalName": "chaining"
+            },
+            {
+              "name": "Double Hashing",
+              "canonicalName": "double-hashing"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Algorithm",
+      "canonicalName": "algorithm",
+      "topics": [
+        {
+          "name": "Basics of Algorithm",
+          "canonicalName": "basics-of-algorithm",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Analysis of Algorithm",
+              "canonicalName": "analysis-of-algorithm"
+            },
+            {
+              "name": "Types of Analysis",
+              "canonicalName": "types-of-analysis"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Asymptotic Notation",
+          "canonicalName": "asymptotic-notation",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Master theorem Case I",
+              "canonicalName": "master-theorem-case-i"
+            },
+            {
+              "name": "Master theorem Case II",
+              "canonicalName": "master-theorem-case-ii"
+            },
+            {
+              "name": "Master theorem Case III",
+              "canonicalName": "master-theorem-case-iii"
+            },
+            {
+              "name": "Master theorem (S & C)",
+              "canonicalName": "master-theorem-s-c"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Sorting Array",
+          "canonicalName": "sorting-array",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Selection Sort",
+              "canonicalName": "selection-sort"
+            },
+            {
+              "name": "Bubble Sort",
+              "canonicalName": "bubble-sort"
+            },
+            {
+              "name": "Insertion Sort",
+              "canonicalName": "insertion-sort"
+            },
+            {
+              "name": "Merge Sort",
+              "canonicalName": "merge-sort"
+            },
+            {
+              "name": "Heap Sort",
+              "canonicalName": "heap-sort"
+            },
+            {
+              "name": "Quick sort",
+              "canonicalName": "quick-sort"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Greedy Algorithms",
+          "canonicalName": "greedy-algorithms",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Huffman Coding",
+              "canonicalName": "huffman-coding"
+            },
+            {
+              "name": "Optimal Merge Pattern",
+              "canonicalName": "optimal-merge-pattern"
+            },
+            {
+              "name": "Knap Sack Problem",
+              "canonicalName": "knap-sack-problem"
+            },
+            {
+              "name": "Job Scheduling Problem",
+              "canonicalName": "job-scheduling-problem"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Dynamic Programming",
+          "canonicalName": "dynamic-programming",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Longest commom Subsequence",
+              "canonicalName": "longest-commom-subsequence"
+            },
+            {
+              "name": "Matrix Chain Multiplication",
+              "canonicalName": "matrix-chain-multiplication"
+            },
+            {
+              "name": "Floyd Warshall Problem",
+              "canonicalName": "floyd-warshall-problem"
+            },
+            {
+              "name": "Sum of Subset Problem",
+              "canonicalName": "sum-of-subset-problem"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Spanning Tree",
+          "canonicalName": "spanning-tree",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Kruskal Algorithm",
+              "canonicalName": "kruskal-algorithm"
+            },
+            {
+              "name": "Prim's Algorithm",
+              "canonicalName": "prims-algorithm"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Single Source Shortest Path",
+          "canonicalName": "single-source-shortest-path",
+          "subtopics": [
+            {
+              "name": "Dijkastra Algorithm",
+              "canonicalName": "dijkastra-algorithm"
+            },
+            {
+              "name": "Bellman-Ford Algorithm",
+              "canonicalName": "bellman-ford-algorithm"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Theory of Computation",
+      "canonicalName": "theory-of-computation",
+      "topics": [
+        {
+          "name": "Basics of Toc",
+          "canonicalName": "basics-of-toc",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Basics of Language",
+              "canonicalName": "basics-of-language"
+            },
+            {
+              "name": "Operations on Srtings",
+              "canonicalName": "operations-on-srtings"
+            },
+            {
+              "name": "Kleene Closure",
+              "canonicalName": "kleene-closure"
+            },
+            {
+              "name": "Operations on Language",
+              "canonicalName": "operations-on-language"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "DFA",
+          "canonicalName": "dfa",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Dfa Designing Basic",
+              "canonicalName": "dfa-designing-basic"
+            },
+            {
+              "name": "Dfa Designing Advance",
+              "canonicalName": "dfa-designing-advance"
+            },
+            {
+              "name": "Minimization of Dfa",
+              "canonicalName": "minimization-of-dfa"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "NDFA",
+          "canonicalName": "ndfa",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Ndfa Designing Basic",
+              "canonicalName": "ndfa-designing-basic"
+            },
+            {
+              "name": "Ndfa Designing Advance",
+              "canonicalName": "ndfa-designing-advance"
+            },
+            {
+              "name": "Ndfa to Dfa Conversion",
+              "canonicalName": "ndfa-to-dfa-conversion"
+            },
+            {
+              "name": "Epsilon Nfa",
+              "canonicalName": "epsilon-nfa"
+            },
+            {
+              "name": "Conversion from Epsilon Nfa to Nfa",
+              "canonicalName": "conversion-from-epsilon-nfa-to-nfa"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Regular Expression",
+          "canonicalName": "regular-expression",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Regular Expression Designing Basic",
+              "canonicalName": "regular-expression-designing-basic"
+            },
+            {
+              "name": "Regular Expression Designing Advance",
+              "canonicalName": "regular-expression-designing-advance"
+            },
+            {
+              "name": "Properties of Regular Expressions",
+              "canonicalName": "properties-of-regular-expressions"
+            },
+            {
+              "name": "Adern's Theorem",
+              "canonicalName": "aderns-theorem"
+            },
+            {
+              "name": "Conversion from FA to RE",
+              "canonicalName": "conversion-from-fa-to-re"
+            },
+            {
+              "name": "Conversion from RE to FA",
+              "canonicalName": "conversion-from-re-to-fa"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Grammar",
+          "canonicalName": "grammar",
+          "subtopics": [
+            {
+              "name": "Basic",
+              "canonicalName": "basic"
+            },
+            {
+              "name": "Chomoksy Hierarchy",
+              "canonicalName": "chomoksy-hierarchy"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Regular Grammar",
+          "canonicalName": "regular-grammar",
+          "subtopics": [
+            {
+              "name": "RE to RG",
+              "canonicalName": "re-to-rg"
+            },
+            {
+              "name": "RG to RE",
+              "canonicalName": "rg-to-re"
+            },
+            {
+              "name": "RG to FA",
+              "canonicalName": "rg-to-fa"
+            },
+            {
+              "name": "FA to RG",
+              "canonicalName": "fa-to-rg"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Regular Language",
+          "canonicalName": "regular-language",
+          "subtopics": [
+            {
+              "name": "Regular Language Identification",
+              "canonicalName": "regular-language-identification"
+            },
+            {
+              "name": "Basics of Decision Properties",
+              "canonicalName": "basics-of-decision-properties"
+            },
+            {
+              "name": "Decision Properties for Regular Language",
+              "canonicalName": "decision-properties-for-regular-language"
+            },
+            {
+              "name": "Basics of Closure Properties",
+              "canonicalName": "basics-of-closure-properties"
+            },
+            {
+              "name": "Closure Properties for Regular Language",
+              "canonicalName": "closure-properties-for-regular-language"
+            },
+            {
+              "name": "Pumping Lemma",
+              "canonicalName": "pumping-lemma"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Finite Automata with Output",
+          "canonicalName": "finite-automata-with-output",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Moore Machine",
+              "canonicalName": "moore-machine"
+            },
+            {
+              "name": "Mealy Machine",
+              "canonicalName": "mealy-machine"
+            },
+            {
+              "name": "Moore Machine and Mealy Machine",
+              "canonicalName": "moore-machine-and-mealy-machine"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Push Down Automata",
+          "canonicalName": "push-down-automata",
+          "subtopics": [
+            {
+              "name": "Basics of PDA",
+              "canonicalName": "basics-of-pda"
+            },
+            {
+              "name": "PDA Designing Basic",
+              "canonicalName": "pda-designing-basic"
+            },
+            {
+              "name": "PDA Designing Advance",
+              "canonicalName": "pda-designing-advance"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Context Free Grammar",
+          "canonicalName": "context-free-grammar",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Linear Grammer",
+              "canonicalName": "linear-grammer"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Context Free language",
+          "canonicalName": "context-free-language",
+          "subtopics": [
+            {
+              "name": "Context free Language Identification",
+              "canonicalName": "context-free-language-identification"
+            },
+            {
+              "name": "Decision Properties for CFL",
+              "canonicalName": "decision-properties-for-cfl"
+            },
+            {
+              "name": "Closure Properties for CLF",
+              "canonicalName": "closure-properties-for-clf"
+            },
+            {
+              "name": "Pumping Lemma",
+              "canonicalName": "pumping-lemma"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Turing Machine",
+          "canonicalName": "turing-machine",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Turning Machine Designing Basic",
+              "canonicalName": "turning-machine-designing-basic"
+            },
+            {
+              "name": "Versions of Turing Machine",
+              "canonicalName": "versions-of-turing-machine"
+            },
+            {
+              "name": "Haulting Problem of Turing Machine",
+              "canonicalName": "haulting-problem-of-turing-machine"
+            },
+            {
+              "name": "Universal Turing Machine",
+              "canonicalName": "universal-turing-machine"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Recursively Enumerable Language",
+          "canonicalName": "recursively-enumerable-language",
+          "subtopics": [
+            {
+              "name": "Recursive Enumerable Language Identification",
+              "canonicalName": "recursive-enumerable-language-identification"
+            },
+            {
+              "name": "Decision Properties REL",
+              "canonicalName": "decision-properties-rel"
+            },
+            {
+              "name": "Closure Properties REL",
+              "canonicalName": "closure-properties-rel"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Linear Bounded Automata",
+          "canonicalName": "linear-bounded-automata",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Complexity Theory",
+          "canonicalName": "complexity-theory",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aptitude",
+      "canonicalName": "aptitude",
+      "topics": [
+        {
+          "name": "Speed Maths Short Tricks",
+          "canonicalName": "speed-maths-short-tricks",
+          "subtopics": []
+        },
+        {
+          "name": "Percentage",
+          "canonicalName": "percentage",
+          "subtopics": []
+        },
+        {
+          "name": "Ratio & Proportion",
+          "canonicalName": "ratio-proportion",
+          "subtopics": []
+        },
+        {
+          "name": "Logarithms",
+          "canonicalName": "logarithms",
+          "subtopics": []
+        },
+        {
+          "name": "HCF LCM",
+          "canonicalName": "hcf-lcm",
+          "subtopics": []
+        },
+        {
+          "name": "Divisibility Rules",
+          "canonicalName": "divisibility-rules",
+          "subtopics": []
+        },
+        {
+          "name": "Average",
+          "canonicalName": "average",
+          "subtopics": []
+        },
+        {
+          "name": "Sequence & Series",
+          "canonicalName": "sequence-series",
+          "subtopics": []
+        },
+        {
+          "name": "Number System",
+          "canonicalName": "number-system",
+          "subtopics": []
+        },
+        {
+          "name": "Surds & Indices",
+          "canonicalName": "surds-indices",
+          "subtopics": []
+        },
+        {
+          "name": "Algebra & Simplification",
+          "canonicalName": "algebra-simplification",
+          "subtopics": []
+        },
+        {
+          "name": "Permutation & Combination",
+          "canonicalName": "permutation-combination",
+          "subtopics": []
+        },
+        {
+          "name": "Probability",
+          "canonicalName": "probability",
+          "subtopics": []
+        },
+        {
+          "name": "Profit & Loss",
+          "canonicalName": "profit-loss",
+          "subtopics": []
+        },
+        {
+          "name": "Simple & Compound Interest",
+          "canonicalName": "simple-compound-interest",
+          "subtopics": []
+        },
+        {
+          "name": "Time & Work",
+          "canonicalName": "time-work",
+          "subtopics": []
+        },
+        {
+          "name": "Pipes & Cisterns",
+          "canonicalName": "pipes-cisterns",
+          "subtopics": []
+        },
+        {
+          "name": "Speed Time & Distance",
+          "canonicalName": "speed-time-distance",
+          "subtopics": []
+        },
+        {
+          "name": "Problem on Trains",
+          "canonicalName": "problem-on-trains",
+          "subtopics": []
+        },
+        {
+          "name": "Boats & Streams",
+          "canonicalName": "boats-streams",
+          "subtopics": []
+        },
+        {
+          "name": "Mixtures & Alligations",
+          "canonicalName": "mixtures-alligations",
+          "subtopics": []
+        },
+        {
+          "name": "Mensuration & Geometry",
+          "canonicalName": "mensuration-geometry",
+          "subtopics": []
+        },
+        {
+          "name": "Mental Ability & Arithmetic",
+          "canonicalName": "mental-ability-arithmetic",
+          "subtopics": []
+        },
+        {
+          "name": "Problems on Ages",
+          "canonicalName": "problems-on-ages",
+          "subtopics": []
+        },
+        {
+          "name": "Partnership",
+          "canonicalName": "partnership",
+          "subtopics": []
+        },
+        {
+          "name": "Elementary Statistics",
+          "canonicalName": "elementary-statistics",
+          "subtopics": []
+        },
+        {
+          "name": "Linear Equation",
+          "canonicalName": "linear-equation",
+          "subtopics": []
+        },
+        {
+          "name": "Basics of Toc",
+          "canonicalName": "basics-of-toc",
+          "subtopics": []
+        }
+      ]
+    },
+    {
+      "name": "Reasoning",
+      "canonicalName": "reasoning",
+      "topics": [
+        {
+          "name": "Non-Verbal Reasoning (Pattern Recognition)",
+          "canonicalName": "non-verbal-reasoning-pattern-recognition",
+          "subtopics": []
+        },
+        {
+          "name": "Number Series & Letter Series",
+          "canonicalName": "number-series-letter-series",
+          "subtopics": []
+        },
+        {
+          "name": "Coding Decoding",
+          "canonicalName": "coding-decoding",
+          "subtopics": []
+        },
+        {
+          "name": "Data Interpretation",
+          "canonicalName": "data-interpretation",
+          "subtopics": []
+        },
+        {
+          "name": "Data Sufficiency",
+          "canonicalName": "data-sufficiency",
+          "subtopics": []
+        },
+        {
+          "name": "Syllogisms",
+          "canonicalName": "syllogisms",
+          "subtopics": []
+        },
+        {
+          "name": "Deductive Reasoning (Statement Conclusion)",
+          "canonicalName": "deductive-reasoning-statement-conclusion",
+          "subtopics": []
+        },
+        {
+          "name": "Seating Arrangements",
+          "canonicalName": "seating-arrangements",
+          "subtopics": []
+        },
+        {
+          "name": "Blood Relations",
+          "canonicalName": "blood-relations",
+          "subtopics": []
+        },
+        {
+          "name": "Directions",
+          "canonicalName": "directions",
+          "subtopics": []
+        },
+        {
+          "name": "Figures Counting Reasoning (Analytical Reasoning)",
+          "canonicalName": "figures-counting-reasoning-analytical-reasoning",
+          "subtopics": []
+        },
+        {
+          "name": "Puzzle Solving",
+          "canonicalName": "puzzle-solving",
+          "subtopics": []
+        },
+        {
+          "name": "Calendar",
+          "canonicalName": "calendar",
+          "subtopics": []
+        },
+        {
+          "name": "Clock",
+          "canonicalName": "clock",
+          "subtopics": []
+        },
+        {
+          "name": "Cubes & Dices",
+          "canonicalName": "cubes-dices",
+          "subtopics": []
+        },
+        {
+          "name": "Selection Decision Table",
+          "canonicalName": "selection-decision-table",
+          "subtopics": []
+        },
+        {
+          "name": "Logical Sequence Of Words (Data Arrangement)",
+          "canonicalName": "logical-sequence-of-words-data-arrangement",
+          "subtopics": []
+        },
+        {
+          "name": "Crypt Arithmetic",
+          "canonicalName": "crypt-arithmetic",
+          "subtopics": []
+        },
+        {
+          "name": "Venn Diagram",
+          "canonicalName": "venn-diagram",
+          "subtopics": []
+        },
+        {
+          "name": "Decision making",
+          "canonicalName": "decision-making",
+          "subtopics": []
+        },
+        {
+          "name": "Spatial Reasoning",
+          "canonicalName": "spatial-reasoning",
+          "subtopics": []
+        },
+        {
+          "name": "Visual Reasoning",
+          "canonicalName": "visual-reasoning",
+          "subtopics": []
+        },
+        {
+          "name": "Critical Reasoning",
+          "canonicalName": "critical-reasoning",
+          "subtopics": []
+        }
+      ]
+    },
+    {
+      "name": "Verbal Ability (English Language)",
+      "canonicalName": "verbal-ability-english-language",
+      "topics": [
+        {
+          "name": "Vocabulary",
+          "canonicalName": "vocabulary",
+          "subtopics": []
+        },
+        {
+          "name": "Noun",
+          "canonicalName": "noun",
+          "subtopics": []
+        },
+        {
+          "name": "Pronoun",
+          "canonicalName": "pronoun",
+          "subtopics": []
+        },
+        {
+          "name": "Adjectives",
+          "canonicalName": "adjectives",
+          "subtopics": []
+        },
+        {
+          "name": "Preposition",
+          "canonicalName": "preposition",
+          "subtopics": []
+        },
+        {
+          "name": "Articles",
+          "canonicalName": "articles",
+          "subtopics": []
+        },
+        {
+          "name": "Direct Indirect Speech",
+          "canonicalName": "direct-indirect-speech",
+          "subtopics": []
+        },
+        {
+          "name": "Tense",
+          "canonicalName": "tense",
+          "subtopics": []
+        },
+        {
+          "name": "Conjunction",
+          "canonicalName": "conjunction",
+          "subtopics": []
+        },
+        {
+          "name": "Subject Verb Agreement",
+          "canonicalName": "subject-verb-agreement",
+          "subtopics": []
+        },
+        {
+          "name": "Modals",
+          "canonicalName": "modals",
+          "subtopics": []
+        },
+        {
+          "name": "Sentence Re-arrangements (Para Jumbles)",
+          "canonicalName": "sentence-re-arrangements-para-jumbles",
+          "subtopics": []
+        },
+        {
+          "name": "Sentence Correction",
+          "canonicalName": "sentence-correction",
+          "subtopics": []
+        },
+        {
+          "name": "Sentence Improvement",
+          "canonicalName": "sentence-improvement",
+          "subtopics": []
+        },
+        {
+          "name": "Error Spotting",
+          "canonicalName": "error-spotting",
+          "subtopics": []
+        },
+        {
+          "name": "Sentence Completion",
+          "canonicalName": "sentence-completion",
+          "subtopics": []
+        },
+        {
+          "name": "Reading Comprehension",
+          "canonicalName": "reading-comprehension",
+          "subtopics": []
+        },
+        {
+          "name": "Cloze Test",
+          "canonicalName": "cloze-test",
+          "subtopics": []
+        },
+        {
+          "name": "Verbal Analogy",
+          "canonicalName": "verbal-analogy",
+          "subtopics": []
+        },
+        {
+          "name": "One Word Substitution",
+          "canonicalName": "one-word-substitution",
+          "subtopics": []
+        },
+        {
+          "name": "Paragraph Based Questions",
+          "canonicalName": "paragraph-based-questions",
+          "subtopics": []
+        },
+        {
+          "name": "Spellings",
+          "canonicalName": "spellings",
+          "subtopics": []
+        },
+        {
+          "name": "Sentence Construction",
+          "canonicalName": "sentence-construction",
+          "subtopics": []
+        },
+        {
+          "name": "Critical Reasoning",
+          "canonicalName": "critical-reasoning",
+          "subtopics": []
+        },
+        {
+          "name": "Essay Writing",
+          "canonicalName": "essay-writing",
+          "subtopics": []
+        },
+        {
+          "name": "Active and Passive Voice",
+          "canonicalName": "active-and-passive-voice",
+          "subtopics": []
+        },
+        {
+          "name": "Idioms and Phrases",
+          "canonicalName": "idioms-and-phrases",
+          "subtopics": []
+        },
+        {
+          "name": "Determiner",
+          "canonicalName": "determiner",
+          "subtopics": []
+        },
+        {
+          "name": "Facts, Interface and Judgements",
+          "canonicalName": "facts-interface-and-judgements",
+          "subtopics": []
+        }
+      ]
+    },
+    {
+      "name": "HTML",
+      "canonicalName": "html",
+      "topics": [
+        {
+          "name": "HTML Notes",
+          "canonicalName": "html-notes",
+          "subtopics": [
+            {
+              "name": "HTML Notes",
+              "canonicalName": "html-notes"
+            },
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CSS",
+      "canonicalName": "css",
+      "topics": [
+        {
+          "name": "CSS Notes",
+          "canonicalName": "css-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Java",
+      "canonicalName": "java",
+      "topics": []
+    },
+    {
+      "name": "Java by Prashant Sir",
+      "canonicalName": "java-by-prashant-sir",
+      "topics": [
+        {
+          "name": "Java Notes",
+          "canonicalName": "java-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "JavaScript",
+      "canonicalName": "javascript",
+      "topics": [
+        {
+          "name": "JavaScript Notes",
+          "canonicalName": "javascript-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C Programming",
+      "canonicalName": "c-programming",
+      "topics": [
+        {
+          "name": "C Programming Notes",
+          "canonicalName": "c-programming-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        },
+        {
+          "name": "Basics",
+          "canonicalName": "basics",
+          "subtopics": [
+            {
+              "name": "Basic",
+              "canonicalName": "basic"
+            },
+            {
+              "name": "Constants, Variables & Keywords",
+              "canonicalName": "constants-variables-keywords"
+            },
+            {
+              "name": "First Program, Comments, Main Function, Declaration",
+              "canonicalName": "first-program-comments-main-function-declaration"
+            },
+            {
+              "name": "Instructions & Operations",
+              "canonicalName": "instructions-operations"
+            },
+            {
+              "name": "Type Conversion, Precedence & Associativity of Operators",
+              "canonicalName": "type-conversion-precedence-associativity-of-operators"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Decision Control",
+          "canonicalName": "decision-control",
+          "subtopics": [
+            {
+              "name": "If-Else basic",
+              "canonicalName": "if-else-basic"
+            },
+            {
+              "name": "If-Else advance",
+              "canonicalName": "if-else-advance"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Loop Control",
+          "canonicalName": "loop-control",
+          "subtopics": [
+            {
+              "name": "While",
+              "canonicalName": "while"
+            },
+            {
+              "name": "For",
+              "canonicalName": "for"
+            },
+            {
+              "name": "Break & Continue",
+              "canonicalName": "break-continue"
+            },
+            {
+              "name": "Do-While",
+              "canonicalName": "do-while"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Case Control",
+          "canonicalName": "case-control",
+          "subtopics": [
+            {
+              "name": "Switch Case",
+              "canonicalName": "switch-case"
+            },
+            {
+              "name": "GOTO",
+              "canonicalName": "goto"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Functions",
+          "canonicalName": "functions",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Printf & Scanf",
+              "canonicalName": "printf-scanf"
+            },
+            {
+              "name": "Scope Rule of Functions",
+              "canonicalName": "scope-rule-of-functions"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Pointers",
+          "canonicalName": "pointers",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Pointers with other Concepts",
+              "canonicalName": "pointers-with-other-concepts"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Data Types",
+          "canonicalName": "data-types",
+          "subtopics": [
+            {
+              "name": "Integers, Long & Short",
+              "canonicalName": "integers-long-short"
+            },
+            {
+              "name": "Char, Signed & Unsigned",
+              "canonicalName": "char-signed-unsigned"
+            },
+            {
+              "name": "Floats & Doubles",
+              "canonicalName": "floats-doubles"
+            },
+            {
+              "name": "Storage Classes",
+              "canonicalName": "storage-classes"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Structures",
+          "canonicalName": "structures",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "React and Redux",
+      "canonicalName": "react-and-redux",
+      "topics": [
+        {
+          "name": "React and Redux Notes",
+          "canonicalName": "react-and-redux-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NodeJS",
+      "canonicalName": "nodejs",
+      "topics": [
+        {
+          "name": "NodeJS Notes",
+          "canonicalName": "nodejs-notes",
+          "subtopics": [
+            {
+              "name": "Notes",
+              "canonicalName": "notes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Compiler Design",
+      "canonicalName": "compiler-design",
+      "topics": [
+        {
+          "name": "Basics of Compiler",
+          "canonicalName": "basics-of-compiler",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Compiler Interpreter Relationship",
+              "canonicalName": "compiler-interpreter-relationship"
+            },
+            {
+              "name": "Phases of Compiler",
+              "canonicalName": "phases-of-compiler"
+            },
+            {
+              "name": "Symbol Table",
+              "canonicalName": "symbol-table"
+            },
+            {
+              "name": "Error Handler",
+              "canonicalName": "error-handler"
+            },
+            {
+              "name": "Pass of Compiler",
+              "canonicalName": "pass-of-compiler"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Lexical Analysis",
+          "canonicalName": "lexical-analysis",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Secondary Functions",
+              "canonicalName": "secondary-functions"
+            },
+            {
+              "name": "Implementation",
+              "canonicalName": "implementation"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Grammer",
+          "canonicalName": "grammer",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Chomsky Hierarchy",
+              "canonicalName": "chomsky-hierarchy"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            },
+            {
+              "name": "Recursive Grammar",
+              "canonicalName": "recursive-grammar"
+            }
+          ]
+        },
+        {
+          "name": "Context Free Grammar",
+          "canonicalName": "context-free-grammar",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Recursive Grammar",
+              "canonicalName": "recursive-grammar"
+            },
+            {
+              "name": "Left Recursion",
+              "canonicalName": "left-recursion"
+            },
+            {
+              "name": "Ambiguity",
+              "canonicalName": "ambiguity"
+            },
+            {
+              "name": "Determinism",
+              "canonicalName": "determinism"
+            },
+            {
+              "name": "Simplification",
+              "canonicalName": "simplification"
+            },
+            {
+              "name": "Normal Form",
+              "canonicalName": "normal-form"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Syntax Analysis-Top Down Parsing",
+          "canonicalName": "syntax-analysis-top-down-parsing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Brute Force Technique",
+              "canonicalName": "brute-force-technique"
+            },
+            {
+              "name": "First Function",
+              "canonicalName": "first-function"
+            },
+            {
+              "name": "Follow Function",
+              "canonicalName": "follow-function"
+            },
+            {
+              "name": "LL(1) Parser",
+              "canonicalName": "ll1-parser"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Syntax Analysis-Bottom Up Parsing",
+          "canonicalName": "syntax-analysis-bottom-up-parsing",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "LR(0)",
+              "canonicalName": "lr0"
+            },
+            {
+              "name": "SLR(1)",
+              "canonicalName": "slr1"
+            },
+            {
+              "name": "CLR(1)",
+              "canonicalName": "clr1"
+            },
+            {
+              "name": "LALR(1)",
+              "canonicalName": "lalr1"
+            },
+            {
+              "name": "Operator Precedence Grammar",
+              "canonicalName": "operator-precedence-grammar"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Semantic Analysis",
+          "canonicalName": "semantic-analysis",
+          "subtopics": [
+            {
+              "name": "Syntax Directed Translation",
+              "canonicalName": "syntax-directed-translation"
+            },
+            {
+              "name": "Classification of Attributes",
+              "canonicalName": "classification-of-attributes"
+            },
+            {
+              "name": "Types of SDT",
+              "canonicalName": "types-of-sdt"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Intermediate Code",
+          "canonicalName": "intermediate-code",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Types of Address Code",
+              "canonicalName": "types-of-address-code"
+            },
+            {
+              "name": "Static Single Assignment",
+              "canonicalName": "static-single-assignment"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        },
+        {
+          "name": "Code Optimization",
+          "canonicalName": "code-optimization",
+          "subtopics": [
+            {
+              "name": "Basics",
+              "canonicalName": "basics"
+            },
+            {
+              "name": "Machine Independent Optimization",
+              "canonicalName": "machine-independent-optimization"
+            },
+            {
+              "name": "Loop Optimization",
+              "canonicalName": "loop-optimization"
+            },
+            {
+              "name": "Liveness Analysis",
+              "canonicalName": "liveness-analysis"
+            },
+            {
+              "name": "Multiple Topics",
+              "canonicalName": "multiple-topics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "C Language",
+      "canonicalName": "c-language",
+      "topics": []
+    },
+    {
+      "name": "Engineering Maths",
+      "canonicalName": "engineering-maths",
+      "topics": []
+    },
+    {
+      "name": "Software Engineering",
+      "canonicalName": "software-engineering",
+      "topics": []
+    }
+  ]
+}

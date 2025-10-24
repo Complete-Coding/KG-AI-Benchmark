@@ -1,4 +1,4 @@
-import rawDataset from '../../pyq-gate-sample.json';
+import rawDataset from './benchmark-questions.json';
 import {
   BenchmarkQuestion,
   BenchmarkQuestionAnswer,
@@ -31,7 +31,7 @@ interface RawAnswer {
     min?: number;
     max?: number;
     precision?: number;
-  };
+  } | null;
   caseSensitive?: boolean;
   correct?: boolean;
 }

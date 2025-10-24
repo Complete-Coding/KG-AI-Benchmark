@@ -1,4 +1,4 @@
-import rawTopology from '../../pyq-gate-sample-topology.json';
+import rawTopology from './benchmark-topology.json';
 import { QuestionTopology, QuestionTopologySubject } from '@/types/benchmark';
 
 const topologyDataset = (rawTopology as QuestionTopology) ?? { subjects: [] };
