@@ -7,7 +7,7 @@ import {
 } from '@/types/benchmark';
 import createId from '@/utils/createId';
 import { sendChatCompletion, fetchModels } from '@/services/lmStudioClient';
-import { parseModelResponse } from '@/services/evaluation';
+import { parseModelResponse, parseTopologyPrediction } from '@/services/evaluation';
 
 /**
  * Dummy question used exclusively for L2 readiness checks.
@@ -74,6 +74,40 @@ const formatQuestionPrompt = (question: BenchmarkQuestion) => {
   }
 
   return lines.join('\n');
+};
+
+const buildTopologyPrompt = (question: BenchmarkQuestion) => {
+  const lines: string[] = [];
+  lines.push(`Question (${question.type}): ${question.prompt}`);
+
+  if (question.instructions) {
+    lines.push(`Instructions: ${question.instructions}`);
+  }
+
+  if (question.options.length > 0) {
+    lines.push('');
+    lines.push('Options:');
+    question.options.forEach((option, index) => {
+      const label = String.fromCharCode(65 + index);
+      lines.push(`${label}. ${option.text}`);
+    });
+  }
+
+  lines.push('');
+  lines.push(
+    'Classify the question before answering. Return JSON with keys `subject`, `topic`, `subtopic`, and optionally `confidence` (0-1).'
+  );
+
+  return lines.join('\n');
+};
+
+const buildAnswerPromptWithTopology = (
+  question: BenchmarkQuestion,
+  topologyJson: string | undefined
+) => {
+  const prompt = formatQuestionPrompt(question);
+  const topologyContext = topologyJson ? `\n\nTopology classification: ${topologyJson}` : '';
+  return `${prompt}${topologyContext}`;
 };
 
 interface HandshakeOutcome {
@@ -195,11 +229,13 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
   );
 
   try {
-    const completion = await sendChatCompletion({
+    logs.push(createLog('Step 1: Requesting topology classification.'));
+    const topologyPrompt = buildTopologyPrompt(READINESS_DUMMY_QUESTION);
+    const topologyCompletion = await sendChatCompletion({
       profile,
       messages: [
         { role: 'system', content: profile.defaultSystemPrompt },
-        { role: 'user', content: formatQuestionPrompt(READINESS_DUMMY_QUESTION) },
+        { role: 'user', content: topologyPrompt },
       ],
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
@@ -208,26 +244,74 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
 
     logs.push(
       createLog(
-        completion.fallbackUsed
-          ? 'Model replied after disabling JSON mode. Ensure prompts request JSON explicitly.'
-          : 'Model replied with JSON mode enabled.'
+        topologyCompletion.fallbackUsed
+          ? 'Topology step fell back to plain text.'
+          : 'Topology step responded in JSON mode.'
       )
     );
 
-    const parsed = parseModelResponse(completion.text);
+    const topologyPrediction = parseTopologyPrediction(topologyCompletion.text);
+    const hasTopologyPrediction =
+      Boolean(topologyPrediction.subject) ||
+      Boolean(topologyPrediction.topic) ||
+      Boolean(topologyPrediction.subtopic);
 
-    logs.push(createLog(`Response body: ${completion.text}`));
+    logs.push(createLog(`Topology response: ${topologyCompletion.text}`));
+
+    if (!hasTopologyPrediction) {
+      logs.push(
+        createLog(
+          'Topology response missing subject/topic/subtopic fields required for readiness.',
+          'warn'
+        )
+      );
+    }
+
+    const topologyContext = JSON.stringify(
+      {
+        subject: topologyPrediction.subject ?? null,
+        topic: topologyPrediction.topic ?? null,
+        subtopic: topologyPrediction.subtopic ?? null,
+      },
+      null,
+      2
+    );
+
+    logs.push(createLog('Step 2: Requesting final answer using topology context.'));
+    const answerPrompt = buildAnswerPromptWithTopology(READINESS_DUMMY_QUESTION, topologyContext);
+    const answerCompletion = await sendChatCompletion({
+      profile,
+      messages: [
+        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'user', content: answerPrompt },
+      ],
+      temperature: profile.temperature,
+      maxTokens: profile.maxOutputTokens,
+      preferJson: true,
+    });
+
+    logs.push(
+      createLog(
+        answerCompletion.fallbackUsed
+          ? 'Answer step fell back to plain text.'
+          : 'Answer step replied with JSON mode enabled.'
+      )
+    );
+
+    const parsed = parseModelResponse(answerCompletion.text);
+
+    logs.push(createLog(`Answer response: ${answerCompletion.text}`));
 
     // Check format compliance, NOT answer correctness
     const hasAnswer = parsed.answer !== undefined && parsed.answer !== null && parsed.answer !== '';
     const hasValidFormat = typeof parsed.answer === 'string';
 
-    const formatCompliant = hasAnswer && hasValidFormat;
+    const formatCompliant = hasTopologyPrediction && hasAnswer && hasValidFormat;
 
     if (!formatCompliant) {
       logs.push(
         createLog(
-          `Protocol check failed: response missing required 'answer' field or invalid format.`,
+          'Protocol check failed: topology or answer step missing required fields.',
           'warn'
         )
       );
@@ -248,17 +332,21 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     return {
       success: formatCompliant,
       logs,
-      supportsJsonMode: !completion.fallbackUsed,
+      supportsJsonMode: !topologyCompletion.fallbackUsed && !answerCompletion.fallbackUsed,
       summary: formatCompliant
         ? 'Protocol compliance verified - response format is correct.'
         : 'Protocol check failed - response format is invalid.',
       metadata: {
+        topologyResponse: topologyPrediction,
         parsedResponse: {
           hasAnswer,
           hasExplanation: parsed.explanation !== undefined,
           hasConfidence: parsed.confidence !== undefined,
         },
-        rawResponse: completion.text,
+        rawResponses: {
+          topology: topologyCompletion.text,
+          answer: answerCompletion.text,
+        },
       },
     };
   } catch (error) {

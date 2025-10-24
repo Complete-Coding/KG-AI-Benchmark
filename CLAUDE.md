@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KG AI Benchmark is a React + TypeScript application for benchmarking local LLMs hosted in LM Studio (or any OpenAI-compatible runtime) using a curated GATE PYQ (Previous Year Questions) dataset. The app is client-side only, with all state persisted to browser localStorage.
+KG AI Benchmark is a React + TypeScript application for benchmarking local LLMs hosted in LM Studio (or any OpenAI-compatible runtime) using a curated GATE PYQ (Previous Year Questions) dataset. The app is client-side only, with benchmark state persisted to Supabase.
 
 ## Development Commands
 
@@ -16,7 +16,7 @@ KG AI Benchmark is a React + TypeScript application for benchmarking local LLMs 
 
 ### Important Notes
 - No test suite is currently configured
-- All backend integration is pending; the app currently simulates API calls using localStorage
+- Supabase stores profiles, diagnostics, and run history; ensure the environment has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` configured.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ State updates flow through a reducer pattern with actions:
 - `UPSERT_RUN` / `DELETE_RUN` - Manage benchmark runs
 - `RECORD_DIAGNOSTIC` - Store diagnostic results in profile history
 
-All state changes automatically sync to localStorage via `src/services/storage.ts`.
+All state changes automatically sync to Supabase via `src/services/storage.ts`.
 
 ### Data Normalization
 
@@ -129,9 +129,8 @@ Prompts follow a consistent structure (see `buildQuestionPrompt` in benchmarkEng
 ## Known Limitations & Roadmap
 
 ### Pending Backend Integration
-- Profile and run persistence currently uses localStorage
-- When wiring to backend APIs, mirror the same data contracts (see `src/types/benchmark.ts`)
-- Diagnostic history and attempts should persist to MongoDB
+- Supabase currently stores complete benchmark payloads; future work may add per-user auth and server-side analytics.
+- If migrating away from Supabase, mirror the contracts defined in `src/types/benchmark.ts` and update `src/services/storage.ts` accordingly.
 
 ### Future Enhancements
 1. Cancellation controls and progress indicators for running benchmarks

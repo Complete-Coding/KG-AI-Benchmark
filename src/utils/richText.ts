@@ -1,13 +1,30 @@
 interface RichTextNode {
   type?: string;
   text?: string;
-  content?: RichTextNode[];
+  content?: (RichTextNode | string)[];
 }
+
+const isRichTextNode = (value: unknown): value is RichTextNode =>
+  typeof value === 'object' && value !== null;
 
 const lineBreak = '\n';
 
+const pushChild = (
+  child: RichTextNode | string,
+  buffer: string[],
+  depth: number,
+  listIndex?: number
+) => {
+  if (typeof child === 'string') {
+    buffer.push(child);
+    return;
+  }
+
+  collectText(child, buffer, depth, listIndex);
+};
+
 const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?: number) => {
-  if (!node || !node.type) {
+  if (!node?.type) {
     return;
   }
 
@@ -22,7 +39,7 @@ const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?
   }
 
   if (node.type === 'paragraph') {
-    node.content?.forEach((child) => collectText(child, buffer, depth));
+    node.content?.forEach((child) => pushChild(child, buffer, depth));
     buffer.push(lineBreak);
     return;
   }
@@ -32,10 +49,14 @@ const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?
       if (!item) {
         return;
       }
-      const prefix =
-        node.type === 'orderedList'
-          ? `${'  '.repeat(depth)}${index + 1}. `
-          : `${'  '.repeat(depth)}- `;
+      if (typeof item === 'string') {
+        buffer.push(item);
+        buffer.push(lineBreak);
+        return;
+      }
+      const prefix = node.type === 'orderedList'
+        ? `${'  '.repeat(depth)}${index + 1}. `
+        : `${'  '.repeat(depth)}- `;
       buffer.push(prefix);
       collectText(item, buffer, depth + 1, index);
       buffer.push(lineBreak);
@@ -44,11 +65,11 @@ const collectText = (node: RichTextNode, buffer: string[], depth = 0, listIndex?
   }
 
   if (node.type === 'listItem') {
-    node.content?.forEach((child) => collectText(child, buffer, depth, listIndex));
+    node.content?.forEach((child) => pushChild(child, buffer, depth, listIndex));
     return;
   }
 
-  node.content?.forEach((child) => collectText(child, buffer, depth, listIndex));
+  node.content?.forEach((child) => pushChild(child, buffer, depth, listIndex));
 };
 
 const sanitize = (value: string) =>
@@ -58,7 +79,7 @@ const sanitize = (value: string) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-export const richTextToPlain = (node?: RichTextNode | string | null | any): string => {
+export const richTextToPlain = (node?: RichTextNode | string | null): string => {
   if (!node) {
     return '';
   }
@@ -67,12 +88,12 @@ export const richTextToPlain = (node?: RichTextNode | string | null | any): stri
     return sanitize(node);
   }
 
-  if (typeof node !== 'object') {
+  if (!isRichTextNode(node)) {
     return '';
   }
 
   const buffer: string[] = [];
-  collectText(node as RichTextNode, buffer);
+  collectText(node, buffer);
 
   return sanitize(buffer.join(''));
 };

@@ -3,6 +3,7 @@ import {
   BenchmarkModelResponse,
   BenchmarkQuestion,
   BenchmarkQuestionOption,
+  BenchmarkTopologyPrediction,
 } from '@/types/benchmark';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -36,6 +37,9 @@ const tryParseJson = (text: string): unknown => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
+
+const readStringField = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value.trim() : undefined;
 
 export const parseModelResponse = (text: string): BenchmarkModelResponse => {
   const trimmed = text.trim();
@@ -81,6 +85,55 @@ export const parseModelResponse = (text: string): BenchmarkModelResponse => {
     answer: extractedAnswer.trim(),
     explanation: undefined,
     confidence: undefined,
+    raw: trimmed,
+  };
+};
+
+const extractTopologyFromRecord = (record: Record<string, unknown>) => {
+  const container = isRecord(record.topology) ? record.topology : record;
+
+  const subject = readStringField(container.subject) ?? readStringField(container.Subject);
+  const topic = readStringField(container.topic) ?? readStringField(container.Topic);
+  const subtopic = readStringField(container.subtopic) ?? readStringField(container.Subtopic);
+  const confidenceRaw = container.confidence ?? record.confidence;
+  const confidence =
+    typeof confidenceRaw === 'number'
+      ? Math.max(0, Math.min(1, confidenceRaw))
+      : undefined;
+
+  return { subject, topic, subtopic, confidence };
+};
+
+const extractTopologyFromText = (text: string) => {
+  const subjectMatch = /subject\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+  const topicMatch = /topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+  const subtopicMatch = /sub\s*-?\s*topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+
+  return {
+    subject: subjectMatch ? subjectMatch[1].trim() : undefined,
+    topic: topicMatch ? topicMatch[1].trim() : undefined,
+    subtopic: subtopicMatch ? subtopicMatch[1].trim() : undefined,
+    confidence: undefined,
+  };
+};
+
+export const parseTopologyPrediction = (text: string): BenchmarkTopologyPrediction => {
+  const trimmed = text.trim();
+  const withoutCodeFence = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+  const jsonCandidate = extractJsonObject(withoutCodeFence);
+  const parsed = tryParseJson(jsonCandidate);
+
+  if (isRecord(parsed)) {
+    const topology = extractTopologyFromRecord(parsed);
+    return {
+      ...topology,
+      raw: parsed,
+    };
+  }
+
+  const fallback = extractTopologyFromText(trimmed);
+  return {
+    ...fallback,
     raw: trimmed,
   };
 };
@@ -188,6 +241,81 @@ const parseMultipleIndices = (value: string, options: ReturnType<typeof normaliz
   }
 
   return indices;
+};
+
+const joinTopologyParts = (subject?: string | null, topic?: string | null, subtopic?: string | null) =>
+  [subject, topic, subtopic]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(' › ');
+
+const normalizeTopologyValue = (value?: string) => (value ? sanitize(value) : '');
+
+export const evaluateTopologyPrediction = (
+  question: BenchmarkQuestion,
+  prediction: BenchmarkTopologyPrediction
+): BenchmarkAttemptEvaluation => {
+  const expectedTopology = question.metadata.topology ?? {};
+  const expectedSubject = expectedTopology.subject ?? null;
+  const expectedTopic = expectedTopology.topic ?? null;
+  const expectedSubtopic = expectedTopology.subtopic ?? null;
+
+  const expectedFields = [
+    { key: 'subject', expected: expectedSubject },
+    { key: 'topic', expected: expectedTopic },
+    { key: 'subtopic', expected: expectedSubtopic },
+  ] as const;
+
+  const comparisons = expectedFields
+    .filter((item) => item.expected)
+    .map((item) => {
+      const predictedValue = (prediction as Record<string, string | undefined>)[item.key];
+      const matches =
+        normalizeTopologyValue(predictedValue) === normalizeTopologyValue(item.expected ?? undefined);
+      return {
+        key: item.key,
+        expected: item.expected,
+        received: predictedValue,
+        matches,
+      };
+    });
+
+  const totalComparisons = comparisons.length;
+  const matchedCount = comparisons.filter((item) => item.matches).length;
+  const score = totalComparisons === 0 ? 1 : matchedCount / totalComparisons;
+  const passed = totalComparisons === 0 ? true : matchedCount === totalComparisons;
+  const mismatches = comparisons.filter((item) => !item.matches);
+  const expectedText = joinTopologyParts(expectedSubject, expectedTopic, expectedSubtopic) || '—';
+  const receivedText =
+    joinTopologyParts(prediction.subject, prediction.topic, prediction.subtopic) || '—';
+
+  let notes: string | undefined;
+
+  if (mismatches.length > 0) {
+    notes = mismatches
+      .map(
+        (item) =>
+          `${item.key} mismatch (expected "${item.expected ?? '—'}", received "${
+            item.received ?? '—'
+          }")`
+      )
+      .join('; ');
+  } else if (totalComparisons === 0) {
+    notes = 'Question has no topology metadata to compare.';
+  }
+
+  return {
+    expected: expectedText,
+    received: receivedText,
+    passed,
+    score,
+    notes,
+    metrics:
+      typeof prediction.confidence === 'number'
+        ? {
+            confidence: Math.max(0, Math.min(1, prediction.confidence)),
+          }
+        : undefined,
+  };
 };
 
 const evaluateSingleChoice = (

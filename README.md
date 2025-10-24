@@ -38,13 +38,14 @@ The development server runs at [http://localhost:5173](http://localhost:5173).
 2. **Run diagnostics** – execute Level 1 (handshake) then Level 2 (readiness). The UI records logs,
    flags JSON-mode fallbacks, and blocks benchmarks until readiness passes.
 3. **Launch a benchmark** – switch to the Runs tab, click “New run”, filter/select questions from the
-   embedded PYQ dataset, and start the run. Progress streams live; results persist to local storage.
+   embedded PYQ dataset, and start the run. Progress streams live; results persist to Supabase so you
+   can pick up on any device.
 4. **Analyze results** – open any run to inspect accuracy, latency, token usage, and per-question
    responses/explanations. Dashboard trend lines summarize the most recent completions.
 
 ## Roadmap
 
-1. Wire profiles, diagnostics, and runs to backend APIs (replace local storage for multi-user use).
+1. Harden Supabase schemas/policies (per-user scoping, migrations) and backfill analytics views.
 2. Add cancellation controls, progress indicators, and screenshot/export helpers.
 3. Extend evaluation to descriptive/FILL_BLANK questions with rubric scoring.
 4. Support dataset import/export to drive custom benchmark suites.

@@ -181,6 +181,14 @@ export interface BenchmarkModelResponse {
   raw?: unknown;
 }
 
+export interface BenchmarkTopologyPrediction {
+  subject?: string;
+  topic?: string;
+  subtopic?: string;
+  confidence?: number;
+  raw?: unknown;
+}
+
 export interface BenchmarkAttemptEvaluation {
   expected: string;
   received: string;
@@ -190,6 +198,28 @@ export interface BenchmarkAttemptEvaluation {
   metrics?: {
     confidence?: number;
   };
+}
+
+export interface BenchmarkAttemptStepUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface BenchmarkAttemptStepResult {
+  id: string;
+  label: string;
+  order: number;
+  prompt: string;
+  requestPayload: Record<string, unknown>;
+  responsePayload?: unknown;
+  responseText: string;
+  latencyMs: number;
+  usage?: BenchmarkAttemptStepUsage;
+  modelResponse?: BenchmarkModelResponse;
+  topologyPrediction?: BenchmarkTopologyPrediction;
+  evaluation?: BenchmarkAttemptEvaluation;
+  notes?: string;
 }
 
 export interface BenchmarkAttempt {
@@ -206,6 +236,9 @@ export interface BenchmarkAttempt {
   responseText: string;
   modelResponse?: BenchmarkModelResponse;
   evaluation: BenchmarkAttemptEvaluation;
+  topologyPrediction?: BenchmarkTopologyPrediction;
+  topologyEvaluation?: BenchmarkAttemptEvaluation;
+  steps: BenchmarkAttemptStepResult[];
   error?: string;
   questionSnapshot: {
     prompt: string;
@@ -223,6 +256,9 @@ export interface BenchmarkRunMetrics {
   totalLatencyMs: number;
   passedCount: number;
   failedCount: number;
+  topologyAccuracy: number;
+  topologyPassedCount: number;
+  topologyFailedCount: number;
 }
 
 export interface BenchmarkRun {
@@ -290,13 +326,13 @@ export interface ActiveRunStartPayload {
   profileModelId: string;
   datasetLabel: string;
   filters: string[];
-  questions: Array<{
+  questions: {
     id: string;
     order: number;
     label: string;
     prompt: string;
     type: QuestionType;
-  }>;
+  }[];
   startedAt: string;
 }
 
@@ -353,7 +389,7 @@ export type ModelCapability =
   | 'embeddings'
   | 'audio'
   | 'function_calling'
-  | string;
+  | (string & {});
 
 export interface DiscoveredModel {
   id: string;

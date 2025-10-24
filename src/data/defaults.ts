@@ -2,11 +2,12 @@ import { BenchmarkRunMetrics, BenchmarkStepConfig } from '@/types/benchmark';
 
 export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
   {
-    id: 'analysis',
-    label: 'Problem analysis',
-    description: 'Review the prompt and enumerate the important details before answering.',
+    id: 'topology',
+    label: 'Topology classification',
+    description:
+      'Identify the subject, topic, and subtopic covered by the question before attempting an answer.',
     promptTemplate:
-      'Analyze the question carefully. List key facts, constraints, and any reasoning steps you will need before proposing an answer.',
+      'Determine which subject, topic, and subtopic the question belongs to. Consider the question text, instructions, and options when deciding.\n\nReturn JSON using this schema:\n{\n  "subject": string,\n  "topic": string,\n  "subtopic": string,\n  "confidence": number (0 to 1, optional)\n}',
     enabled: true,
   },
   {
@@ -15,7 +16,7 @@ export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
     description:
       'Produce the final answer in the required format after completing your reasoning.',
     promptTemplate:
-      'Using your reasoning, provide the final answer. Respect the answer format requested in the prompt. Respond using JSON with fields `answer`, `explanation`, and `confidence` (0-1).',
+      'Using all available context (including prior step outputs: {{previousStepOutputs}}), provide the final answer. Respect the answer format requested in the prompt. Respond using JSON with fields `answer`, `explanation`, and `confidence` (0-1).',
     enabled: true,
   },
 ];
@@ -41,6 +42,9 @@ export const createEmptyRunMetrics = (): BenchmarkRunMetrics => ({
   totalLatencyMs: 0,
   passedCount: 0,
   failedCount: 0,
+  topologyAccuracy: 0,
+  topologyPassedCount: 0,
+  topologyFailedCount: 0,
 });
 
 /**

@@ -14,8 +14,11 @@ import {
   ActiveRunQuestionStartPayload,
   ActiveRunStartPayload,
   ActiveRunState,
+  BenchmarkAttempt,
+  BenchmarkStepConfig,
   BenchmarkQuestion,
   BenchmarkRun,
+  BenchmarkRunMetrics,
   DashboardOverview,
   DiagnosticsResult,
   DiscoveredModel,
@@ -32,7 +35,14 @@ import {
   createEmptyRunMetrics,
   DEFAULT_PROFILE_VALUES,
 } from '@/data/defaults';
-import { loadProfiles, loadRuns, saveProfiles, saveRuns } from '@/services/storage';
+import {
+  deleteProfileRecord,
+  deleteRunRecord,
+  loadProfiles,
+  loadRuns,
+  upsertProfileRecord,
+  upsertRunRecord,
+} from '@/services/storage';
 import { discoverLmStudioModels, mergeDiscoveryResults } from '@/services/lmStudioDiscovery';
 import createId from '@/utils/createId';
 
@@ -117,6 +127,43 @@ const resolveDiscoveryTargets = (profiles: ModelProfile[]): DiscoveryTarget[] =>
 
 const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfile): ModelProfile => {
   const now = new Date().toISOString();
+  const topologyDefaults = defaultStepById.get('topology');
+  const answerDefaults = defaultStepById.get('answer');
+
+  const adjustLegacyStep = (step: Partial<BenchmarkStepConfig>, index: number) => {
+    if (step.id === 'analysis') {
+      return {
+        ...step,
+        id: 'topology',
+        label: step.label ?? topologyDefaults?.label ?? 'Topology classification',
+        description: topologyDefaults?.description,
+        promptTemplate: topologyDefaults?.promptTemplate,
+      };
+    }
+
+    if (step.id === 'answer') {
+      return {
+        ...answerDefaults,
+        ...step,
+        id: 'answer',
+        label: step.label ?? answerDefaults?.label ?? 'Final answer',
+        promptTemplate: step.promptTemplate ?? answerDefaults?.promptTemplate,
+      };
+    }
+
+    if (!step.id) {
+      const fallback = defaultBenchmarkSteps[index];
+      return {
+        ...step,
+        id: fallback?.id ?? `step-${index}`,
+        label: step.label ?? fallback?.label ?? `Step ${index + 1}`,
+        promptTemplate: step.promptTemplate ?? fallback?.promptTemplate ?? '',
+        description: step.description ?? fallback?.description,
+      };
+    }
+
+    return step;
+  };
 
   const normalizedSteps = () => {
     const incomingSteps = profile.benchmarkSteps ?? existing?.benchmarkSteps;
@@ -126,15 +173,17 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
     }
 
     return incomingSteps.map((step, index) => {
+      const legacyAdjusted = adjustLegacyStep(step, index);
       const fallback =
-        (step.id ? defaultStepById.get(step.id) : undefined) ?? defaultBenchmarkSteps[index];
+        (legacyAdjusted.id ? defaultStepById.get(legacyAdjusted.id) : undefined) ??
+        defaultBenchmarkSteps[index];
 
       return {
-        id: step.id ?? fallback?.id ?? `step-${index}`,
-        label: step.label ?? fallback?.label ?? `Step ${index + 1}`,
-        description: step.description ?? fallback?.description,
-        promptTemplate: step.promptTemplate ?? fallback?.promptTemplate ?? '',
-        enabled: step.enabled ?? fallback?.enabled ?? true,
+        id: legacyAdjusted.id ?? fallback?.id ?? `step-${index}`,
+        label: legacyAdjusted.label ?? fallback?.label ?? `Step ${index + 1}`,
+        description: legacyAdjusted.description ?? fallback?.description,
+        promptTemplate: legacyAdjusted.promptTemplate ?? fallback?.promptTemplate ?? '',
+        enabled: legacyAdjusted.enabled ?? fallback?.enabled ?? true,
       };
     });
   };
@@ -177,6 +226,24 @@ const normalizeRun = (run: Partial<BenchmarkRun>, existing?: BenchmarkRun): Benc
     totalQuestions: questionDatasetSummary.total,
     filters: questionDatasetSummary.filters,
   };
+  const normalizeAttempts = (attempts?: BenchmarkAttempt[]): BenchmarkAttempt[] =>
+    (attempts ?? []).map((attempt) => {
+      const candidate = attempt as BenchmarkAttempt & {
+        steps?: BenchmarkAttempt['steps'];
+      };
+
+      return {
+        ...candidate,
+        steps: Array.isArray(candidate.steps) ? candidate.steps : [],
+      };
+    });
+  const sourceMetrics = run.metrics ?? existing?.metrics;
+  const normalizedMetrics: BenchmarkRunMetrics = sourceMetrics
+    ? {
+        ...createEmptyRunMetrics(),
+        ...sourceMetrics,
+      }
+    : createEmptyRunMetrics();
 
   return {
     id: run.id ?? existing?.id ?? createId(),
@@ -195,8 +262,8 @@ const normalizeRun = (run: Partial<BenchmarkRun>, existing?: BenchmarkRun): Benc
       totalQuestions: run.dataset?.totalQuestions ?? baseDataset.totalQuestions,
       filters: run.dataset?.filters ?? baseDataset.filters,
     },
-    metrics: run.metrics ?? existing?.metrics ?? createEmptyRunMetrics(),
-    attempts: run.attempts ?? existing?.attempts ?? [],
+    metrics: normalizedMetrics,
+    attempts: normalizeAttempts(run.attempts ?? existing?.attempts),
     notes: run.notes ?? existing?.notes,
     summary: run.summary ?? existing?.summary,
   };
@@ -559,33 +626,30 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    const storedProfiles = loadProfiles().map((profile) => normalizeProfile(profile));
-    const storedRuns = loadRuns().map((run) => normalizeRun(run));
+    let cancelled = false;
 
-    dispatch({
-      type: 'INITIALIZE',
-      payload: {
-        profiles: storedProfiles,
-        runs: storedRuns,
-      },
-    });
+    const bootstrap = async () => {
+      const [profiles, runs] = await Promise.all([loadProfiles(), loadRuns()]);
+
+      if (cancelled) {
+        return;
+      }
+
+      dispatch({
+        type: 'INITIALIZE',
+        payload: {
+          profiles: profiles.map((profile) => normalizeProfile(profile)),
+          runs: runs.map((run) => normalizeRun(run)),
+        },
+      });
+    };
+
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    if (!state.initialized) {
-      return;
-    }
-
-    saveProfiles(state.profiles);
-  }, [state.initialized, state.profiles]);
-
-  useEffect(() => {
-    if (!state.initialized) {
-      return;
-    }
-
-    saveRuns(state.runs);
-  }, [state.initialized, state.runs]);
 
   const upsertProfile = useCallback(
     (profile: Partial<ModelProfile>): ModelProfile => {
@@ -594,6 +658,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         : undefined;
       const normalized = normalizeProfile(profile, existing);
       dispatch({ type: 'UPSERT_PROFILE', payload: normalized });
+      void upsertProfileRecord(normalized);
       return normalized;
     },
     [state.profiles]
@@ -601,17 +666,56 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteProfile = useCallback((profileId: string) => {
     dispatch({ type: 'DELETE_PROFILE', payload: profileId });
+    void deleteProfileRecord(profileId);
   }, []);
 
-  const recordDiagnostic = useCallback((diagnostic: DiagnosticsResult) => {
-    dispatch({ type: 'RECORD_DIAGNOSTIC', payload: diagnostic });
-  }, []);
+  const recordDiagnostic = useCallback(
+    (diagnostic: DiagnosticsResult) => {
+      dispatch({ type: 'RECORD_DIAGNOSTIC', payload: diagnostic });
+
+      const target = state.profiles.find((profile) => profile.id === diagnostic.profileId);
+      if (!target) {
+        return;
+      }
+
+      const history = [
+        ...target.diagnostics.filter((item) => item.id !== diagnostic.id),
+        diagnostic,
+      ].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+
+      const metadata = { ...target.metadata };
+
+      if (diagnostic.status === 'pass') {
+        if (diagnostic.level === 'HANDSHAKE') {
+          metadata.lastHandshakeAt = diagnostic.completedAt;
+        }
+        if (diagnostic.level === 'READINESS') {
+          metadata.lastReadinessAt = diagnostic.completedAt;
+        }
+      }
+
+      if (typeof diagnostic.metadata?.supportsJsonMode === 'boolean') {
+        metadata.supportsJsonMode = diagnostic.metadata.supportsJsonMode;
+      }
+
+      const updated: ModelProfile = {
+        ...target,
+        diagnostics: history,
+        metadata,
+        updatedAt: diagnostic.completedAt ?? target.updatedAt,
+      };
+
+      void upsertProfileRecord(updated);
+    },
+    [state.profiles]
+  );
 
   const upsertRun = useCallback(
     (run: Partial<BenchmarkRun>): BenchmarkRun => {
       const existing = run.id ? state.runs.find((item) => item.id === run.id) : undefined;
       const normalized = normalizeRun(run, existing);
       dispatch({ type: 'UPSERT_RUN', payload: normalized });
+      void upsertRunRecord(normalized);
       return normalized;
     },
     [state.runs]
@@ -619,6 +723,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteRun = useCallback((runId: string) => {
     dispatch({ type: 'DELETE_RUN', payload: runId });
+    void deleteRunRecord(runId);
   }, []);
 
   const getProfileById = useCallback(
@@ -660,7 +765,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
 
     dispatch({ type: 'DISCOVERY_REQUEST' });
 
-    const results: Array<{ models: DiscoveredModel[]; endpoint: string }> = [];
+    const results: { models: DiscoveredModel[]; endpoint: string }[] = [];
     const errors: Error[] = [];
 
     for (const target of targets) {
@@ -673,7 +778,11 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         });
         results.push(result);
       } catch (error) {
-        errors.push(error as Error);
+        if (error instanceof Error) {
+          errors.push(error);
+        } else {
+          errors.push(new Error('Unknown discovery error'));
+        }
       }
     }
 

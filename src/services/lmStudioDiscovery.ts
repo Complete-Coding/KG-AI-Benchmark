@@ -14,7 +14,7 @@ interface DiscoveryResult {
   endpoint: string;
 }
 
-type RichModelEntry = {
+interface RichModelEntry {
   id?: string;
   name?: string;
   display_name?: string;
@@ -33,26 +33,26 @@ type RichModelEntry = {
   loaded?: boolean;
   metadata?: Record<string, unknown>;
   [key: string]: unknown;
-};
+}
 
-type BasicModelEntry = {
+interface BasicModelEntry {
   id?: string;
   object?: string;
   owned_by?: string;
   permission?: unknown;
   [key: string]: unknown;
-};
+}
 
-type RichModelsResponse = {
+interface RichModelsResponse {
   data?: RichModelEntry[];
   models?: RichModelEntry[];
   [key: string]: unknown;
-};
+}
 
-type BasicModelsResponse = {
+interface BasicModelsResponse {
   data?: BasicModelEntry[];
   [key: string]: unknown;
-};
+}
 
 const DEFAULT_TIMEOUT = 8000;
 
@@ -229,7 +229,7 @@ const fetchEndpoint = async (
     if (!response.ok) {
       return { ok: false, status: response.status };
     }
-    const body = await response.json();
+    const body: unknown = await response.json();
     return { ok: true, status: response.status, body };
   } catch (error) {
     if ((error as Error).name === 'AbortError') {

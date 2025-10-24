@@ -50,6 +50,12 @@ const questionStatusClasses: Record<ActiveRunQuestionStatus, string> = {
     'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
 };
 
+const stepStatusClasses: Record<'passed' | 'failed' | 'completed', string> = {
+  passed: 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400',
+  failed: 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
+  completed: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+};
+
 const formatDateTime = (iso?: string) => {
   if (!iso) {
     return '—';
@@ -577,6 +583,193 @@ const RunDetail = () => {
                           </div>
                         </div>
                       </section>
+
+                      {selectedItem.attempt.topologyEvaluation ? (
+                        <section className="border border-accent-200 dark:border-accent-700 rounded-xl bg-accent-50/60 dark:bg-accent-900/10 p-4 flex flex-col gap-3">
+                          <header className="flex items-center justify-between gap-2">
+                            <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              Topology comparison
+                            </h5>
+                            <span
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${selectedItem.attempt.topologyEvaluation.passed ? stepStatusClasses.passed : stepStatusClasses.failed}`}
+                            >
+                              {selectedItem.attempt.topologyEvaluation.passed ? 'Matched' : 'Mismatch'}
+                            </span>
+                          </header>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Expected topology
+                              </span>
+                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {selectedItem.attempt.topologyEvaluation.expected || '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Predicted topology
+                              </span>
+                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {selectedItem.attempt.topologyEvaluation.received || '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                Confidence
+                              </span>
+                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                {selectedItem.attempt.topologyEvaluation.metrics?.confidence != null
+                                  ? `${Math.round(
+                                      selectedItem.attempt.topologyEvaluation.metrics.confidence * 100
+                                    )}%`
+                                  : '—'}
+                              </span>
+                            </div>
+                            {selectedItem.attempt.topologyEvaluation.notes ? (
+                              <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1 sm:col-span-2">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                  Notes
+                                </span>
+                                <span className="text-sm text-slate-700 dark:text-slate-300">
+                                  {selectedItem.attempt.topologyEvaluation.notes}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                          {selectedItem.attempt.topologyPrediction ? (
+                            <section className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
+                              <header className="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
+                                <h6 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                  Raw topology response
+                                </h6>
+                              </header>
+                              <pre className="p-3 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
+{JSON.stringify(selectedItem.attempt.topologyPrediction, null, 2)}
+                              </pre>
+                            </section>
+                          ) : null}
+                        </section>
+                      ) : null}
+
+                      {selectedItem.attempt.steps?.length ? (
+                        <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40">
+                          <header className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                            <h6 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              Step breakdown
+                            </h6>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {selectedItem.attempt.steps.length} step
+                              {selectedItem.attempt.steps.length === 1 ? '' : 's'}
+                            </span>
+                          </header>
+                          <div className="p-4 flex flex-col gap-4">
+                            {selectedItem.attempt.steps.map((step) => {
+                              const statusKey: 'passed' | 'failed' | 'completed' = step.evaluation
+                                ? step.evaluation.passed
+                                  ? 'passed'
+                                  : 'failed'
+                                : 'completed';
+                              const tokensText = step.usage?.totalTokens
+                                ? `${step.usage.totalTokens} (prompt ${step.usage.promptTokens ?? 0}, completion ${step.usage.completionTokens ?? 0})`
+                                : '—';
+                              return (
+                                <article
+                                  key={`${step.id}-${step.order}`}
+                                  className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-3"
+                                >
+                                  <header className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Step {step.order + 1}
+                                      </span>
+                                      <h6 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                        {step.label}
+                                      </h6>
+                                    </div>
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${stepStatusClasses[statusKey]}`}
+                                    >
+                                      {statusKey === 'completed'
+                                        ? 'Completed'
+                                        : statusKey === 'passed'
+                                        ? 'Passed'
+                                        : 'Failed'}
+                                    </span>
+                                  </header>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Latency
+                                      </span>
+                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
+                                        {Math.round(step.latencyMs)} ms
+                                      </span>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Tokens
+                                      </span>
+                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
+                                        {tokensText}
+                                      </span>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Prompt schema
+                                      </span>
+                                      <span className="block text-xs text-slate-700 dark:text-slate-300 break-words">
+                                        {step.prompt.slice(0, 140)}{step.prompt.length > 140 ? '…' : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {step.topologyPrediction ? (
+                                    <div className="bg-accent-50/60 dark:bg-accent-900/10 border border-accent-200 dark:border-accent-700 rounded-md p-3 flex flex-col gap-1">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-accent-700 dark:text-accent-300">
+                                        Topology output
+                                      </span>
+                                      <span className="text-sm text-slate-700 dark:text-slate-300">
+                                        {step.topologyPrediction.subject ?? '—'} ›{' '}
+                                        {step.topologyPrediction.topic ?? '—'} ›{' '}
+                                        {step.topologyPrediction.subtopic ?? '—'}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                  {step.modelResponse?.answer ? (
+                                    <div className="bg-success-50/70 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-md p-3 flex flex-col gap-1">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-success-700 dark:text-success-300">
+                                        Answer output
+                                      </span>
+                                      <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                        {step.modelResponse.answer}
+                                      </span>
+                                      {step.modelResponse.explanation ? (
+                                        <span className="text-xs text-slate-600 dark:text-slate-300">
+                                          {step.modelResponse.explanation}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                  {step.evaluation?.notes ? (
+                                    <p className="text-xs text-danger-600 dark:text-danger-400">
+                                      {step.evaluation.notes}
+                                    </p>
+                                  ) : null}
+                                  <section className="border border-slate-200 dark:border-slate-700 rounded-md">
+                                    <header className="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
+                                      <h6 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Raw response
+                                      </h6>
+                                    </header>
+                                    <pre className="p-3 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
+{step.responseText || '—'}
+                                    </pre>
+                                  </section>
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ) : null}
 
                       {selectedItem.attempt.modelResponse?.explanation ? (
                         <section className="bg-accent-50/80 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-xl p-4 flex flex-col gap-2">
