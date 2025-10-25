@@ -5,6 +5,7 @@ import {
   BenchmarkQuestionOption,
   BenchmarkTopologyPrediction,
 } from '@/types/benchmark';
+import { formatTopologyIds, getTopologyNames } from '@/utils/topologyLookup';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -92,27 +93,40 @@ export const parseModelResponse = (text: string): BenchmarkModelResponse => {
 const extractTopologyFromRecord = (record: Record<string, unknown>) => {
   const container = isRecord(record.topology) ? record.topology : record;
 
-  const subject = readStringField(container.subject) ?? readStringField(container.Subject);
-  const topic = readStringField(container.topic) ?? readStringField(container.Topic);
-  const subtopic = readStringField(container.subtopic) ?? readStringField(container.Subtopic);
+  // Try ID fields first (new format), fall back to name fields (legacy)
+  const subjectId = readStringField(container.subjectId) ?? readStringField(container.SubjectId) ??
+                    readStringField(container.subject) ?? readStringField(container.Subject);
+  const topicId = readStringField(container.topicId) ?? readStringField(container.TopicId) ??
+                  readStringField(container.topic) ?? readStringField(container.Topic);
+  const subtopicId = readStringField(container.subtopicId) ?? readStringField(container.SubtopicId) ??
+                     readStringField(container.subtopic) ?? readStringField(container.Subtopic);
   const confidenceRaw = container.confidence ?? record.confidence;
   const confidence =
     typeof confidenceRaw === 'number'
       ? Math.max(0, Math.min(1, confidenceRaw))
       : undefined;
 
-  return { subject, topic, subtopic, confidence };
+  return { subjectId, topicId, subtopicId, confidence };
 };
 
 const extractTopologyFromText = (text: string) => {
+  // Try ID fields first
+  const subjectIdMatch = /subject\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+  const topicIdMatch = /topic\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+  const subtopicIdMatch = /sub\s*-?\s*topic\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
+
+  // Fall back to name fields
   const subjectMatch = /subject\s*[:=\-]\s*([^\n,]+)/i.exec(text);
   const topicMatch = /topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
   const subtopicMatch = /sub\s*-?\s*topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
 
   return {
-    subject: subjectMatch ? subjectMatch[1].trim() : undefined,
-    topic: topicMatch ? topicMatch[1].trim() : undefined,
-    subtopic: subtopicMatch ? subtopicMatch[1].trim() : undefined,
+    subjectId: subjectIdMatch ? subjectIdMatch[1].trim() :
+               (subjectMatch ? subjectMatch[1].trim() : undefined),
+    topicId: topicIdMatch ? topicIdMatch[1].trim() :
+             (topicMatch ? topicMatch[1].trim() : undefined),
+    subtopicId: subtopicIdMatch ? subtopicIdMatch[1].trim() :
+                (subtopicMatch ? subtopicMatch[1].trim() : undefined),
     confidence: undefined,
   };
 };
@@ -243,61 +257,66 @@ const parseMultipleIndices = (value: string, options: ReturnType<typeof normaliz
   return indices;
 };
 
-const joinTopologyParts = (subject?: string | null, topic?: string | null, subtopic?: string | null) =>
-  [subject, topic, subtopic]
-    .filter((value): value is string => Boolean(value?.trim()))
-    .join(' › ');
-
-const normalizeTopologyValue = (value?: string) => (value ? sanitize(value) : '');
-
 export const evaluateTopologyPrediction = (
   question: BenchmarkQuestion,
   prediction: BenchmarkTopologyPrediction
 ): BenchmarkAttemptEvaluation => {
   const expectedTopology = question.metadata.topology ?? {};
-  const expectedSubject = expectedTopology.subject ?? null;
-  const expectedTopic = expectedTopology.topic ?? null;
-  const expectedSubtopic = expectedTopology.subtopic ?? null;
+  const expectedSubjectId = expectedTopology.subjectId ?? null;
+  const expectedTopicId = expectedTopology.topicId ?? null;
+  const expectedSubtopicId = expectedTopology.subtopicId ?? null;
+
+  // Direct ID comparison (exact string matching)
+  const subjectMatch = prediction.subjectId === expectedSubjectId;
+  const topicMatch = prediction.topicId === expectedTopicId;
+  const subtopicMatch = prediction.subtopicId === expectedSubtopicId;
 
   const expectedFields = [
-    { key: 'subject', expected: expectedSubject },
-    { key: 'topic', expected: expectedTopic },
-    { key: 'subtopic', expected: expectedSubtopic },
+    { key: 'subjectId', expected: expectedSubjectId, matches: subjectMatch },
+    { key: 'topicId', expected: expectedTopicId, matches: topicMatch },
+    { key: 'subtopicId', expected: expectedSubtopicId, matches: subtopicMatch },
   ] as const;
 
-  const comparisons = expectedFields
-    .filter((item) => item.expected)
-    .map((item) => {
-      const predictedValue = (prediction as Record<string, string | undefined>)[item.key];
-      const matches =
-        normalizeTopologyValue(predictedValue) === normalizeTopologyValue(item.expected ?? undefined);
-      return {
-        key: item.key,
-        expected: item.expected,
-        received: predictedValue,
-        matches,
-      };
-    });
-
+  const comparisons = expectedFields.filter((item) => item.expected);
   const totalComparisons = comparisons.length;
   const matchedCount = comparisons.filter((item) => item.matches).length;
   const score = totalComparisons === 0 ? 1 : matchedCount / totalComparisons;
   const passed = totalComparisons === 0 ? true : matchedCount === totalComparisons;
   const mismatches = comparisons.filter((item) => !item.matches);
-  const expectedText = joinTopologyParts(expectedSubject, expectedTopic, expectedSubtopic) || '—';
-  const receivedText =
-    joinTopologyParts(prediction.subject, prediction.topic, prediction.subtopic) || '—';
+
+  // Use lookup utilities to get names for display
+  const expectedText = formatTopologyIds({
+    subjectId: expectedSubjectId,
+    topicId: expectedTopicId,
+    subtopicId: expectedSubtopicId,
+  });
+  const receivedText = formatTopologyIds({
+    subjectId: prediction.subjectId,
+    topicId: prediction.topicId,
+    subtopicId: prediction.subtopicId,
+  });
 
   let notes: string | undefined;
 
   if (mismatches.length > 0) {
+    const expectedNames = getTopologyNames({
+      subjectId: expectedSubjectId,
+      topicId: expectedTopicId,
+      subtopicId: expectedSubtopicId,
+    });
+    const receivedNames = getTopologyNames({
+      subjectId: prediction.subjectId,
+      topicId: prediction.topicId,
+      subtopicId: prediction.subtopicId,
+    });
+
     notes = mismatches
-      .map(
-        (item) =>
-          `${item.key} mismatch (expected "${item.expected ?? '—'}", received "${
-            item.received ?? '—'
-          }")`
-      )
+      .map((item) => {
+        const levelName = item.key.replace('Id', '');
+        const expected = expectedNames[levelName as keyof typeof expectedNames];
+        const received = receivedNames[levelName as keyof typeof receivedNames];
+        return `${levelName} mismatch (expected "${expected ?? '—'}", received "${received ?? '—'}")`;
+      })
       .join('; ');
   } else if (totalComparisons === 0) {
     notes = 'Question has no topology metadata to compare.';

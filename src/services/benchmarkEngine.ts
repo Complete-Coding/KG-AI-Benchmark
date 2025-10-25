@@ -20,6 +20,34 @@ import { createEmptyRunMetrics, defaultBenchmarkSteps } from '@/data/defaults';
 import { questionTopology } from '@/data/topology';
 import createId from '@/utils/createId';
 
+/**
+ * Builds question context FOR REFERENCE ONLY - without answer format instructions.
+ * Used for topology classification where we don't want to confuse the model with answer format.
+ */
+const buildSimpleQuestionContext = (question: BenchmarkQuestion) => {
+  const lines: string[] = [];
+  lines.push(`Question (${question.type}): ${question.prompt}`);
+
+  if (question.instructions) {
+    lines.push(`Instructions: ${question.instructions}`);
+  }
+
+  if (question.options.length > 0) {
+    lines.push('');
+    lines.push('Options:');
+    question.options.forEach((option, index) => {
+      const label = String.fromCharCode(65 + index);
+      lines.push(`${label}. ${option.text}`);
+    });
+  }
+
+  return lines.join('\n');
+};
+
+/**
+ * Builds full question context WITH answer format instructions.
+ * Used for answer step where we need the model to return answer, explanation, confidence.
+ */
 const buildQuestionContext = (question: BenchmarkQuestion) => {
   const lines: string[] = [];
   lines.push(`Question (${question.type}): ${question.prompt}`);
@@ -79,20 +107,20 @@ const applyTemplateReplacements = (template: string, replacements: Record<string
 
 const buildStepPrompt = (
   question: BenchmarkQuestion,
+  stepId: string,
   stepTemplate: string,
   previousSteps: BenchmarkAttemptStepResult[],
   topologyPrediction?: BenchmarkTopologyPrediction
 ) => {
-  const context = buildQuestionContext(question);
   const expectedTopology = question.metadata.topology ?? {};
 
-  // Build complete topology catalog with subjects, topics, and subtopics
+  // Build complete topology catalog with IDs and names
   const topologyCatalog = questionTopology.map(subject => {
     const topics = subject.topics.map(topic => {
-      const subtopics = topic.subtopics.map(st => `      - ${st.name}`).join('\n');
-      return `    • ${topic.name}${subtopics ? '\n' + subtopics : ''}`;
+      const subtopics = topic.subtopics.map(st => `      - ${st.id} (${st.name})`).join('\n');
+      return `    • ${topic.id} (${topic.name})${subtopics ? '\n' + subtopics : ''}`;
     }).join('\n');
-    return `  ${subject.name}:\n${topics}`;
+    return `  ${subject.id} (${subject.name}):\n${topics}`;
   }).join('\n\n');
 
   const replacements: Record<string, string> = {
@@ -110,48 +138,42 @@ const buildStepPrompt = (
     '{{topologyCatalog}}': topologyCatalog,
   };
 
-  // Debug logging for topology prompt building
-  console.log('[PROMPT DEBUG] Question ID:', question.id);
-  console.log('[PROMPT DEBUG] Step template length:', stepTemplate?.length);
-  console.log('[PROMPT DEBUG] Has topologyCatalog placeholder:', stepTemplate?.includes('{{topologyCatalog}}'));
-  console.log('[PROMPT DEBUG] Step template preview (first 200 chars):', stepTemplate?.substring(0, 200));
-
-  if (stepTemplate.includes('{{topologyCatalog}}')) {
-    console.log('[TOPOLOGY PROMPT DEBUG] Question ID:', question.id);
-    console.log('[TOPOLOGY PROMPT DEBUG] Topology catalog entries:', questionTopology.length);
-    console.log('[TOPOLOGY PROMPT DEBUG] Catalog preview (first 500 chars):', topologyCatalog.substring(0, 500));
-    console.log('[TOPOLOGY PROMPT DEBUG] Expected topology:', expectedTopology);
-    console.log('[TOPOLOGY PROMPT DEBUG] Full topology catalog:', topologyCatalog);
-  } else {
-    console.warn('[TOPOLOGY PROMPT WARNING] Step template does NOT include {{topologyCatalog}} placeholder!');
-  }
-
   const renderedInstructions = applyTemplateReplacements(stepTemplate ?? '', replacements);
 
-  // Debug: Show if catalog was actually included in rendered prompt
-  if (stepTemplate?.includes('{{topologyCatalog}}')) {
-    const catalogIncluded = renderedInstructions.includes('Discrete Mathematics') ||
-                           renderedInstructions.includes('Theory of Computation') ||
-                           renderedInstructions.includes('Computer Networks');
-    console.log('[PROMPT DEBUG] Catalog appears in rendered prompt:', catalogIncluded);
-    if (!catalogIncluded) {
-      console.error('[PROMPT ERROR] Topology catalog was NOT replaced in prompt!');
+  // Build prompt differently based on step type
+  if (stepId === 'topology') {
+    // For topology step: Classification instruction FIRST, then question context for reference
+    const simpleContext = buildSimpleQuestionContext(question);
+
+    console.log('[TOPOLOGY PROMPT BUILD] Question ID:', question.id);
+    console.log('[TOPOLOGY PROMPT BUILD] Topology catalog subjects:', questionTopology.length);
+    console.log('[TOPOLOGY PROMPT BUILD] Using REORDERED prompt: classification FIRST, question SECOND');
+
+    // Classification instruction + catalog FIRST, question context SECOND (for reference only)
+    const sections = [
+      renderedInstructions,
+      '\n---\nQUESTION FOR REFERENCE:\n',
+      simpleContext
+    ];
+
+    return sections.filter(Boolean).join('\n').trim();
+  } else {
+    // For answer step and others: Question context with answer format FIRST, then instructions
+    const fullContext = buildQuestionContext(question);
+    const sections = [fullContext, renderedInstructions];
+
+    if (question.type === 'NAT' && question.answer.kind === 'numeric') {
+      if (question.answer.range.min != null && question.answer.range.max != null) {
+        sections.push(
+          `Numeric tolerance: [${question.answer.range.min}, ${question.answer.range.max}] (precision ${question.answer.range.precision ?? 'unspecified'}).`
+        );
+      } else if (question.answer.acceptedAnswers.length > 0) {
+        sections.push(`Accepted numeric answers: ${question.answer.acceptedAnswers.join(', ')}`);
+      }
     }
+
+    return sections.filter(Boolean).join('\n\n').trim();
   }
-
-  const sections = [context, renderedInstructions];
-
-  if (question.type === 'NAT' && question.answer.kind === 'numeric') {
-    if (question.answer.range.min != null && question.answer.range.max != null) {
-      sections.push(
-        `Numeric tolerance: [${question.answer.range.min}, ${question.answer.range.max}] (precision ${question.answer.range.precision ?? 'unspecified'}).`
-      );
-    } else if (question.answer.acceptedAnswers.length > 0) {
-      sections.push(`Accepted numeric answers: ${question.answer.acceptedAnswers.join(', ')}`);
-    }
-  }
-
-  return sections.filter(Boolean).join('\n\n').trim();
 };
 
 const aggregateMetrics = (attempts: BenchmarkAttempt[]): BenchmarkRunMetrics => {
@@ -238,21 +260,44 @@ export const executeBenchmarkRun = async ({
         const step = executionSteps[stepIndex];
         const prompt = buildStepPrompt(
           question,
+          step.id ?? 'unknown',
           step.promptTemplate ?? '',
           attemptSteps,
           topologyPrediction
         );
 
-        // Debug: Log full topology prompt
+        // Enhanced logging for both topology and answer steps
         if (step.id === 'topology') {
+          console.log('\n═══════════════════════════════════════════════════════════════');
           console.log('[TOPOLOGY EXECUTION] Question ID:', question.id);
           console.log('[TOPOLOGY EXECUTION] Full prompt length:', prompt.length);
-          console.log('[TOPOLOGY EXECUTION] Prompt contains "Theory of Computation":', prompt.includes('Theory of Computation'));
-          console.log('[TOPOLOGY EXECUTION] Prompt contains "Computer Networks":', prompt.includes('Computer Networks'));
-          console.log('[TOPOLOGY EXECUTION] First 1000 chars of prompt:', prompt.substring(0, 1000));
+          console.log('[TOPOLOGY EXECUTION] Prompt contains taxonomy:',
+            prompt.includes('Theory of Computation') || prompt.includes('Computer Networks'));
+          console.log('[TOPOLOGY EXECUTION] First 1000 chars of prompt:');
+          console.log(prompt.substring(0, 1000));
+          console.log('═══════════════════════════════════════════════════════════════\n');
+        }
+
+        if (step.id === 'answer') {
+          console.log('\n═══════════════════════════════════════════════════════════════');
+          console.log('[ANSWER EXECUTION] Question ID:', question.id);
+          console.log('[ANSWER EXECUTION] Full prompt length:', prompt.length);
+          console.log('[ANSWER EXECUTION] Has previous step outputs:',
+            prompt.includes('previousStepOutputs') || attemptSteps.length > 0);
+          console.log('[ANSWER EXECUTION] First 1000 chars of prompt:');
+          console.log(prompt.substring(0, 1000));
+          console.log('═══════════════════════════════════════════════════════════════\n');
         }
 
         const stepStartedAt = Date.now();
+
+        // Auto-detect thinking/reasoning models and set reasoning_effort to high
+        const modelIdLower = profile.modelId.toLowerCase();
+        const isThinkingModel =
+          modelIdLower.includes('deepseek') ||
+          modelIdLower.includes('thinking') ||
+          modelIdLower.includes('r1') ||
+          modelIdLower.includes('reasoning');
 
         const completion = await sendChatCompletion({
           profile,
@@ -263,6 +308,7 @@ export const executeBenchmarkRun = async ({
           temperature: profile.temperature,
           maxTokens: profile.maxOutputTokens,
           preferJson: profile.metadata.supportsJsonMode ?? true,
+          reasoningEffort: isThinkingModel ? 'high' : undefined,
           signal,
         });
 
@@ -292,24 +338,29 @@ export const executeBenchmarkRun = async ({
           const parsedTopology = parseTopologyPrediction(completion.text);
           const topologyEval = evaluateTopologyPrediction(question, parsedTopology);
 
-          // Debug logging for topology evaluation
-          console.log('[TOPOLOGY DEBUG] Question ID:', question.id);
-          console.log('[TOPOLOGY DEBUG] Expected:', {
-            subject: question.metadata.topology?.subject,
-            topic: question.metadata.topology?.topic,
-            subtopic: question.metadata.topology?.subtopic,
+          console.log('\n───────────────────────────────────────────────────────────────');
+          console.log('[TOPOLOGY RESPONSE] Question ID:', question.id);
+          console.log('[TOPOLOGY RESPONSE] Raw response (first 500 chars):');
+          console.log(completion.text.substring(0, 500));
+          console.log('[TOPOLOGY RESPONSE] Parsed prediction:', {
+            subjectId: parsedTopology.subjectId,
+            topicId: parsedTopology.topicId,
+            subtopicId: parsedTopology.subtopicId,
+            confidence: parsedTopology.confidence,
           });
-          console.log('[TOPOLOGY DEBUG] Predicted:', {
-            subject: parsedTopology.subject,
-            topic: parsedTopology.topic,
-            subtopic: parsedTopology.subtopic,
+          console.log('[TOPOLOGY RESPONSE] Expected:', {
+            subjectId: question.metadata.topology?.subjectId,
+            topicId: question.metadata.topology?.topicId,
+            subtopicId: question.metadata.topology?.subtopicId,
           });
-          console.log('[TOPOLOGY DEBUG] Evaluation:', {
+          console.log('[TOPOLOGY RESPONSE] Evaluation:', {
             passed: topologyEval.passed,
             score: topologyEval.score,
+            expected: topologyEval.expected,
+            received: topologyEval.received,
             notes: topologyEval.notes,
           });
-          console.log('[TOPOLOGY DEBUG] Raw model response:', completion.text);
+          console.log('───────────────────────────────────────────────────────────────\n');
 
           topologyPrediction = parsedTopology;
           topologyEvaluation = topologyEval;
@@ -318,6 +369,30 @@ export const executeBenchmarkRun = async ({
         } else if (step.id === answerStepId) {
           const parsedAnswer = parseModelResponse(completion.text);
           const answerEvaluation = evaluateModelAnswer(question, parsedAnswer);
+
+          console.log('\n───────────────────────────────────────────────────────────────');
+          console.log('[ANSWER RESPONSE] Question ID:', question.id);
+          console.log('[ANSWER RESPONSE] Raw response (first 500 chars):');
+          console.log(completion.text.substring(0, 500));
+          console.log('[ANSWER RESPONSE] Parsed answer:', {
+            answer: parsedAnswer.answer,
+            confidence: parsedAnswer.confidence,
+            explanation: parsedAnswer.explanation?.substring(0, 100) + '...',
+          });
+          console.log('[ANSWER RESPONSE] Expected answer:', answerEvaluation.expected);
+          console.log('[ANSWER RESPONSE] Received answer:', answerEvaluation.received);
+          console.log('[ANSWER RESPONSE] Evaluation:', {
+            passed: answerEvaluation.passed,
+            score: answerEvaluation.score,
+            notes: answerEvaluation.notes,
+          });
+          console.log('[ANSWER RESPONSE] Token usage:', {
+            prompt: usage.promptTokens,
+            completion: usage.completionTokens,
+            total: usage.totalTokens,
+          });
+          console.log('───────────────────────────────────────────────────────────────\n');
+
           finalModelResponse = parsedAnswer;
           finalEvaluation = answerEvaluation;
           finalResponseText = completion.text;

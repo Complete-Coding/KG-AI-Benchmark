@@ -76,6 +76,7 @@ export interface ChatCompletionParams {
   temperature?: number;
   maxTokens?: number;
   preferJson?: boolean;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   signal?: AbortSignal;
 }
 
@@ -137,6 +138,7 @@ export const sendChatCompletion = async ({
   temperature,
   maxTokens,
   preferJson = true,
+  reasoningEffort,
   signal,
 }: ChatCompletionParams): Promise<ChatCompletionResult> => {
   const attempt = async (forcePlain = false) => {
@@ -155,8 +157,14 @@ export const sendChatCompletion = async ({
       ...(profile.topP !== undefined && { top_p: profile.topP }),
       ...(profile.frequencyPenalty !== undefined && { frequency_penalty: profile.frequencyPenalty }),
       ...(profile.presencePenalty !== undefined && { presence_penalty: profile.presencePenalty }),
+      ...(reasoningEffort !== undefined && { reasoning_effort: reasoningEffort }),
       ...responseFormat,
     };
+
+    // Log reasoning effort usage for debugging
+    if (reasoningEffort) {
+      console.log(`[LM STUDIO] Using reasoning_effort: ${reasoningEffort} for model: ${profile.modelId}`);
+    }
 
     return request<RawChatCompletionResponse>({
       path: '/v1/chat/completions',

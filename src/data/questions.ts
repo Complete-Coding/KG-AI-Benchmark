@@ -52,9 +52,9 @@ interface RawQuestion {
   difficulty?: string | null;
   topology?:
     | {
-        subject?: RawTopologyValue;
-        topic?: RawTopologyValue;
-        subtopic?: RawTopologyValue;
+        subjectId?: string | null;
+        topicId?: string | null;
+        subtopicId?: string | null;
       }
     | null;
   pyq?:
@@ -217,9 +217,9 @@ const mapQuestion = (question: RawQuestion): BenchmarkQuestion => {
       updatedAt: metadata.updatedAt,
       tags: Array.isArray(metadata.tags) ? metadata.tags : [],
       topology: {
-        subject: toTopologyValue(question.topology?.subject),
-        topic: toTopologyValue(question.topology?.topic),
-        subtopic: toTopologyValue(question.topology?.subtopic),
+        subjectId: question.topology?.subjectId ?? null,
+        topicId: question.topology?.topicId ?? null,
+        subtopicId: question.topology?.subtopicId ?? null,
       },
       pyq: {
         type: question.pyq?.type ?? null,

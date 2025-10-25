@@ -50,9 +50,9 @@ export interface BenchmarkQuestionMetadata {
   updatedAt?: string;
   tags: string[];
   topology?: {
-    subject?: string | null;
-    topic?: string | null;
-    subtopic?: string | null;
+    subjectId?: string | null;
+    topicId?: string | null;
+    subtopicId?: string | null;
   };
   pyq?: {
     type?: string | null;
@@ -90,19 +90,19 @@ export interface QuestionDatasetSummary {
 }
 
 export interface QuestionTopologySubtopic {
+  id: string;
   name: string;
-  canonicalName: string;
 }
 
 export interface QuestionTopologyTopic {
+  id: string;
   name: string;
-  canonicalName: string;
   subtopics: QuestionTopologySubtopic[];
 }
 
 export interface QuestionTopologySubject {
+  id: string;
   name: string;
-  canonicalName: string;
   topics: QuestionTopologyTopic[];
 }
 
@@ -182,9 +182,9 @@ export interface BenchmarkModelResponse {
 }
 
 export interface BenchmarkTopologyPrediction {
-  subject?: string;
-  topic?: string;
-  subtopic?: string;
+  subjectId?: string;
+  topicId?: string;
+  subtopicId?: string;
   confidence?: number;
   raw?: unknown;
 }

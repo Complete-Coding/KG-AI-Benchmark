@@ -10,6 +10,7 @@ import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
 import { createEmptyRunMetrics } from '@/data/defaults';
 import { executeBenchmarkRun } from '@/services/benchmarkEngine';
+import { formatTopologyIds } from '@/utils/topologyLookup';
 
 const runStatusLabels: Record<RunStatus, string> = {
   draft: 'Draft',
@@ -996,9 +997,11 @@ const RunDetail = () => {
                                         Topology output
                                       </span>
                                       <span className="text-sm text-slate-700 dark:text-slate-300">
-                                        {step.topologyPrediction.subject ?? '—'} ›{' '}
-                                        {step.topologyPrediction.topic ?? '—'} ›{' '}
-                                        {step.topologyPrediction.subtopic ?? '—'}
+                                        {formatTopologyIds({
+                                          subjectId: step.topologyPrediction.subjectId,
+                                          topicId: step.topologyPrediction.topicId,
+                                          subtopicId: step.topologyPrediction.subtopicId,
+                                        })}
                                       </span>
                                     </div>
                                   ) : null}

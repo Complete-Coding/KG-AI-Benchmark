@@ -7,7 +7,24 @@ export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
     description:
       'Identify the subject, topic, and subtopic covered by the question before attempting an answer.',
     promptTemplate:
-      'Classify this question into the correct subject, topic, and subtopic.\n\nHere is the COMPLETE TAXONOMY CATALOG. You MUST choose values EXACTLY as they appear below:\n\n{{topologyCatalog}}\n\nINSTRUCTIONS:\n1. Choose the subject name EXACTLY as shown in the catalog above\n2. Choose the topic name EXACTLY as shown under that subject\n3. Choose the subtopic name EXACTLY as shown under that topic (or null if none applies)\n4. Do NOT use synonyms, abbreviations, or variations - copy the names EXACTLY\n5. Pay attention to capitalization, hyphens, and spacing\n\nReturn JSON using this schema:\n{\n  "subject": string (MUST be EXACT match from catalog),\n  "topic": string (MUST be EXACT match from catalog),\n  "subtopic": string or null (MUST be EXACT match from catalog if not null),\n  "confidence": number (0 to 1, optional)\n}',
+      'Classify this question using the LOOKUP IDs from the taxonomy catalog below.\n\n' +
+      'COMPLETE TAXONOMY CATALOG with IDs:\n\n' +
+      '{{topologyCatalog}}\n\n' +
+      'CRITICAL INSTRUCTIONS:\n' +
+      '1. You MUST return the exact ID from the catalog above\n' +
+      '2. IDs are the alphanumeric codes shown before the parentheses (e.g., "68d24e621c69bbb6f527dabb")\n' +
+      '3. DO NOT create or modify IDs - only pick from the list\n' +
+      '4. The name in parentheses is for reference only - return the ID, not the name\n' +
+      '5. Return null for subtopicId if no subtopic applies\n\n' +
+      'Return JSON using this exact schema:\n' +
+      '{\n' +
+      '  "subjectId": "68d24e621c69bbb6f527dabb",  // MUST be exact ID from catalog\n' +
+      '  "topicId": "68d24e71b905a26b8ed99dd0",    // MUST be exact ID from catalog\n' +
+      '  "subtopicId": "68d24ec31c69bbb6f528892b", // MUST be exact ID from catalog or null\n' +
+      '  "confidence": 0.95  // optional, 0-1\n' +
+      '}\n\n' +
+      'EXAMPLE: For a question about "Context Free Grammar Basics" in "Theory of Computation":\n' +
+      '{"subjectId":"68da25c631f60703d614bb62","topicId":"68da276031f60703d6189479","subtopicId":"68da29105e8ee4416b691e20","confidence":0.95}',
     enabled: true,
   },
   {

@@ -143,6 +143,15 @@ const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome
 
   try {
     logs.push(createLog('Attempting JSON-mode test completion.'));
+
+    // Auto-detect thinking/reasoning models
+    const modelIdLower = profile.modelId.toLowerCase();
+    const isThinkingModel =
+      modelIdLower.includes('deepseek') ||
+      modelIdLower.includes('thinking') ||
+      modelIdLower.includes('r1') ||
+      modelIdLower.includes('reasoning');
+
     const completion = await sendChatCompletion({
       profile,
       messages: [
@@ -158,6 +167,7 @@ const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome
       ],
       temperature: 0,
       preferJson: true,
+      reasoningEffort: isThinkingModel ? 'high' : undefined,
     });
 
     logs.push(
@@ -228,6 +238,14 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     )
   );
 
+  // Auto-detect thinking/reasoning models
+  const modelIdLower = profile.modelId.toLowerCase();
+  const isThinkingModel =
+    modelIdLower.includes('deepseek') ||
+    modelIdLower.includes('thinking') ||
+    modelIdLower.includes('r1') ||
+    modelIdLower.includes('reasoning');
+
   try {
     logs.push(createLog('Step 1: Requesting topology classification.'));
     const topologyPrompt = buildTopologyPrompt(READINESS_DUMMY_QUESTION);
@@ -240,6 +258,7 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
       preferJson: true,
+      reasoningEffort: isThinkingModel ? 'high' : undefined,
     });
 
     logs.push(
@@ -252,9 +271,9 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
 
     const topologyPrediction = parseTopologyPrediction(topologyCompletion.text);
     const hasTopologyPrediction =
-      Boolean(topologyPrediction.subject) ||
-      Boolean(topologyPrediction.topic) ||
-      Boolean(topologyPrediction.subtopic);
+      Boolean(topologyPrediction.subjectId) ||
+      Boolean(topologyPrediction.topicId) ||
+      Boolean(topologyPrediction.subtopicId);
 
     logs.push(createLog(`Topology response: ${topologyCompletion.text}`));
 
@@ -269,9 +288,9 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
 
     const topologyContext = JSON.stringify(
       {
-        subject: topologyPrediction.subject ?? null,
-        topic: topologyPrediction.topic ?? null,
-        subtopic: topologyPrediction.subtopic ?? null,
+        subjectId: topologyPrediction.subjectId ?? null,
+        topicId: topologyPrediction.topicId ?? null,
+        subtopicId: topologyPrediction.subtopicId ?? null,
       },
       null,
       2
@@ -288,6 +307,7 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
       preferJson: true,
+      reasoningEffort: isThinkingModel ? 'high' : undefined,
     });
 
     logs.push(
