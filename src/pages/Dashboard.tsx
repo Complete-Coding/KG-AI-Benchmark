@@ -33,7 +33,7 @@ const formatLatency = (value: number) => {
 };
 
 const Dashboard = () => {
-  const { overview, questionSummary } = useBenchmarkContext();
+  const { loading, overview, questionSummary } = useBenchmarkContext();
 
   const trendData = useMemo(() => {
     const accuracyByRunId = new Map(
@@ -84,6 +84,28 @@ const Dashboard = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+            Dashboard
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            Track recent benchmark activity, dataset coverage, and cross-run trends.
+          </p>
+        </header>
+
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-accent-200 dark:border-accent-800 border-t-accent-600 dark:border-t-accent-400 rounded-full animate-spin"></div>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -95,45 +117,45 @@ const Dashboard = () => {
         </p>
       </header>
 
-      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
         <header className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-50">
             Overview
           </h2>
         </header>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
           {summaryCards.map((card) => (
             <article
               key={card.title}
-              className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200"
+              className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200"
             >
-              <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              <h3 className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
                 {card.title}
               </h3>
-              <div className="text-4xl font-bold text-slate-900 dark:text-slate-50">{card.value}</div>
-              <span className="text-sm text-slate-500 dark:text-slate-400">{card.meta}</span>
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-slate-50">{card.value}</div>
+              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{card.meta}</span>
             </article>
           ))}
         </div>
       </section>
 
-      <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
-        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-4 sm:gap-5 lg:gap-6">
+        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
           <header className="flex flex-col gap-2">
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
               Performance trends
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
               Answer accuracy, topology accuracy, and latency across completed runs.
             </p>
           </header>
-          <div className="w-full h-80">
+          <div className="w-full h-64 sm:h-80">
             {trendData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 bg-accent-500/6 dark:bg-accent-500/10 rounded-xl">
+              <div className="h-full flex items-center justify-center text-sm sm:text-base text-slate-500 dark:text-slate-400 bg-accent-500/6 dark:bg-accent-500/10 rounded-xl px-4">
                 Run a benchmark to see trend data.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
                   <XAxis dataKey="timestamp" tick={{ fill: '#52606d' }} />
@@ -193,12 +215,12 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
           <header className="flex flex-col gap-2">
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
               Dataset snapshot
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
               Showing the latest {questionSummary.total} curated questions used for benchmarking.
             </p>
           </header>
@@ -270,37 +292,37 @@ const Dashboard = () => {
         </section>
       </div>
 
-      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
+      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
         <header className="flex flex-col gap-2">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
             Recent runs
           </h2>
-          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
             Latest completed runs by profile and completion timestamp.
           </p>
         </header>
         {overview.latestRuns.length === 0 ? (
-          <p className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center">
+          <p className="p-4 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center text-sm sm:text-base">
             No completed runs yet. Create a run from the Runs tab.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[0.95rem]">
-              <thead className="text-left text-slate-600 dark:text-slate-400 font-semibold">
+          <div className="overflow-x-auto -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6">
+            <table className="w-full min-w-[600px] border-collapse text-sm sm:text-[0.95rem]">
+              <thead className="text-left text-slate-600 dark:text-slate-400 font-semibold text-xs sm:text-sm">
                 <tr>
-                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Run
                   </th>
-                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Model profile
                   </th>
-                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Accuracy
                   </th>
-                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Avg latency
                   </th>
-                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Completed
                   </th>
                 </tr>
@@ -313,7 +335,7 @@ const Dashboard = () => {
                   >
                     <th
                       scope="row"
-                      className="px-5 py-4 border-b border-slate-200 dark:border-slate-700"
+                      className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700"
                     >
                       <Link
                         to={`/runs/${run.runId}`}
@@ -322,7 +344,7 @@ const Dashboard = () => {
                         {run.label}
                       </Link>
                     </th>
-                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                       <div className="flex flex-col gap-1">
                         <span className="font-semibold text-slate-900 dark:text-slate-50">
                           {run.profileName}
@@ -332,13 +354,13 @@ const Dashboard = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                       {formatPercent(run.accuracy)}
                     </td>
-                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                       {formatLatency(run.averageLatencyMs)}
                     </td>
-                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                       {formatDateTime(run.completedAt)}
                     </td>
                   </tr>

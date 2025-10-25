@@ -299,15 +299,57 @@ export const executeBenchmarkRun = async ({
           modelIdLower.includes('r1') ||
           modelIdLower.includes('reasoning');
 
+        // Build messages array for this step
+        const messages = [
+          { role: 'system', content: profile.defaultSystemPrompt },
+          { role: 'user', content: prompt },
+        ];
+
+        // Build complete request payload exactly as it will be sent to the API
+        const requestPayload: Record<string, unknown> = {
+          model: profile.modelId,
+          temperature: profile.temperature,
+          max_tokens: profile.maxOutputTokens,
+          messages,
+        };
+
+        // Add optional parameters if they exist
+        if (profile.topP !== undefined) {
+          requestPayload.top_p = profile.topP;
+        }
+        if (profile.frequencyPenalty !== undefined) {
+          requestPayload.frequency_penalty = profile.frequencyPenalty;
+        }
+        if (profile.presencePenalty !== undefined) {
+          requestPayload.presence_penalty = profile.presencePenalty;
+        }
+        if (isThinkingModel) {
+          requestPayload.reasoning_effort = 'high';
+        }
+
+        // Add response format if JSON mode is supported
+        const preferJson = profile.metadata.supportsJsonMode ?? true;
+        if (preferJson) {
+          requestPayload.response_format = { type: 'json_object' };
+        }
+
+        // Add metadata for debugging
+        requestPayload._metadata = {
+          stepId: step.id,
+          stepLabel: step.label,
+          questionId: question.id,
+          questionType: question.type,
+          timestamp: new Date().toISOString(),
+          profileId: profile.id,
+          profileName: profile.name,
+        };
+
         const completion = await sendChatCompletion({
           profile,
-          messages: [
-            { role: 'system', content: profile.defaultSystemPrompt },
-            { role: 'user', content: prompt },
-          ],
+          messages: messages as { role: 'system' | 'user' | 'assistant'; content: string }[],
           temperature: profile.temperature,
           maxTokens: profile.maxOutputTokens,
-          preferJson: profile.metadata.supportsJsonMode ?? true,
+          preferJson,
           reasoningEffort: isThinkingModel ? 'high' : undefined,
           signal,
         });
@@ -323,11 +365,7 @@ export const executeBenchmarkRun = async ({
           label: step.label ?? `Step ${stepIndex + 1}`,
           order: stepIndex,
           prompt,
-          requestPayload: {
-            model: profile.modelId,
-            temperature: profile.temperature,
-            stepId: step.id,
-          },
+          requestPayload, // Now contains COMPLETE request payload
           responsePayload: completion.raw,
           responseText: completion.text,
           latencyMs: stepLatencyMs,
@@ -425,13 +463,36 @@ export const executeBenchmarkRun = async ({
         completionTokens: totalCompletionTokens || undefined,
         totalTokens: totalTokens || undefined,
         requestPayload: {
+          // Complete profile configuration used for this attempt
+          profileId: profile.id,
+          profileName: profile.name,
           model: profile.modelId,
           temperature: profile.temperature,
+          maxOutputTokens: profile.maxOutputTokens,
+          topP: profile.topP,
+          frequencyPenalty: profile.frequencyPenalty,
+          presencePenalty: profile.presencePenalty,
+          requestTimeoutMs: profile.requestTimeoutMs,
+          systemPrompt: profile.defaultSystemPrompt,
+          supportsJsonMode: profile.metadata.supportsJsonMode,
+          // Complete step details including full prompts
           steps: attemptSteps.map((step) => ({
             id: step.id,
             label: step.label,
-            prompt: step.prompt,
+            order: step.order,
+            prompt: step.prompt, // Full prompt with all substitutions
+            requestPayload: step.requestPayload, // Complete API request
+            latencyMs: step.latencyMs,
+            usage: step.usage,
           })),
+          // Metadata for debugging
+          _metadata: {
+            attemptId: createId(),
+            questionId: question.id,
+            questionType: question.type,
+            timestamp: requestStartedAt.toISOString(),
+            totalSteps: attemptSteps.length,
+          },
         },
         responsePayload: finalResponsePayload,
         responseText: finalResponseText || attemptSteps[attemptSteps.length - 1]?.responseText || '',
@@ -466,13 +527,37 @@ export const executeBenchmarkRun = async ({
         completionTokens: totalCompletionTokens || undefined,
         totalTokens: totalTokens || undefined,
         requestPayload: {
+          // Complete profile configuration used for this attempt
+          profileId: profile.id,
+          profileName: profile.name,
           model: profile.modelId,
           temperature: profile.temperature,
+          maxOutputTokens: profile.maxOutputTokens,
+          topP: profile.topP,
+          frequencyPenalty: profile.frequencyPenalty,
+          presencePenalty: profile.presencePenalty,
+          requestTimeoutMs: profile.requestTimeoutMs,
+          systemPrompt: profile.defaultSystemPrompt,
+          supportsJsonMode: profile.metadata.supportsJsonMode,
+          // Complete step details including full prompts
           steps: attemptSteps.map((step) => ({
             id: step.id,
             label: step.label,
-            prompt: step.prompt,
+            order: step.order,
+            prompt: step.prompt, // Full prompt with all substitutions
+            requestPayload: step.requestPayload, // Complete API request
+            latencyMs: step.latencyMs,
+            usage: step.usage,
           })),
+          // Metadata for debugging
+          _metadata: {
+            attemptId: createId(),
+            questionId: question.id,
+            questionType: question.type,
+            timestamp: requestStartedAt.toISOString(),
+            totalSteps: attemptSteps.length,
+            error: (error as Error).message,
+          },
         },
         responsePayload: attemptSteps[attemptSteps.length - 1]?.responsePayload,
         responseText: attemptSteps[attemptSteps.length - 1]?.responseText ?? '',

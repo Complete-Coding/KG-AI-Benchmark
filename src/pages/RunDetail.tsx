@@ -131,6 +131,7 @@ const RunDetail = () => {
   const { runId } = useParams();
   const navigate = useNavigate();
   const {
+    loading,
     getRunById,
     getProfileById,
     deleteRun,
@@ -141,6 +142,9 @@ const RunDetail = () => {
     setActiveRunCurrentQuestion,
     recordActiveRunAttempt,
     finalizeActiveRun,
+    runQueue,
+    getQueuePosition,
+    dequeueRun,
   } = useBenchmarkContext();
   const run = runId ? getRunById(runId) : undefined;
   const isActiveRun = Boolean(run && activeRun && activeRun.runId === run.id);
@@ -310,6 +314,28 @@ const RunDetail = () => {
     }
     return questionLookup.get(selectedItem.id);
   }, [selectedItem]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+            Run Details
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            Loading run information...
+          </p>
+        </header>
+
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-accent-200 dark:border-accent-800 border-t-accent-600 dark:border-t-accent-400 rounded-full animate-spin"></div>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Loading run details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!run) {
     return (
@@ -564,8 +590,37 @@ const RunDetail = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+      {run.status === 'queued' && (() => {
+        const position = getQueuePosition(run.id);
+        const totalQueued = runQueue.queuedRunIds.length;
+        return position > 0 ? (
+          <section className="bg-warning-50 dark:bg-warning-900/10 border border-warning-200 dark:border-warning-700 rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-theme">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-warning-800 dark:text-warning-300">
+                This run is queued for execution
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Position #{position} of {totalQueued} in queue{' '}
+                {runQueue.currentRunId ? '· Waiting for current run to complete' : '· Will start soon'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Remove this run from the queue?')) {
+                  dequeueRun(run.id);
+                }
+              }}
+              className="border border-danger-400 dark:border-danger-500 bg-danger-500/8 dark:bg-danger-500/10 text-danger-700 dark:text-danger-400 hover:bg-danger-500/16 dark:hover:bg-danger-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-all duration-200"
+            >
+              Cancel & Remove from Queue
+            </button>
+          </section>
+        ) : null;
+      })()}
+
+      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <article className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Answer Accuracy
           </h3>
@@ -574,7 +629,7 @@ const RunDetail = () => {
             {run.metrics.passedCount} passed · {run.metrics.failedCount} failed
           </p>
         </article>
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+        <article className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Topology Accuracy
           </h3>
@@ -585,7 +640,7 @@ const RunDetail = () => {
             {run.metrics.topologyPassedCount} passed · {run.metrics.topologyFailedCount} failed
           </p>
         </article>
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+        <article className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Average latency
           </h3>
@@ -594,7 +649,7 @@ const RunDetail = () => {
           </p>
           <p className="text-sm text-slate-500 dark:text-slate-400">Total {totalLatency}</p>
         </article>
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+        <article className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Elapsed
           </h3>
@@ -603,7 +658,7 @@ const RunDetail = () => {
             Updated {lastUpdated}
           </p>
         </article>
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+        <article className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Questions
           </h3>
@@ -616,7 +671,7 @@ const RunDetail = () => {
         </article>
       </section>
 
-      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4 transition-theme">
+      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 lg:p-6 flex flex-col gap-3 sm:gap-4 transition-theme">
         <header className="flex flex-col gap-1">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
             Dataset

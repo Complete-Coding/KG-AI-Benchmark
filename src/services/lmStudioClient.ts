@@ -175,30 +175,64 @@ export const sendChatCompletion = async ({
     });
   };
 
+  // Retry logic for model loading (400 errors may indicate model not loaded yet)
+  const maxRetries = 3;
+  const retryDelays = [2000, 5000, 10000]; // 2s, 5s, 10s
   const initial = await attempt();
+  let lastAttempt = initial;
+  let retryCount = 0;
 
-  if (initial.ok && initial.data) {
+  // Check if error might be due to model loading
+  const isModelLoadingError = (status: number, body: unknown) => {
+    if (status !== 400) return false;
+    const text = typeof body === 'string' ? body : JSON.stringify(body);
+    return /model.*not.*loaded|model.*loading|not.*ready|bad request/i.test(text);
+  };
+
+  // Retry on 400 errors that might be model loading issues
+  while (!lastAttempt.ok && retryCount < maxRetries) {
+    const errorBody = lastAttempt.data ?? (await lastAttempt.raw.text());
+
+    if (isModelLoadingError(lastAttempt.status, errorBody)) {
+      console.warn(
+        `[LM STUDIO] Model may not be loaded yet (attempt ${retryCount + 1}/${maxRetries}). Waiting ${retryDelays[retryCount]}ms before retry...`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, retryDelays[retryCount]));
+      retryCount++;
+      lastAttempt = await attempt();
+    } else {
+      break; // Not a loading error, stop retrying
+    }
+  }
+
+  if (lastAttempt.ok && lastAttempt.data) {
+    if (retryCount > 0) {
+      console.log(`[LM STUDIO] Request succeeded after ${retryCount} ${retryCount === 1 ? 'retry' : 'retries'}`);
+    }
     return {
-      text: extractTextFromResponse(initial.data),
-      usage: mapUsage(initial.data?.usage),
-      raw: initial.data,
+      text: extractTextFromResponse(lastAttempt.data),
+      usage: mapUsage(lastAttempt.data?.usage),
+      raw: lastAttempt.data,
       fallbackUsed: false,
       supportsJsonMode: preferJson,
     };
   }
 
-  if (initial.ok) {
+  if (lastAttempt.ok) {
     return {
       text: '',
-      raw: initial.data,
+      raw: lastAttempt.data,
       fallbackUsed: false,
       supportsJsonMode: preferJson,
     };
   }
 
-  const errorBody = initial.data ?? (await initial.raw.text());
+  const errorBody = lastAttempt.data ?? (await lastAttempt.raw.text());
 
+  // Try JSON mode fallback if that's the issue
   if (preferJson && isJsonModeError(errorBody)) {
+    console.log('[LM STUDIO] JSON mode not supported, falling back to plain text');
     const retry = await attempt(true);
 
     if (!retry.ok || !retry.data) {
@@ -215,7 +249,7 @@ export const sendChatCompletion = async ({
   }
 
   throw new Error(
-    `Failed to fetch chat completion: ${initial.status} - ${
+    `Failed to fetch chat completion: ${lastAttempt.status} - ${
       typeof errorBody === 'string' ? errorBody : JSON.stringify(errorBody)
     }`
   );

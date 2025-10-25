@@ -428,3 +428,8 @@ export interface ModelDiscoveryState {
   lastFetchedAt?: string;
   error?: string;
 }
+
+export interface BenchmarkRunQueue {
+  currentRunId: string | null;
+  queuedRunIds: string[];
+}

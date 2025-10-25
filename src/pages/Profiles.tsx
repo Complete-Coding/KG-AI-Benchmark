@@ -91,6 +91,7 @@ const levelSummary = (profile: ModelProfile, level: DiagnosticsLevel) => {
 
 const Profiles = () => {
   const {
+    loading,
     profiles,
     runs,
     upsertProfile,
@@ -232,22 +233,33 @@ const Profiles = () => {
         ? Math.min(Math.floor(model.maxContextLength * 0.5), 8192)
         : defaults.maxOutputTokens;
 
-      setDialogMode('create');
-      setFormState({
+      // Count existing profiles for this model to create unique name
+      const existingProfileCount = profiles.filter((p) => p.modelId === model.id).length;
+      const profileName = existingProfileCount > 0
+        ? `${model.displayName ?? model.id} (${existingProfileCount + 1})`
+        : model.displayName ?? model.id;
+
+      // Create profile immediately with defaults
+      const newProfileData = {
         ...defaults,
-        name: model.displayName ?? model.id,
+        name: profileName,
         baseUrl,
         apiKey: matchingProfile?.apiKey ?? defaults.apiKey,
         requestTimeoutMs: matchingProfile?.requestTimeoutMs ?? defaults.requestTimeoutMs,
         modelId: model.id,
         maxOutputTokens: intelligentMaxOutputTokens,
         notes: [sourceNote, quantizationNote, capabilityNote].filter(Boolean).join(' '),
-      });
-      setFormError(null);
-      setFeedback(`Loaded ${model.id} from LM Studio discovery. Save to persist.`);
-      setProfileDialogOpen(true);
+      };
+
+      try {
+        const saved = upsertProfile(newProfileData);
+        setSelectedProfileId(saved.id);
+        setFeedback(`Profile "${saved.name}" created successfully from ${model.id}.`);
+      } catch (error) {
+        setFeedback(`Failed to create profile: ${(error as Error).message}`);
+      }
     },
-    [profiles]
+    [profiles, upsertProfile]
   );
 
   const handleChange =
@@ -362,6 +374,32 @@ const Profiles = () => {
 
   const dialogTitle = dialogMode === 'edit' ? 'Edit profile' : 'Create profile';
 
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-4 mb-6">
+          <div className="flex justify-between items-center gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+                Profiles
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400 text-[0.95rem] mt-1">
+                Configure LM Studio endpoints, credentials, and benchmark prompts.
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-accent-200 dark:border-accent-800 border-t-accent-600 dark:border-t-accent-400 rounded-full animate-spin"></div>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Loading profiles...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <header className="flex flex-col gap-4 mb-6">
@@ -400,11 +438,11 @@ const Profiles = () => {
             </p>
           </div>
           {profiles.length === 0 ? (
-                <p className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center">
+                <p className="p-4 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center text-sm sm:text-base">
                   No profiles yet. Create one to get started.
                 </p>
               ) : (
-                <ul className="flex flex-col gap-3">
+                <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {profiles.map((profile) => {
                     const handshake = levelSummary(profile, 'HANDSHAKE');
                     const readiness = levelSummary(profile, 'READINESS');
@@ -425,103 +463,77 @@ const Profiles = () => {
                               handleSelectProfile(profile.id);
                             }
                           }}
-                          className={`border rounded-xl p-5 flex flex-col gap-4 transition-all duration-200 cursor-pointer focus:outline-none ${
+                          className={`border rounded-lg sm:rounded-xl p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 transition-all duration-200 cursor-pointer focus:outline-none h-full ${
                             isActive
                               ? 'bg-accent-50 dark:bg-slate-700 border-accent-400 dark:border-accent-500 focus-visible:ring-2 focus-visible:ring-accent-500'
                               : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 focus-visible:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-accent-500/70'
                           }`}
                         >
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-slate-900 dark:text-slate-50">
-                                {profile.name}
-                              </h3>
-                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-                                {profile.provider} &middot; {profile.modelId}
-                              </p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 break-words">
-                                {profile.baseUrl || 'No base URL configured'}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-start justify-end gap-3">
-                              <div className="flex flex-col items-end gap-1 max-w-40">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
+                                  {profile.name}
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                                  {profile.provider} &middot; {profile.modelId}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 flex-shrink-0">
                                 <span
-                                  className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
                                     handshake.status === 'ready'
                                       ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
                                       : handshake.status === 'failed'
                                       ? 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400'
                                       : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
                                   }`}
+                                  title={`L1: ${handshake.label} - ${handshake.lastRunAt ? formatTimestamp(handshake.lastRunAt) : 'Never run'}`}
                                 >
-                                  L1{' '}
-                                  {handshake.status === 'ready'
-                                    ? 'Ready'
-                                    : handshake.status === 'failed'
-                                    ? 'Failed'
-                                    : 'Pending'}
+                                  L1
                                 </span>
-                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400 text-right break-words">
-                                  {handshake.label}
-                                </span>
-                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500 text-right break-words">
-                                  {handshake.lastRunAt
-                                    ? `Last run: ${formatTimestamp(handshake.lastRunAt)}`
-                                    : 'No runs recorded'}
-                                </span>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 max-w-40">
                                 <span
-                                  className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
                                     readiness.status === 'ready'
                                       ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
                                       : readiness.status === 'failed'
                                       ? 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400'
                                       : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
                                   }`}
+                                  title={`L2: ${readiness.label} - ${readiness.lastRunAt ? formatTimestamp(readiness.lastRunAt) : 'Never run'}`}
                                 >
-                                  L2{' '}
-                                  {readiness.status === 'ready'
-                                    ? 'Ready'
-                                    : readiness.status === 'failed'
-                                    ? 'Failed'
-                                    : 'Pending'}
-                                </span>
-                                <span className="text-[0.7rem] text-slate-500 dark:text-slate-400 text-right break-words">
-                                  {readiness.label}
-                                </span>
-                                <span className="text-[0.7rem] text-slate-400 dark:text-slate-500 text-right break-words">
-                                  {readiness.lastRunAt
-                                    ? `Last run: ${formatTimestamp(readiness.lastRunAt)}`
-                                    : 'No runs recorded'}
+                                  L2
                                 </span>
                               </div>
                             </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {profile.baseUrl || 'No base URL configured'}
+                            </p>
                           </div>
 
-                          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <dl className="grid grid-cols-3 gap-2 text-xs">
                             <div>
-                              <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                                Timeout
+                              <dt className="text-[0.65rem] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                Temp
                               </dt>
                               <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                {profile.requestTimeoutMs.toLocaleString()} ms
+                                {profile.temperature}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                                Generation
+                              <dt className="text-[0.65rem] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                Top P
                               </dt>
                               <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                Temp {profile.temperature} · Top P {profile.topP}
+                                {profile.topP}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                                Max tokens
+                              <dt className="text-[0.65rem] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                Tokens
                               </dt>
                               <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                {profile.maxOutputTokens.toLocaleString()}
+                                {profile.maxOutputTokens}
                               </dd>
                             </div>
                           </dl>
@@ -532,11 +544,11 @@ const Profiles = () => {
                             </p>
                           ) : null}
 
-                          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              Click to view diagnostics &amp; history
-                            </span>
-                            <div className="ml-auto flex flex-wrap gap-2">
+                          <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 mt-auto">
+                            <p className="text-[0.65rem] text-slate-500 dark:text-slate-400 text-center">
+                              Click card for diagnostics &amp; history
+                            </p>
+                            <div className="grid grid-cols-2 gap-1.5">
                               <button
                                 type="button"
                                 onClick={(event) => {
@@ -544,7 +556,7 @@ const Profiles = () => {
                                   void handleRunDiagnostics(profile, 'HANDSHAKE');
                                 }}
                                 disabled={diagnosticsBusy}
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-semibold border border-accent-500/70 text-accent-600 hover:text-accent-700 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold border border-accent-500/70 text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 {isRunningForProfile && runningDiagnostics?.level === 'HANDSHAKE'
                                   ? 'Running…'
@@ -562,7 +574,7 @@ const Profiles = () => {
                                     ? 'Run L1 handshake first'
                                     : 'Run L2 readiness check'
                                 }
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-semibold border border-accent-500/70 text-accent-600 hover:text-accent-700 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold border border-accent-500/70 text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 {isRunningForProfile && runningDiagnostics?.level === 'READINESS'
                                   ? 'Running…'
@@ -574,7 +586,7 @@ const Profiles = () => {
                                   event.stopPropagation();
                                   handleEditProfile(profile);
                                 }}
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 rounded-lg transition-all duration-200"
+                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 rounded-lg transition-all duration-200"
                               >
                                 Edit
                               </button>
@@ -584,7 +596,7 @@ const Profiles = () => {
                                   event.stopPropagation();
                                   handleDeleteProfile(profile);
                                 }}
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-semibold bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                               >
                                 Delete
                               </button>
@@ -633,65 +645,174 @@ const Profiles = () => {
               No models discovered yet. Make sure LM Studio&apos;s server is running and accessible.
             </p>
           ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {discovery.models.map((model) => (
-                <li
-                  key={model.id}
-                  className="border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 rounded-xl p-4 flex flex-col gap-3 transition-theme"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-50">
-                        {model.displayName ?? model.id}
-                      </h4>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                        {model.kind ?? 'Model'} · {model.state ?? 'unknown state'}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                        {model.maxContextLength
-                          ? `Context: ${model.maxContextLength.toLocaleString()} tokens`
-                          : 'Context window unknown'}
-                        {model.quantization ? ` · ${model.quantization}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                          model.loaded
-                            ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                            : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
-                        }`}
-                      >
-                        {model.loaded ? 'Loaded' : 'Not loaded'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleAdoptDiscoveredModel(model)}
-                        className="text-sm font-semibold text-accent-600 hover:text-accent-700 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
-                      >
-                        Use as profile
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {model.capabilities.length > 0 ? (
-                      model.capabilities.map((capability) => (
-                        <span
-                          key={capability}
-                          className="px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300"
-                        >
-                          {capability.replace(/_/g, ' ')}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-500 dark:text-slate-500">
-                        No capability metadata reported.
-                      </span>
+            <>
+              {(() => {
+                // Count profiles per model ID
+                const profileCountByModel = new Map<string, number>();
+                profiles.forEach((profile) => {
+                  const count = profileCountByModel.get(profile.modelId) || 0;
+                  profileCountByModel.set(profile.modelId, count + 1);
+                });
+
+                // Split models into two groups
+                const modelsWithProfiles = discovery.models.filter((model) =>
+                  profileCountByModel.has(model.id)
+                );
+                const modelsWithoutProfiles = discovery.models.filter(
+                  (model) => !profileCountByModel.has(model.id)
+                );
+
+                return (
+                  <div className="flex flex-col gap-6">
+                    {modelsWithProfiles.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            Models with profiles ({modelsWithProfiles.length})
+                          </h4>
+                          <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {modelsWithProfiles.map((model) => {
+                            const profileCount = profileCountByModel.get(model.id) || 0;
+                            return (
+                              <li
+                                key={model.id}
+                                className="border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 rounded-xl p-4 flex flex-col gap-3 transition-theme"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h5 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
+                                      {model.displayName ?? model.id}
+                                    </h5>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                      {model.kind ?? 'Model'} · {model.state ?? 'unknown'}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                                      {model.maxContextLength
+                                        ? `${model.maxContextLength.toLocaleString()} tokens`
+                                        : 'Context unknown'}
+                                      {model.quantization ? ` · ${model.quantization}` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-100 text-accent-800 dark:bg-accent-900/30 dark:text-accent-400">
+                                      {profileCount} {profileCount === 1 ? 'profile' : 'profiles'}
+                                    </span>
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                                        model.loaded
+                                          ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                          : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
+                                      }`}
+                                    >
+                                      {model.loaded ? 'Loaded' : 'Unloaded'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdoptDiscoveredModel(model)}
+                                  className="w-full text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
+                                >
+                                  Create another profile
+                                </button>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {model.capabilities.length > 0 ? (
+                                    model.capabilities.slice(0, 3).map((capability) => (
+                                      <span
+                                        key={capability}
+                                        className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300"
+                                      >
+                                        {capability.replace(/_/g, ' ')}
+                                      </span>
+                                    ))
+                                  ) : null}
+                                  {model.capabilities.length > 3 && (
+                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400">
+                                      +{model.capabilities.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
+                    {modelsWithoutProfiles.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            Available models ({modelsWithoutProfiles.length})
+                          </h4>
+                          <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {modelsWithoutProfiles.map((model) => (
+                            <li
+                              key={model.id}
+                              className="border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 rounded-xl p-4 flex flex-col gap-3 transition-theme"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
+                                    {model.displayName ?? model.id}
+                                  </h5>
+                                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                    {model.kind ?? 'Model'} · {model.state ?? 'unknown'}
+                                  </p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                                    {model.maxContextLength
+                                      ? `${model.maxContextLength.toLocaleString()} tokens`
+                                      : 'Context unknown'}
+                                    {model.quantization ? ` · ${model.quantization}` : ''}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide flex-shrink-0 ${
+                                    model.loaded
+                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                      : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
+                                  }`}
+                                >
+                                  {model.loaded ? 'Loaded' : 'Unloaded'}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleAdoptDiscoveredModel(model)}
+                                className="w-full text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
+                              >
+                                Create profile
+                              </button>
+                              <div className="flex flex-wrap gap-1.5">
+                                {model.capabilities.length > 0 ? (
+                                  model.capabilities.slice(0, 3).map((capability) => (
+                                    <span
+                                      key={capability}
+                                      className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300"
+                                    >
+                                      {capability.replace(/_/g, ' ')}
+                                    </span>
+                                  ))
+                                ) : null}
+                                {model.capabilities.length > 3 && (
+                                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400">
+                                    +{model.capabilities.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })()}
+            </>
           )}
         </section>
       </div>

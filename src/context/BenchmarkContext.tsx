@@ -15,6 +15,7 @@ import {
   ActiveRunStartPayload,
   ActiveRunState,
   BenchmarkAttempt,
+  BenchmarkRunQueue,
   BenchmarkStepConfig,
   BenchmarkQuestion,
   BenchmarkRun,
@@ -48,14 +49,17 @@ import createId from '@/utils/createId';
 
 interface BenchmarkState {
   initialized: boolean;
+  loading: boolean;
   profiles: ModelProfile[];
   runs: BenchmarkRun[];
   discovery: ModelDiscoveryState;
   activeRun: ActiveRunState | null;
+  runQueue: BenchmarkRunQueue;
 }
 
 const initialState: BenchmarkState = {
   initialized: false,
+  loading: true,
   profiles: [],
   runs: [],
   discovery: {
@@ -63,6 +67,10 @@ const initialState: BenchmarkState = {
     models: [],
   },
   activeRun: null,
+  runQueue: {
+    currentRunId: null,
+    queuedRunIds: [],
+  },
 };
 
 type Action =
@@ -79,7 +87,11 @@ type Action =
   | { type: 'ACTIVE_RUN_CLEAR' }
   | { type: 'DISCOVERY_REQUEST' }
   | { type: 'DISCOVERY_SUCCESS'; payload: { models: DiscoveredModel[]; fetchedAt: string } }
-  | { type: 'DISCOVERY_FAILURE'; payload: { error: string; fetchedAt?: string } };
+  | { type: 'DISCOVERY_FAILURE'; payload: { error: string; fetchedAt?: string } }
+  | { type: 'QUEUE_SET_CURRENT'; payload: string | null }
+  | { type: 'QUEUE_ADD'; payload: string }
+  | { type: 'QUEUE_REMOVE'; payload: string }
+  | { type: 'QUEUE_START_NEXT' };
 
 const defaultStepById = new Map(defaultBenchmarkSteps.map((step) => [step.id, step]));
 
@@ -410,10 +422,12 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
     case 'INITIALIZE':
       return {
         initialized: true,
+        loading: false,
         profiles: action.payload.profiles,
         runs: action.payload.runs,
         discovery: state.discovery,
         activeRun: state.activeRun,
+        runQueue: state.runQueue,
       };
     case 'UPSERT_PROFILE': {
       const index = state.profiles.findIndex((profile) => profile.id === action.payload.id);
@@ -627,6 +641,40 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
           models: state.discovery.models,
         },
       };
+    case 'QUEUE_SET_CURRENT':
+      return {
+        ...state,
+        runQueue: {
+          ...state.runQueue,
+          currentRunId: action.payload,
+        },
+      };
+    case 'QUEUE_ADD':
+      return {
+        ...state,
+        runQueue: {
+          ...state.runQueue,
+          queuedRunIds: [...state.runQueue.queuedRunIds, action.payload],
+        },
+      };
+    case 'QUEUE_REMOVE':
+      return {
+        ...state,
+        runQueue: {
+          ...state.runQueue,
+          queuedRunIds: state.runQueue.queuedRunIds.filter(id => id !== action.payload),
+        },
+      };
+    case 'QUEUE_START_NEXT': {
+      const nextRunId = state.runQueue.queuedRunIds[0];
+      return {
+        ...state,
+        runQueue: {
+          currentRunId: nextRunId ?? null,
+          queuedRunIds: nextRunId ? state.runQueue.queuedRunIds.slice(1) : [],
+        },
+      };
+    }
     default:
       return state;
   }
@@ -634,6 +682,7 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
 
 interface BenchmarkContextValue {
   initialized: boolean;
+  loading: boolean;
   questions: BenchmarkQuestion[];
   questionSummary: QuestionDatasetSummary;
   topology: QuestionTopologySubject[];
@@ -643,6 +692,7 @@ interface BenchmarkContextValue {
   overview: DashboardOverview;
   discovery: ModelDiscoveryState;
   activeRun: ActiveRunState | null;
+  runQueue: BenchmarkRunQueue;
   upsertProfile: (profile: Partial<ModelProfile>) => ModelProfile;
   deleteProfile: (profileId: string) => void;
   recordDiagnostic: (diagnostic: DiagnosticsResult) => void;
@@ -656,6 +706,9 @@ interface BenchmarkContextValue {
   finalizeActiveRun: (payload: ActiveRunCompletePayload) => void;
   clearActiveRun: () => void;
   refreshDiscoveredModels: () => Promise<void>;
+  enqueueRun: (runId: string) => void;
+  dequeueRun: (runId: string) => void;
+  getQueuePosition: (runId: string) => number;
 }
 
 const BenchmarkContext = createContext<BenchmarkContextValue | undefined>(undefined);
@@ -673,11 +726,32 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Cleanup orphaned runs (runs stuck in 'running' or 'draft' after app restart)
+      const cleanedRuns = runs.map((run) => {
+        const normalized = normalizeRun(run);
+
+        // Mark orphaned 'running' runs as failed
+        if (normalized.status === 'running') {
+          console.log(`[Cleanup] Marking orphaned run ${normalized.id} as failed`);
+          return {
+            ...normalized,
+            status: 'failed' as const,
+            completedAt: normalized.completedAt || new Date().toISOString(),
+            summary: normalized.summary || 'Run interrupted (browser closed or app restarted)',
+            notes: normalized.notes
+              ? `${normalized.notes}\n\nRun was interrupted and marked as failed on app restart.`
+              : 'Run was interrupted and marked as failed on app restart.',
+          };
+        }
+
+        return normalized;
+      });
+
       dispatch({
         type: 'INITIALIZE',
         payload: {
           profiles: profiles.map((profile) => normalizeProfile(profile)),
-          runs: runs.map((run) => normalizeRun(run)),
+          runs: cleanedRuns,
         },
       });
     };
@@ -794,6 +868,35 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'ACTIVE_RUN_CLEAR' });
   }, []);
 
+  const enqueueRun = useCallback((runId: string) => {
+    // If no current run, start this one immediately
+    if (!state.runQueue.currentRunId) {
+      dispatch({ type: 'QUEUE_SET_CURRENT', payload: runId });
+      // Note: The actual run start happens in RunDetail page
+    } else {
+      // Add to queue and update run status to 'queued'
+      dispatch({ type: 'QUEUE_ADD', payload: runId });
+      const run = state.runs.find(r => r.id === runId);
+      if (run) {
+        upsertRun({ ...run, status: 'queued' });
+      }
+    }
+  }, [state.runQueue.currentRunId, state.runs, upsertRun]);
+
+  const dequeueRun = useCallback((runId: string) => {
+    dispatch({ type: 'QUEUE_REMOVE', payload: runId });
+    // Update run status to cancelled
+    const run = state.runs.find(r => r.id === runId);
+    if (run) {
+      upsertRun({ ...run, status: 'cancelled' });
+    }
+  }, [state.runs, upsertRun]);
+
+  const getQueuePosition = useCallback((runId: string): number => {
+    const index = state.runQueue.queuedRunIds.indexOf(runId);
+    return index >= 0 ? index + 1 : 0;
+  }, [state.runQueue.queuedRunIds]);
+
   const refreshDiscoveredModels = useCallback(async (): Promise<void> => {
     const targets = resolveDiscoveryTargets(state.profiles);
 
@@ -867,11 +970,25 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [state.initialized, state.discovery.status, refreshDiscoveredModels]);
 
+  // Auto-start next queued run when current run completes
+  useEffect(() => {
+    if (!state.runQueue.currentRunId || state.runQueue.queuedRunIds.length === 0) {
+      return;
+    }
+
+    const currentRun = state.runs.find(r => r.id === state.runQueue.currentRunId);
+    if (currentRun && ['completed', 'failed', 'cancelled'].includes(currentRun.status)) {
+      console.log('[Queue] Current run finished, starting next queued run');
+      dispatch({ type: 'QUEUE_START_NEXT' });
+    }
+  }, [state.runs, state.runQueue.currentRunId, state.runQueue.queuedRunIds.length]);
+
   const overview = useMemo(() => computeDashboardOverview(state.runs), [state.runs]);
 
   const value = useMemo<BenchmarkContextValue>(
     () => ({
       initialized: state.initialized,
+      loading: state.loading,
       questions: questionDataset,
       questionSummary: questionDatasetSummary,
       topology: questionTopology,
@@ -881,6 +998,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       overview,
       discovery: state.discovery,
       activeRun: state.activeRun,
+      runQueue: state.runQueue,
       upsertProfile,
       deleteProfile,
       recordDiagnostic,
@@ -894,13 +1012,18 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       finalizeActiveRun,
       clearActiveRun,
       refreshDiscoveredModels,
+      enqueueRun,
+      dequeueRun,
+      getQueuePosition,
     }),
     [
       state.initialized,
+      state.loading,
       state.profiles,
       state.runs,
       state.discovery,
       state.activeRun,
+      state.runQueue,
       overview,
       upsertProfile,
       deleteProfile,
@@ -915,6 +1038,9 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       finalizeActiveRun,
       clearActiveRun,
       refreshDiscoveredModels,
+      enqueueRun,
+      dequeueRun,
+      getQueuePosition,
     ]
   );
 
