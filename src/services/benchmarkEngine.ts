@@ -17,6 +17,7 @@ import {
   parseTopologyPrediction,
 } from '@/services/evaluation';
 import { createEmptyRunMetrics, defaultBenchmarkSteps } from '@/data/defaults';
+import { questionTopology } from '@/data/topology';
 import createId from '@/utils/createId';
 
 const buildQuestionContext = (question: BenchmarkQuestion) => {
@@ -85,6 +86,15 @@ const buildStepPrompt = (
   const context = buildQuestionContext(question);
   const expectedTopology = question.metadata.topology ?? {};
 
+  // Build complete topology catalog with subjects, topics, and subtopics
+  const topologyCatalog = questionTopology.map(subject => {
+    const topics = subject.topics.map(topic => {
+      const subtopics = topic.subtopics.map(st => `      - ${st.name}`).join('\n');
+      return `    • ${topic.name}${subtopics ? '\n' + subtopics : ''}`;
+    }).join('\n');
+    return `  ${subject.name}:\n${topics}`;
+  }).join('\n\n');
+
   const replacements: Record<string, string> = {
     '{{questionPrompt}}': question.prompt,
     '{{questionInstructions}}': question.instructions ?? 'None',
@@ -97,9 +107,37 @@ const buildStepPrompt = (
     '{{previousStepOutputs}}': stringifyPreviousOutputs(previousSteps),
     '{{expectedTopology}}': JSON.stringify(expectedTopology, null, 2),
     '{{predictedTopology}}': JSON.stringify(topologyPrediction ?? {}, null, 2),
+    '{{topologyCatalog}}': topologyCatalog,
   };
 
+  // Debug logging for topology prompt building
+  console.log('[PROMPT DEBUG] Question ID:', question.id);
+  console.log('[PROMPT DEBUG] Step template length:', stepTemplate?.length);
+  console.log('[PROMPT DEBUG] Has topologyCatalog placeholder:', stepTemplate?.includes('{{topologyCatalog}}'));
+  console.log('[PROMPT DEBUG] Step template preview (first 200 chars):', stepTemplate?.substring(0, 200));
+
+  if (stepTemplate.includes('{{topologyCatalog}}')) {
+    console.log('[TOPOLOGY PROMPT DEBUG] Question ID:', question.id);
+    console.log('[TOPOLOGY PROMPT DEBUG] Topology catalog entries:', questionTopology.length);
+    console.log('[TOPOLOGY PROMPT DEBUG] Catalog preview (first 500 chars):', topologyCatalog.substring(0, 500));
+    console.log('[TOPOLOGY PROMPT DEBUG] Expected topology:', expectedTopology);
+    console.log('[TOPOLOGY PROMPT DEBUG] Full topology catalog:', topologyCatalog);
+  } else {
+    console.warn('[TOPOLOGY PROMPT WARNING] Step template does NOT include {{topologyCatalog}} placeholder!');
+  }
+
   const renderedInstructions = applyTemplateReplacements(stepTemplate ?? '', replacements);
+
+  // Debug: Show if catalog was actually included in rendered prompt
+  if (stepTemplate?.includes('{{topologyCatalog}}')) {
+    const catalogIncluded = renderedInstructions.includes('Discrete Mathematics') ||
+                           renderedInstructions.includes('Theory of Computation') ||
+                           renderedInstructions.includes('Computer Networks');
+    console.log('[PROMPT DEBUG] Catalog appears in rendered prompt:', catalogIncluded);
+    if (!catalogIncluded) {
+      console.error('[PROMPT ERROR] Topology catalog was NOT replaced in prompt!');
+    }
+  }
 
   const sections = [context, renderedInstructions];
 
@@ -204,6 +242,16 @@ export const executeBenchmarkRun = async ({
           attemptSteps,
           topologyPrediction
         );
+
+        // Debug: Log full topology prompt
+        if (step.id === 'topology') {
+          console.log('[TOPOLOGY EXECUTION] Question ID:', question.id);
+          console.log('[TOPOLOGY EXECUTION] Full prompt length:', prompt.length);
+          console.log('[TOPOLOGY EXECUTION] Prompt contains "Theory of Computation":', prompt.includes('Theory of Computation'));
+          console.log('[TOPOLOGY EXECUTION] Prompt contains "Computer Networks":', prompt.includes('Computer Networks'));
+          console.log('[TOPOLOGY EXECUTION] First 1000 chars of prompt:', prompt.substring(0, 1000));
+        }
+
         const stepStartedAt = Date.now();
 
         const completion = await sendChatCompletion({
@@ -243,6 +291,26 @@ export const executeBenchmarkRun = async ({
         if (step.id === 'topology') {
           const parsedTopology = parseTopologyPrediction(completion.text);
           const topologyEval = evaluateTopologyPrediction(question, parsedTopology);
+
+          // Debug logging for topology evaluation
+          console.log('[TOPOLOGY DEBUG] Question ID:', question.id);
+          console.log('[TOPOLOGY DEBUG] Expected:', {
+            subject: question.metadata.topology?.subject,
+            topic: question.metadata.topology?.topic,
+            subtopic: question.metadata.topology?.subtopic,
+          });
+          console.log('[TOPOLOGY DEBUG] Predicted:', {
+            subject: parsedTopology.subject,
+            topic: parsedTopology.topic,
+            subtopic: parsedTopology.subtopic,
+          });
+          console.log('[TOPOLOGY DEBUG] Evaluation:', {
+            passed: topologyEval.passed,
+            score: topologyEval.score,
+            notes: topologyEval.notes,
+          });
+          console.log('[TOPOLOGY DEBUG] Raw model response:', completion.text);
+
           topologyPrediction = parsedTopology;
           topologyEvaluation = topologyEval;
           stepResult.topologyPrediction = parsedTopology;

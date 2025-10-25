@@ -7,7 +7,7 @@ export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
     description:
       'Identify the subject, topic, and subtopic covered by the question before attempting an answer.',
     promptTemplate:
-      'Determine which subject, topic, and subtopic the question belongs to. Consider the question text, instructions, and options when deciding.\n\nReturn JSON using this schema:\n{\n  "subject": string,\n  "topic": string,\n  "subtopic": string,\n  "confidence": number (0 to 1, optional)\n}',
+      'Classify this question into the correct subject, topic, and subtopic.\n\nHere is the COMPLETE TAXONOMY CATALOG. You MUST choose values EXACTLY as they appear below:\n\n{{topologyCatalog}}\n\nINSTRUCTIONS:\n1. Choose the subject name EXACTLY as shown in the catalog above\n2. Choose the topic name EXACTLY as shown under that subject\n3. Choose the subtopic name EXACTLY as shown under that topic (or null if none applies)\n4. Do NOT use synonyms, abbreviations, or variations - copy the names EXACTLY\n5. Pay attention to capitalization, hyphens, and spacing\n\nReturn JSON using this schema:\n{\n  "subject": string (MUST be EXACT match from catalog),\n  "topic": string (MUST be EXACT match from catalog),\n  "subtopic": string or null (MUST be EXACT match from catalog if not null),\n  "confidence": number (0 to 1, optional)\n}',
     enabled: true,
   },
   {

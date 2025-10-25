@@ -165,14 +165,16 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
     return step;
   };
 
-  const normalizedSteps = () => {
+  const normalizedSteps = (): BenchmarkStepConfig[] | undefined => {
     const incomingSteps = profile.benchmarkSteps ?? existing?.benchmarkSteps;
 
+    // If no steps provided, return undefined to use defaults dynamically
     if (!incomingSteps || incomingSteps.length === 0) {
-      return defaultBenchmarkSteps.map((step) => ({ ...step }));
+      return undefined;
     }
 
-    return incomingSteps.map((step, index) => {
+    // Normalize the incoming steps
+    const normalized = incomingSteps.map((step, index) => {
       const legacyAdjusted = adjustLegacyStep(step, index);
       const fallback =
         (legacyAdjusted.id ? defaultStepById.get(legacyAdjusted.id) : undefined) ??
@@ -186,6 +188,28 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
         enabled: legacyAdjusted.enabled ?? fallback?.enabled ?? true,
       };
     });
+
+    // Check if normalized steps are identical to defaults (meaning no customization)
+    const isIdenticalToDefaults =
+      normalized.length === defaultBenchmarkSteps.length &&
+      normalized.every((step, index) => {
+        const defaultStep = defaultBenchmarkSteps[index];
+        return (
+          step.id === defaultStep.id &&
+          step.label === defaultStep.label &&
+          step.description === defaultStep.description &&
+          step.promptTemplate === defaultStep.promptTemplate &&
+          step.enabled === defaultStep.enabled
+        );
+      });
+
+    // If identical to defaults, return undefined to use defaults dynamically
+    if (isIdenticalToDefaults) {
+      return undefined;
+    }
+
+    // Otherwise, return the customized steps
+    return normalized;
   };
 
   const diagnostics = profile.diagnostics ?? existing?.diagnostics ?? [];
@@ -275,9 +299,11 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
       totalRuns: 0,
       activeRuns: 0,
       averageAccuracy: 0,
+      averageTopologyAccuracy: 0,
       averageLatencyMs: 0,
       latestRuns: [],
       accuracyTrend: [],
+      topologyAccuracyTrend: [],
       latencyTrend: [],
     };
   }
@@ -287,6 +313,10 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
 
   const averageAccuracy =
     completedRuns.reduce((acc, run) => acc + run.metrics.accuracy, 0) /
+    (completedRuns.length || 1);
+
+  const averageTopologyAccuracy =
+    completedRuns.reduce((acc, run) => acc + run.metrics.topologyAccuracy, 0) /
     (completedRuns.length || 1);
 
   const averageLatency =
@@ -321,6 +351,12 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
     runId: run.id,
   }));
 
+  const topologyAccuracyTrend = chronological.map((run) => ({
+    timestamp: run.completedAt ?? run.createdAt,
+    topologyAccuracy: run.metrics.topologyAccuracy,
+    runId: run.id,
+  }));
+
   const latencyTrend = chronological.map((run) => ({
     timestamp: run.completedAt ?? run.createdAt,
     latencyMs: run.metrics.averageLatencyMs,
@@ -333,9 +369,11 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
     totalRuns: runs.length,
     activeRuns: activeRuns.length,
     averageAccuracy,
+    averageTopologyAccuracy,
     averageLatencyMs: averageLatency,
     latestRuns,
     accuracyTrend,
+    topologyAccuracyTrend,
     latencyTrend,
     lastUpdated,
   };

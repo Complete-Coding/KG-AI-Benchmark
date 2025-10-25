@@ -6,7 +6,7 @@ import {
   DiagnosticsLevel,
   DiscoveredModel,
 } from '@/types/benchmark';
-import { DEFAULT_PROFILE_VALUES } from '@/data/defaults';
+import { DEFAULT_PROFILE_VALUES, defaultBenchmarkSteps } from '@/data/defaults';
 import { runDiagnostics } from '@/services/diagnostics';
 import Modal from '@/components/Modal';
 
@@ -45,7 +45,7 @@ const toFormState = (profile?: ModelProfile): ProfileFormState =>
         presencePenalty: profile.presencePenalty ?? DEFAULT_PROFILE_VALUES.presencePenalty,
         defaultSystemPrompt: profile.defaultSystemPrompt,
         notes: profile.notes ?? '',
-        benchmarkSteps: profile.benchmarkSteps.map((step) => ({ ...step })),
+        benchmarkSteps: profile.benchmarkSteps?.map((step) => ({ ...step })) ?? defaultBenchmarkSteps.map((step) => ({ ...step })),
       }
     : {
         name: DEFAULT_PROFILE_VALUES.name,
@@ -92,8 +92,10 @@ const levelSummary = (profile: ModelProfile, level: DiagnosticsLevel) => {
 const Profiles = () => {
   const {
     profiles,
+    runs,
     upsertProfile,
     deleteProfile,
+    deleteRun,
     recordDiagnostic,
     discovery,
     refreshDiscoveredModels,
@@ -161,6 +163,43 @@ const Profiles = () => {
     setProfileDialogOpen(true);
     setSelectedProfileId(profile.id);
     setProfileDetailOpen(false);
+  };
+
+  const handleDeleteProfile = (profile: ModelProfile) => {
+    // Find all runs associated with this profile
+    const associatedRuns = runs.filter((run) => run.profileId === profile.id);
+
+    // Prepare confirmation message
+    let confirmMessage = `Delete profile "${profile.name}"?`;
+    if (associatedRuns.length > 0) {
+      confirmMessage += `\n\nThis will also delete ${associatedRuns.length} associated benchmark run${associatedRuns.length === 1 ? '' : 's'}.`;
+    }
+    confirmMessage += '\n\nThis action cannot be undone.';
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(confirmMessage);
+    if (!confirmed) {
+      return;
+    }
+
+    // Delete all associated runs first
+    associatedRuns.forEach((run) => {
+      deleteRun(run.id);
+    });
+
+    // Then delete the profile
+    deleteProfile(profile.id);
+
+    // Close detail panel if this profile was selected
+    if (selectedProfileId === profile.id) {
+      setProfileDetailOpen(false);
+      setSelectedProfileId(undefined);
+    }
+
+    // Show feedback
+    setFeedback(
+      `Profile "${profile.name}" deleted${associatedRuns.length > 0 ? ` along with ${associatedRuns.length} run${associatedRuns.length === 1 ? '' : 's'}` : ''}.`
+    );
   };
 
   const handleCloseDialog = () => {
@@ -285,14 +324,17 @@ const Profiles = () => {
     }
   };
 
-  const handleDeleteProfile = () => {
+  const handleDeleteProfileFromDialog = () => {
     const targetId = formState.id ?? selectedProfile?.id;
     if (!targetId) {
       return;
     }
 
-    deleteProfile(targetId);
-    setFeedback('Profile deleted.');
+    const profile = profiles.find((p) => p.id === targetId);
+    if (profile) {
+      handleDeleteProfile(profile);
+    }
+
     setProfileDialogOpen(false);
     setFormError(null);
     setFormState(toFormState());
@@ -535,6 +577,16 @@ const Profiles = () => {
                                 className="inline-flex items-center px-3 py-1.5 text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 rounded-lg transition-all duration-200"
                               >
                                 Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteProfile(profile);
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-semibold bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                              >
+                                Delete
                               </button>
                             </div>
                           </div>
@@ -1084,7 +1136,7 @@ const Profiles = () => {
               <button
                 className="bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                 type="button"
-                onClick={handleDeleteProfile}
+                onClick={handleDeleteProfileFromDialog}
               >
                 Delete profile
               </button>

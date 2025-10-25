@@ -84,6 +84,16 @@ const formatDuration = (startedAt?: string, completedAt?: string) => {
   return `${seconds}s`;
 };
 
+const formatLatency = (latencyMs?: number) => {
+  if (!Number.isFinite(latencyMs) || latencyMs == null) {
+    return '—';
+  }
+  if (latencyMs >= 1000) {
+    return `${(latencyMs / 1000).toFixed(2)} s`;
+  }
+  return `${Math.round(latencyMs)} ms`;
+};
+
 interface LaunchRunPayload {
   profileId: string;
   label: string;
@@ -557,6 +567,41 @@ const Runs = () => {
     deleteRun(runId);
   };
 
+  const handleRerunBenchmark = (runId: string) => {
+    const run = getRunById(runId);
+    if (!run) {
+      return;
+    }
+
+    const profile = getProfileById(run.profileId);
+    if (!profile) {
+      alert('Profile not found. The model profile may have been deleted.');
+      return;
+    }
+
+    const readinessPass = profile.diagnostics.some(
+      (entry) => entry.level === 'READINESS' && entry.status === 'pass'
+    );
+
+    if (!readinessPass) {
+      const confirmed = window.confirm(
+        'Level 2 diagnostics have not passed for this profile. Run diagnostics before launching. Continue anyway?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const payload: LaunchRunPayload = {
+      profileId: run.profileId,
+      label: `Rerun of ${run.label}`,
+      questionIds: run.questionIds,
+      filters: run.dataset.filters ?? [],
+    };
+
+    void handleLaunchRun(payload);
+  };
+
   const handleLaunchRun = (payload: LaunchRunPayload): Promise<void> => {
     const profile = getProfileById(payload.profileId);
     if (!profile) {
@@ -571,13 +616,20 @@ const Runs = () => {
       throw new Error('No questions selected');
     }
 
-    const questionDescriptors = selectedQuestions.map((question, index) => ({
-      id: question.id,
-      order: index,
-      label: question.displayId ?? `Question ${index + 1}`,
-      prompt: question.prompt,
-      type: question.type,
-    }));
+    const questionDescriptors = selectedQuestions.map((question, index) => {
+      const questionNumber = index + 1;
+      const label = question.questionId
+        ? `Question ${questionNumber} (ID: ${question.questionId})`
+        : `Question ${questionNumber}`;
+
+      return {
+        id: question.id,
+        order: index,
+        label,
+        prompt: question.prompt,
+        type: question.type,
+      };
+    });
 
     const now = new Date().toISOString();
     const initialRun = upsertRun({
@@ -680,7 +732,9 @@ const Runs = () => {
     return Promise.resolve();
   };
 
-  const showInlineActiveRun = Boolean(activeRun);
+  const showInlineActiveRun = Boolean(
+    activeRun && (activeRun.status === 'starting' || activeRun.status === 'running')
+  );
   const inlineTotalQuestions = activeRun?.totalQuestions ?? 0;
   const inlineAnsweredCount = activeRun
     ? activeRun.metrics.passedCount + activeRun.metrics.failedCount
@@ -864,7 +918,10 @@ const Runs = () => {
                     Profile
                   </th>
                   <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
-                    Accuracy
+                    Answer Accuracy
+                  </th>
+                  <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+                    Topology Accuracy
                   </th>
                   <th scope="col" className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
                     Avg latency
@@ -884,18 +941,16 @@ const Runs = () => {
                 {filteredRuns.map((run) => (
                   <tr
                     key={run.id}
-                    className="hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
+                    onClick={() => navigate(`/runs/${run.id}`)}
+                    className="cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
                   >
                     <th
                       scope="row"
                       className="px-5 py-4 border-b border-slate-200 dark:border-slate-700"
                     >
-                      <Link
-                        to={`/runs/${run.id}`}
-                        className="font-semibold text-slate-900 dark:text-slate-50 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
-                      >
+                      <span className="font-semibold text-slate-900 dark:text-slate-50">
                         {run.label}
-                      </Link>
+                      </span>
                     </th>
                     <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
                       <span
@@ -929,7 +984,12 @@ const Runs = () => {
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                       {run.metrics && run.status === 'completed'
-                        ? `${Math.round(run.metrics.averageLatencyMs)} ms`
+                        ? `${(run.metrics.topologyAccuracy * 100).toFixed(1)}%`
+                        : '—'}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {run.metrics && run.status === 'completed'
+                        ? formatLatency(run.metrics.averageLatencyMs)
                         : '—'}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
@@ -943,13 +1003,28 @@ const Runs = () => {
                         <Link
                           className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
                           to={`/runs/${run.id}`}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           View
                         </Link>
                         <button
+                          className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRerunBenchmark(run.id);
+                          }}
+                          title="Rerun with same settings"
+                        >
+                          Rerun
+                        </button>
+                        <button
                           className="bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white font-semibold px-3 py-1.5 rounded-lg text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                           type="button"
-                          onClick={() => handleDeleteRun(run.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRun(run.id);
+                          }}
                         >
                           Delete
                         </button>

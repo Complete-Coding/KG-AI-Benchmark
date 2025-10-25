@@ -161,7 +161,7 @@ export interface ModelProfile {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
-  benchmarkSteps: BenchmarkStepConfig[];
+  benchmarkSteps?: BenchmarkStepConfig[]; // Optional - uses defaults if undefined
   defaultSystemPrompt: string;
   createdAt: string;
   updatedAt: string;
@@ -286,7 +286,7 @@ export interface BenchmarkRun {
 
 export type ActiveRunPhase = 'starting' | 'running' | 'completed' | 'failed';
 
-export type ActiveRunQuestionStatus = 'queued' | 'running' | 'passed' | 'failed';
+export type ActiveRunQuestionStatus = 'queued' | 'running' | 'passed' | 'failed' | 'partial';
 
 export interface ActiveRunQuestionProgress {
   id: string;
@@ -376,10 +376,12 @@ export interface DashboardOverview {
   totalRuns: number;
   activeRuns: number;
   averageAccuracy: number;
+  averageTopologyAccuracy: number;
   averageLatencyMs: number;
   lastUpdated?: string;
   latestRuns: DashboardRunSummary[];
   accuracyTrend: { timestamp: string; accuracy: number; runId: string }[];
+  topologyAccuracyTrend: { timestamp: string; topologyAccuracy: number; runId: string }[];
   latencyTrend: { timestamp: string; latencyMs: number; runId: string }[];
 }
 

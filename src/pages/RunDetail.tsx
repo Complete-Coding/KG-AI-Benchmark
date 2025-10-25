@@ -3,10 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ActiveRunQuestionStatus,
   BenchmarkAttempt,
+  BenchmarkQuestion,
   RunStatus,
 } from '@/types/benchmark';
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
+import { createEmptyRunMetrics } from '@/data/defaults';
+import { executeBenchmarkRun } from '@/services/benchmarkEngine';
 
 const runStatusLabels: Record<RunStatus, string> = {
   draft: 'Draft',
@@ -37,6 +40,7 @@ const questionStatusLabels: Record<ActiveRunQuestionStatus, string> = {
   running: 'Running',
   passed: 'Passed',
   failed: 'Failed',
+  partial: 'Partial',
 };
 
 const questionStatusClasses: Record<ActiveRunQuestionStatus, string> = {
@@ -46,6 +50,8 @@ const questionStatusClasses: Record<ActiveRunQuestionStatus, string> = {
     'bg-accent-100 text-accent-800 dark:bg-accent-900/30 dark:text-accent-300',
   passed:
     'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400',
+  partial:
+    'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400',
   failed:
     'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
 };
@@ -102,6 +108,9 @@ const formatLatency = (latencyMs?: number) => {
   if (!Number.isFinite(latencyMs) || latencyMs == null) {
     return '—';
   }
+  if (latencyMs >= 1000) {
+    return `${(latencyMs / 1000).toFixed(2)} s`;
+  }
   return `${Math.round(latencyMs)} ms`;
 };
 
@@ -111,6 +120,8 @@ interface QuestionItem {
   prompt: string;
   type: string;
   status: ActiveRunQuestionStatus;
+  topologyStatus?: 'passed' | 'failed';
+  answerStatus?: 'passed' | 'failed';
   latencyMs?: number;
   attempt?: BenchmarkAttempt;
 }
@@ -118,7 +129,18 @@ interface QuestionItem {
 const RunDetail = () => {
   const { runId } = useParams();
   const navigate = useNavigate();
-  const { getRunById, deleteRun, activeRun } = useBenchmarkContext();
+  const {
+    getRunById,
+    getProfileById,
+    deleteRun,
+    activeRun,
+    upsertRun,
+    questionSummary,
+    beginActiveRun,
+    setActiveRunCurrentQuestion,
+    recordActiveRunAttempt,
+    finalizeActiveRun,
+  } = useBenchmarkContext();
   const run = runId ? getRunById(runId) : undefined;
   const isActiveRun = Boolean(run && activeRun && activeRun.runId === run.id);
   const [elapsedMs, setElapsedMs] = useState(() =>
@@ -166,12 +188,28 @@ const RunDetail = () => {
     if (isActiveRun && activeRun) {
       return activeRun.questions.map((question) => {
         const attempt = attemptsByQuestion.get(question.id);
+
+        // For active runs, compute topology and answer statuses from attempt if available
+        const topologyStatus = attempt?.topologyEvaluation
+          ? attempt.topologyEvaluation.passed
+            ? 'passed'
+            : 'failed'
+          : undefined;
+
+        const answerStatus = attempt
+          ? attempt.evaluation.passed
+            ? 'passed'
+            : 'failed'
+          : undefined;
+
         return {
           id: question.id,
           label: question.label,
           prompt: question.prompt,
           type: question.type,
           status: question.status,
+          topologyStatus,
+          answerStatus,
           latencyMs: attempt?.latencyMs ?? question.latencyMs,
           attempt,
         };
@@ -181,14 +219,44 @@ const RunDetail = () => {
     return run.questionIds.map((questionId, index) => {
       const attempt = attemptsByQuestion.get(questionId);
       const sourceQuestion = questionLookup.get(questionId);
-      const label = sourceQuestion?.displayId ?? `Question ${index + 1}`;
+      const questionNumber = index + 1;
+      const numericId = sourceQuestion?.questionId;
+      const label = numericId
+        ? `Question ${questionNumber} (ID: ${numericId})`
+        : `Question ${questionNumber}`;
       const prompt = attempt?.questionSnapshot.prompt ?? sourceQuestion?.prompt ?? '';
       const type = attempt?.questionSnapshot.type ?? sourceQuestion?.type ?? 'Unknown';
-      const status: ActiveRunQuestionStatus = attempt
+
+      // Separate topology and answer statuses
+      const topologyStatus = attempt?.topologyEvaluation
+        ? attempt.topologyEvaluation.passed
+          ? 'passed'
+          : 'failed'
+        : undefined;
+
+      const answerStatus = attempt
         ? attempt.evaluation.passed
           ? 'passed'
           : 'failed'
-        : 'queued';
+        : undefined;
+
+      // Determine overall status based on BOTH topology and answer
+      let status: ActiveRunQuestionStatus = 'queued';
+      if (attempt) {
+        const answerPassed = attempt.evaluation.passed;
+        const topologyPassed = attempt.topologyEvaluation?.passed;
+
+        if (topologyPassed === undefined) {
+          // No topology evaluation, just use answer
+          status = answerPassed ? 'passed' : 'failed';
+        } else if (answerPassed && topologyPassed) {
+          status = 'passed'; // Both passed
+        } else if (!answerPassed && !topologyPassed) {
+          status = 'failed'; // Both failed
+        } else {
+          status = 'partial'; // Mixed results
+        }
+      }
 
       return {
         id: questionId,
@@ -196,6 +264,8 @@ const RunDetail = () => {
         prompt,
         type,
         status,
+        topologyStatus,
+        answerStatus,
         latencyMs: attempt?.latencyMs,
         attempt,
       };
@@ -212,8 +282,11 @@ const RunDetail = () => {
       return;
     }
 
+    // For active runs, only auto-select if no question is currently selected
+    // or if the selected question doesn't exist
     if (isActiveRun && activeRun?.currentQuestionId) {
-      if (selectedQuestionId !== activeRun.currentQuestionId) {
+      // Only auto-follow if user hasn't manually selected a different question
+      if (!selectedQuestionId || !questionItems.some((item) => item.id === selectedQuestionId)) {
         setSelectedQuestionId(activeRun.currentQuestionId);
       }
       return;
@@ -259,12 +332,8 @@ const RunDetail = () => {
   }
 
   const accuracy = run.metrics.accuracy ? `${(run.metrics.accuracy * 100).toFixed(1)}%` : '—';
-  const averageLatency = run.metrics.averageLatencyMs
-    ? `${Math.round(run.metrics.averageLatencyMs)} ms`
-    : '—';
-  const totalLatency = run.metrics.totalLatencyMs
-    ? `${Math.round(run.metrics.totalLatencyMs)} ms`
-    : '—';
+  const averageLatency = formatLatency(run.metrics.averageLatencyMs);
+  const totalLatency = formatLatency(run.metrics.totalLatencyMs);
   const answeredCount = run.metrics.passedCount + run.metrics.failedCount;
   const totalQuestions = run.questionIds.length;
   const remainingCount = Math.max(totalQuestions - answeredCount, 0);
@@ -291,6 +360,154 @@ const RunDetail = () => {
     }
     deleteRun(run.id);
     void navigate('/runs');
+  };
+
+  const handleRerun = () => {
+    if (!run) {
+      return;
+    }
+
+    const profile = getProfileById(run.profileId);
+    if (!profile) {
+      alert('Profile not found. The model profile may have been deleted.');
+      return;
+    }
+
+    const readinessPass = profile.diagnostics.some(
+      (entry) => entry.level === 'READINESS' && entry.status === 'pass'
+    );
+
+    if (!readinessPass) {
+      const confirmed = window.confirm(
+        'Level 2 diagnostics have not passed for this profile. Run diagnostics before launching. Continue anyway?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const selectedQuestions = run.questionIds
+      .map((id) => questionLookup.get(id))
+      .filter((question): question is BenchmarkQuestion => Boolean(question));
+
+    if (selectedQuestions.length === 0) {
+      alert('No questions found for this run.');
+      return;
+    }
+
+    const questionDescriptors = selectedQuestions.map((question, index) => {
+      const questionNumber = index + 1;
+      const label = question.questionId
+        ? `Question ${questionNumber} (ID: ${question.questionId})`
+        : `Question ${questionNumber}`;
+
+      return {
+        id: question.id,
+        order: index,
+        label,
+        prompt: question.prompt,
+        type: question.type,
+      };
+    });
+
+    const now = new Date().toISOString();
+    const newRun = upsertRun({
+      label: `Rerun of ${run.label}`,
+      profileId: profile.id,
+      profileName: profile.name,
+      profileModelId: profile.modelId,
+      status: 'running',
+      createdAt: now,
+      startedAt: now,
+      questionIds: run.questionIds,
+      dataset: {
+        label: questionSummary.label,
+        totalQuestions: selectedQuestions.length,
+        filters: run.dataset.filters ?? [],
+      },
+      metrics: createEmptyRunMetrics(),
+      attempts: [],
+    });
+
+    beginActiveRun({
+      runId: newRun.id,
+      label: newRun.label,
+      profileName: newRun.profileName,
+      profileModelId: newRun.profileModelId,
+      datasetLabel: questionSummary.label,
+      filters: run.dataset.filters ?? [],
+      questions: questionDescriptors,
+      startedAt: now,
+    });
+
+    void navigate(`/runs/${newRun.id}?live=1`);
+
+    const attempts: BenchmarkAttempt[] = [];
+    let latestRun = newRun;
+
+    const runTask = async () => {
+      try {
+        const completedRun = await executeBenchmarkRun({
+          profile,
+          questions: selectedQuestions,
+          run: newRun,
+          onQuestionStart: (question) => {
+            setActiveRunCurrentQuestion({
+              runId: newRun.id,
+              questionId: question.id,
+              timestamp: new Date().toISOString(),
+            });
+          },
+          onProgress: (attempt, _progress, metrics) => {
+            attempts.push(attempt);
+            recordActiveRunAttempt({
+              runId: newRun.id,
+              questionId: attempt.questionId,
+              attemptId: attempt.id,
+              passed: attempt.evaluation.passed,
+              latencyMs: attempt.latencyMs,
+              notes: attempt.error ?? attempt.evaluation.notes,
+              metrics,
+              timestamp: new Date().toISOString(),
+            });
+            latestRun = upsertRun({
+              ...latestRun,
+              status: 'running',
+              attempts: [...attempts],
+              metrics,
+            });
+          },
+        });
+
+        latestRun = upsertRun(completedRun);
+        finalizeActiveRun({
+          runId: completedRun.id,
+          status: 'completed',
+          summary: completedRun.summary ?? 'Run completed',
+          metrics: completedRun.metrics,
+          completedAt: completedRun.completedAt ?? new Date().toISOString(),
+        });
+      } catch (error) {
+        const errorMessage = (error as Error).message;
+        latestRun = upsertRun({
+          ...latestRun,
+          status: 'failed',
+          completedAt: new Date().toISOString(),
+          summary: `Run failed: ${errorMessage}`,
+        });
+        finalizeActiveRun({
+          runId: latestRun.id,
+          status: 'failed',
+          summary: latestRun.summary ?? 'Run failed',
+          metrics: latestRun.metrics,
+          completedAt: latestRun.completedAt ?? new Date().toISOString(),
+          error: errorMessage,
+        });
+        console.error('Benchmark run failed', error);
+      }
+    };
+
+    void runTask();
   };
 
   return (
@@ -329,6 +546,14 @@ const RunDetail = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
+            className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-4 py-2 rounded-xl transition-all duration-200"
+            type="button"
+            onClick={handleRerun}
+            title="Rerun with same settings"
+          >
+            Rerun
+          </button>
+          <button
             className="bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
             type="button"
             onClick={handleDelete}
@@ -338,14 +563,25 @@ const RunDetail = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Accuracy
+            Answer Accuracy
           </h3>
           <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">{accuracy}</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {run.metrics.passedCount} passed · {run.metrics.failedCount} failed
+          </p>
+        </article>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Topology Accuracy
+          </h3>
+          <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+            {run.metrics.topologyAccuracy ? `${(run.metrics.topologyAccuracy * 100).toFixed(1)}%` : '—'}
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {run.metrics.topologyPassedCount} passed · {run.metrics.topologyFailedCount} failed
           </p>
         </article>
         <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-2 transition-theme">
@@ -478,6 +714,38 @@ const RunDetail = () => {
                             {questionStatusLabels[item.status]}
                           </span>
                         </div>
+                        {item.topologyStatus || item.answerStatus ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {item.topologyStatus && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">T:</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                    item.topologyStatus === 'passed'
+                                      ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+                                      : 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400'
+                                  }`}
+                                >
+                                  {item.topologyStatus === 'passed' ? '✓' : '✗'}
+                                </span>
+                              </div>
+                            )}
+                            {item.answerStatus && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">A:</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                    item.answerStatus === 'passed'
+                                      ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+                                      : 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400'
+                                  }`}
+                                >
+                                  {item.answerStatus === 'passed' ? '✓' : '✗'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                           <span>{item.type}</span>
                           <span>{formatLatency(item.latencyMs)}</span>

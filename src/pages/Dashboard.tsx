@@ -25,7 +25,12 @@ const formatDateTime = (iso?: string) => {
 };
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
-const formatLatency = (value: number) => `${Math.round(value)} ms`;
+const formatLatency = (value: number) => {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(2)} s`;
+  }
+  return `${Math.round(value)} ms`;
+};
 
 const Dashboard = () => {
   const { overview, questionSummary } = useBenchmarkContext();
@@ -34,13 +39,18 @@ const Dashboard = () => {
     const accuracyByRunId = new Map(
       overview.accuracyTrend.map((point) => [point.runId, point])
     );
+    const topologyAccuracyByRunId = new Map(
+      overview.topologyAccuracyTrend.map((point) => [point.runId, point])
+    );
 
     return overview.latencyTrend.map((latencyPoint) => {
       const accuracyPoint = accuracyByRunId.get(latencyPoint.runId);
+      const topologyAccuracyPoint = topologyAccuracyByRunId.get(latencyPoint.runId);
       const timestamp = new Date(latencyPoint.timestamp);
       return {
         timestamp: timestamp.toLocaleDateString(),
-        accuracy: (accuracyPoint?.accuracy ?? 0) * 100,
+        answerAccuracy: (accuracyPoint?.accuracy ?? 0) * 100,
+        topologyAccuracy: (topologyAccuracyPoint?.topologyAccuracy ?? 0) * 100,
         latency: latencyPoint.latencyMs,
       };
     });
@@ -58,8 +68,13 @@ const Dashboard = () => {
       meta: overview.activeRuns === 0 ? 'All runs idle' : 'Runs in progress',
     },
     {
-      title: 'Avg accuracy',
+      title: 'Avg answer accuracy',
       value: overview.totalRuns ? formatPercent(overview.averageAccuracy) : '—',
+      meta: 'Across completed runs',
+    },
+    {
+      title: 'Avg topology accuracy',
+      value: overview.totalRuns ? formatPercent(overview.averageTopologyAccuracy) : '—',
       meta: 'Across completed runs',
     },
     {
@@ -86,7 +101,7 @@ const Dashboard = () => {
             Overview
           </h2>
         </header>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {summaryCards.map((card) => (
             <article
               key={card.title}
@@ -106,10 +121,10 @@ const Dashboard = () => {
         <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 flex flex-col gap-6 transition-theme">
           <header className="flex flex-col gap-2">
             <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Accuracy vs latency
+              Performance trends
             </h2>
             <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-              Completed runs plotted chronologically.
+              Answer accuracy, topology accuracy, and latency across completed runs.
             </p>
           </header>
           <div className="w-full h-80">
@@ -136,9 +151,9 @@ const Dashboard = () => {
                   <Tooltip
                     formatter={(value: number | string, name) => {
                       if (typeof value === 'number') {
-                        return name === 'accuracy'
-                          ? `${value.toFixed(1)}%`
-                          : `${Math.round(value)} ms`;
+                        return name === 'Latency'
+                          ? `${Math.round(value)} ms`
+                          : `${value.toFixed(1)}%`;
                       }
 
                       return value;
@@ -150,18 +165,27 @@ const Dashboard = () => {
                     type="monotone"
                     dataKey="latency"
                     stroke="#6366f1"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     dot={false}
                     name="Latency"
                   />
                   <Line
                     yAxisId="right"
                     type="monotone"
-                    dataKey="accuracy"
+                    dataKey="answerAccuracy"
                     stroke="#10b981"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     dot={false}
-                    name="Accuracy"
+                    name="Answer Accuracy"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="topologyAccuracy"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Topology Accuracy"
                   />
                 </LineChart>
               </ResponsiveContainer>
