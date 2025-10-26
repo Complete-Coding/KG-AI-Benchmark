@@ -2,29 +2,66 @@ import { BenchmarkRunMetrics, BenchmarkStepConfig } from '@/types/benchmark';
 
 export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
   {
-    id: 'topology',
-    label: 'Topology classification',
+    id: 'topology-subject',
+    label: 'Topology – Subject',
     description:
-      'Identify the subject, topic, and subtopic covered by the question before attempting an answer.',
+      'Identify the most relevant subject for the question before drilling into topics.',
     promptTemplate:
-      'Classify this question using the LOOKUP IDs from the taxonomy catalog below.\n\n' +
-      'COMPLETE TAXONOMY CATALOG with IDs:\n\n' +
-      '{{topologyCatalog}}\n\n' +
-      'CRITICAL INSTRUCTIONS:\n' +
-      '1. You MUST return the exact ID from the catalog above\n' +
-      '2. IDs are the alphanumeric codes shown before the parentheses (e.g., "68d24e621c69bbb6f527dabb")\n' +
-      '3. DO NOT create or modify IDs - only pick from the list\n' +
-      '4. The name in parentheses is for reference only - return the ID, not the name\n' +
-      '5. Return null for subtopicId if no subtopic applies\n\n' +
-      'Return JSON using this exact schema:\n' +
+      'Identify the best matching SUBJECT for the question described below.\n\n' +
+      'SUBJECT CATALOG:\n{{subjectCatalog}}\n\n' +
+      'Rules:\n' +
+      '1. Select the subjectId EXACTLY as it appears in the catalog (copy/paste the ID).\n' +
+      '2. Always return your best guess even if confidence is low; never invent new IDs or return the string "null".\n' +
+      '3. Set `confidence` between 0 and 1 to reflect certainty (e.g., 0.2 means low confidence).\n\n' +
+      'Return JSON:\n' +
       '{\n' +
-      '  "subjectId": "68d24e621c69bbb6f527dabb",  // MUST be exact ID from catalog\n' +
-      '  "topicId": "68d24e71b905a26b8ed99dd0",    // MUST be exact ID from catalog\n' +
-      '  "subtopicId": "68d24ec31c69bbb6f528892b", // MUST be exact ID from catalog or null\n' +
-      '  "confidence": 0.95  // optional, 0-1\n' +
+      '  "subjectId": "68d24e621c69bbb6f527dabb",\n' +
+      '  "confidence": 0.75\n' +
       '}\n\n' +
-      'EXAMPLE: For a question about "Context Free Grammar Basics" in "Theory of Computation":\n' +
-      '{"subjectId":"68da25c631f60703d614bb62","topicId":"68da276031f60703d6189479","subtopicId":"68da29105e8ee4416b691e20","confidence":0.95}',
+      '{{questionContext}}',
+    enabled: true,
+  },
+  {
+    id: 'topology-topic',
+    label: 'Topology – Topic',
+    description:
+      'Within the predicted subject, choose the most relevant topic for the question.',
+    promptTemplate:
+      'We have tentatively identified the subject as {{selectedSubject}}.\n' +
+      'Use the topic catalog below (scoped to that subject) to choose the best TOPIC for this question.\n\n' +
+      '{{topicGuidance}}\n' +
+      'TOPIC CATALOG:\n{{topicCatalog}}\n\n' +
+      'Rules:\n' +
+      '1. Return the exact topicId from the catalog (no new IDs, no "null").\n' +
+      '2. If the subject seems incorrect, pick the topic that best fits the question and note the low confidence.\n' +
+      '3. Provide `confidence` between 0 and 1 reflecting certainty.\n\n' +
+      'Return JSON:\n' +
+      '{\n' +
+      '  "topicId": "68d24e71b905a26b8ed99dd0",\n' +
+      '  "confidence": 0.6\n' +
+      '}\n\n' +
+      '{{questionContext}}',
+    enabled: true,
+  },
+  {
+    id: 'topology-subtopic',
+    label: 'Topology – Subtopic',
+    description:
+      'Select the precise subtopic given the chosen subject and topic.',
+    promptTemplate:
+      'Working within subject {{selectedSubject}} and topic {{selectedTopic}}, choose the most appropriate SUBTOPIC from the catalog below.\n\n' +
+      '{{subtopicGuidance}}\n' +
+      'SUBTOPIC CATALOG:\n{{subtopicCatalog}}\n\n' +
+      'Rules:\n' +
+      '1. Return the exact subtopicId listed (no new IDs, no "null").\n' +
+      '2. Always provide your best guess; use a low confidence score if uncertain.\n' +
+      '3. Confidence must be between 0 and 1.\n\n' +
+      'Return JSON:\n' +
+      '{\n' +
+      '  "subtopicId": "68d24ec31c69bbb6f528892b",\n' +
+      '  "confidence": 0.55\n' +
+      '}\n\n' +
+      '{{questionContext}}',
     enabled: true,
   },
   {
@@ -62,6 +99,15 @@ export const createEmptyRunMetrics = (): BenchmarkRunMetrics => ({
   topologyAccuracy: 0,
   topologyPassedCount: 0,
   topologyFailedCount: 0,
+  topologySubjectAccuracy: 0,
+  topologySubjectPassedCount: 0,
+  topologySubjectFailedCount: 0,
+  topologyTopicAccuracy: 0,
+  topologyTopicPassedCount: 0,
+  topologyTopicFailedCount: 0,
+  topologySubtopicAccuracy: 0,
+  topologySubtopicPassedCount: 0,
+  topologySubtopicFailedCount: 0,
 });
 
 /**

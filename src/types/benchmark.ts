@@ -211,12 +211,36 @@ export interface BenchmarkModelResponse {
   raw?: unknown;
 }
 
-export interface BenchmarkTopologyPrediction {
-  subjectId?: string;
-  topicId?: string;
-  subtopicId?: string;
+export type TopologyStage = 'subject' | 'topic' | 'subtopic';
+
+export interface BenchmarkTopologyStageResult {
+  stage: TopologyStage;
+  id?: string;
   confidence?: number;
   raw?: unknown;
+  subjectId?: string;
+  topicId?: string;
+}
+
+export interface BenchmarkTopologyPrediction {
+  subjectId?: string;
+  subjectConfidence?: number;
+  topicId?: string;
+  topicConfidence?: number;
+  subtopicId?: string;
+  subtopicConfidence?: number;
+  confidence?: number;
+  raw?: {
+    subject?: unknown;
+    topic?: unknown;
+    subtopic?: unknown;
+    [key: string]: unknown;
+  };
+  stages?: {
+    subject?: BenchmarkTopologyStageResult;
+    topic?: BenchmarkTopologyStageResult;
+    subtopic?: BenchmarkTopologyStageResult;
+  };
 }
 
 export interface BenchmarkAttemptEvaluation {
@@ -227,6 +251,18 @@ export interface BenchmarkAttemptEvaluation {
   notes?: string;
   metrics?: {
     confidence?: number;
+    subjectConfidence?: number;
+    topicConfidence?: number;
+    subtopicConfidence?: number;
+    subjectMatch?: boolean;
+    topicMatch?: boolean;
+    subtopicMatch?: boolean;
+    subjectExpected?: boolean;
+    topicExpected?: boolean;
+    subtopicExpected?: boolean;
+    subjectProvided?: boolean;
+    topicProvided?: boolean;
+    subtopicProvided?: boolean;
   };
 }
 
@@ -248,6 +284,7 @@ export interface BenchmarkAttemptStepResult {
   usage?: BenchmarkAttemptStepUsage;
   modelResponse?: BenchmarkModelResponse;
   topologyPrediction?: BenchmarkTopologyPrediction;
+  topologyStage?: BenchmarkTopologyStageResult;
   evaluation?: BenchmarkAttemptEvaluation;
   notes?: string;
 }
@@ -289,6 +326,15 @@ export interface BenchmarkRunMetrics {
   topologyAccuracy: number;
   topologyPassedCount: number;
   topologyFailedCount: number;
+  topologySubjectAccuracy: number;
+  topologySubjectPassedCount: number;
+  topologySubjectFailedCount: number;
+  topologyTopicAccuracy: number;
+  topologyTopicPassedCount: number;
+  topologyTopicFailedCount: number;
+  topologySubtopicAccuracy: number;
+  topologySubtopicPassedCount: number;
+  topologySubtopicFailedCount: number;
 }
 
 export interface BenchmarkRun {

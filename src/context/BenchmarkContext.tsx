@@ -132,7 +132,7 @@ const resolveDiscoveryTargets = (profiles: ModelProfile[]): DiscoveryTarget[] =>
     const fallbackUrl = DEFAULT_PROFILE_VALUES.baseUrl;
     targets.set(fallbackUrl, {
       baseUrl: fallbackUrl,
-      apiKey: DEFAULT_PROFILE_VALUES.apiKey || undefined,
+      apiKey: DEFAULT_PROFILE_VALUES.apiKey ? DEFAULT_PROFILE_VALUES.apiKey : undefined,
       requestTimeoutMs: clampTimeout(DEFAULT_PROFILE_VALUES.requestTimeoutMs),
     });
   }
@@ -142,17 +142,29 @@ const resolveDiscoveryTargets = (profiles: ModelProfile[]): DiscoveryTarget[] =>
 
 const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfile): ModelProfile => {
   const now = new Date().toISOString();
-  const topologyDefaults = defaultStepById.get('topology');
+  const subjectDefaults = defaultStepById.get('topology-subject');
+  const topicDefaults = defaultStepById.get('topology-topic');
+  const subtopicDefaults = defaultStepById.get('topology-subtopic');
   const answerDefaults = defaultStepById.get('answer');
 
   const adjustLegacyStep = (step: Partial<BenchmarkStepConfig>, index: number) => {
     if (step.id === 'analysis') {
       return {
         ...step,
-        id: 'topology',
-        label: step.label ?? topologyDefaults?.label ?? 'Topology classification',
-        description: topologyDefaults?.description,
-        promptTemplate: topologyDefaults?.promptTemplate,
+        id: 'topology-subject',
+        label: step.label ?? subjectDefaults?.label ?? 'Topology – Subject',
+        description: step.description ?? subjectDefaults?.description,
+        promptTemplate: step.promptTemplate ?? subjectDefaults?.promptTemplate,
+      };
+    }
+
+    if (step.id === 'topology') {
+      return {
+        ...step,
+        id: 'topology-subject',
+        label: step.label ?? subjectDefaults?.label ?? 'Topology – Subject',
+        description: step.description ?? subjectDefaults?.description,
+        promptTemplate: step.promptTemplate ?? subjectDefaults?.promptTemplate,
       };
     }
 
@@ -189,7 +201,7 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
     }
 
     // Normalize the incoming steps
-    const normalized = incomingSteps.map((step, index) => {
+    let normalized = incomingSteps.map((step, index) => {
       const legacyAdjusted = adjustLegacyStep(step, index);
       const fallback =
         (legacyAdjusted.id ? defaultStepById.get(legacyAdjusted.id) : undefined) ??
@@ -203,6 +215,67 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
         enabled: legacyAdjusted.enabled ?? fallback?.enabled ?? true,
       };
     });
+
+    const subjectStep = normalized.find((step) => step.id === 'topology-subject') ??
+      (subjectDefaults
+        ? {
+            id: subjectDefaults.id,
+            label: subjectDefaults.label,
+            description: subjectDefaults.description,
+            promptTemplate: subjectDefaults.promptTemplate,
+            enabled: subjectDefaults.enabled,
+          }
+        : undefined);
+    const topicStep = normalized.find((step) => step.id === 'topology-topic') ??
+      (topicDefaults
+        ? {
+            id: topicDefaults.id,
+            label: topicDefaults.label,
+            description: topicDefaults.description,
+            promptTemplate: topicDefaults.promptTemplate,
+            enabled: topicDefaults.enabled,
+          }
+        : undefined);
+    const subtopicStep = normalized.find((step) => step.id === 'topology-subtopic') ??
+      (subtopicDefaults
+        ? {
+            id: subtopicDefaults.id,
+            label: subtopicDefaults.label,
+            description: subtopicDefaults.description,
+            promptTemplate: subtopicDefaults.promptTemplate,
+            enabled: subtopicDefaults.enabled,
+          }
+        : undefined);
+
+    const missingTopologyStages =
+      !subjectStep || !topicStep || !subtopicStep;
+
+    if (missingTopologyStages) {
+      const stepsWithoutTopology = normalized.filter(
+        (step) =>
+          ![
+            'analysis',
+            'topology',
+            'topology-subject',
+            'topology-topic',
+            'topology-subtopic',
+          ].includes(step.id)
+      );
+
+      const insertion = [subjectStep, topicStep, subtopicStep]
+        .filter(Boolean)
+        .map((step) => step as BenchmarkStepConfig);
+
+      const answerIndex = stepsWithoutTopology.findIndex((step) => step.id === 'answer');
+      normalized =
+        answerIndex >= 0
+          ? [
+              ...stepsWithoutTopology.slice(0, answerIndex),
+              ...insertion,
+              ...stepsWithoutTopology.slice(answerIndex),
+            ]
+          : [...insertion, ...stepsWithoutTopology];
+    }
 
     // Check if normalized steps are identical to defaults (meaning no customization)
     const isIdenticalToDefaults =
@@ -334,17 +407,16 @@ const computeDashboardOverview = (runs: BenchmarkRun[]): DashboardOverview => {
   const completedRuns = runs.filter((run) => run.status === 'completed');
   const activeRuns = runs.filter((run) => run.status === 'running' || run.status === 'queued');
 
+  const completedCount = completedRuns.length === 0 ? 1 : completedRuns.length;
+
   const averageAccuracy =
-    completedRuns.reduce((acc, run) => acc + run.metrics.accuracy, 0) /
-    (completedRuns.length || 1);
+    completedRuns.reduce((acc, run) => acc + run.metrics.accuracy, 0) / completedCount;
 
   const averageTopologyAccuracy =
-    completedRuns.reduce((acc, run) => acc + run.metrics.topologyAccuracy, 0) /
-    (completedRuns.length || 1);
+    completedRuns.reduce((acc, run) => acc + run.metrics.topologyAccuracy, 0) / completedCount;
 
   const averageLatency =
-    completedRuns.reduce((acc, run) => acc + run.metrics.averageLatencyMs, 0) /
-    (completedRuns.length || 1);
+    completedRuns.reduce((acc, run) => acc + run.metrics.averageLatencyMs, 0) / completedCount;
 
   const sortedCompleted = [...completedRuns].sort((a, b) => {
     const aTime = a.completedAt ?? a.createdAt;
@@ -825,7 +897,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
             return {
               ...normalized,
               status: 'completed' as const,
-              completedAt: normalized.completedAt || new Date().toISOString(),
+              completedAt: normalized.completedAt ?? new Date().toISOString(),
               summary: `Accuracy ${(accuracy * 100).toFixed(1)}% across ${normalized.attempts.length} questions.`,
               metrics: {
                 ...normalized.metrics,
@@ -845,8 +917,9 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
           return {
             ...normalized,
             status: 'failed' as const,
-            completedAt: normalized.completedAt || new Date().toISOString(),
-            summary: normalized.summary || `Run interrupted (${attemptedQuestionIds.size}/${normalized.questionIds.length} questions answered)`,
+            completedAt: normalized.completedAt ?? new Date().toISOString(),
+            summary:
+              normalized.summary ?? `Run interrupted (${attemptedQuestionIds.size}/${normalized.questionIds.length} questions answered)`,
             notes: normalized.notes
               ? `${normalized.notes}\n\nRun was interrupted and marked as failed on app restart.`
               : 'Run was interrupted and marked as failed on app restart.',
@@ -862,8 +935,8 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
             ...normalized,
             status: hasAttempts ? 'failed' as const : 'draft' as const,
             summary: hasAttempts
-              ? normalized.summary || 'Run was queued but not executed'
-              : normalized.summary || 'Draft run',
+              ? normalized.summary ?? 'Run was queued but not executed'
+              : normalized.summary ?? 'Draft run',
             notes: normalized.notes
               ? `${normalized.notes}\n\nQueued status reset on app restart.`
               : 'Queued status reset on app restart.',
@@ -1044,7 +1117,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         upsertRun({ ...run, status: 'queued' });
       }
     }
-  }, [state.runQueue.currentRunId, state.runs, upsertRun]);
+  }, [state.runQueue.currentRunId, state.runQueue.queuedRunIds, state.runs, upsertRun]);
 
   const enqueueBatch = useCallback((runIds: string[]) => {
     console.log(`[ENQUEUE BATCH] Called with ${runIds.length} runs`);

@@ -4,6 +4,7 @@ import {
   BenchmarkQuestion,
   BenchmarkQuestionOption,
   BenchmarkTopologyPrediction,
+  BenchmarkTopologyStageResult,
 } from '@/types/benchmark';
 import { formatTopologyIds, getTopologyNames } from '@/utils/topologyLookup';
 
@@ -41,6 +42,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const readStringField = (value: unknown): string | undefined =>
   typeof value === 'string' ? value.trim() : undefined;
+
+const clampConfidence = (value?: number) =>
+  typeof value === 'number' ? Math.max(0, Math.min(1, value)) : undefined;
 
 export const parseModelResponse = (text: string): BenchmarkModelResponse => {
   const trimmed = text.trim();
@@ -94,26 +98,60 @@ export const parseModelResponse = (text: string): BenchmarkModelResponse => {
   };
 };
 
+const normalizeId = (value?: string) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'none' || lower === 'undefined') {
+    return undefined;
+  }
+
+  return trimmed;
+};
+
 const extractTopologyFromRecord = (record: Record<string, unknown>) => {
   const container = isRecord(record.topology) ? record.topology : record;
 
   // Try ID fields first (new format), fall back to name fields (legacy)
-  const subjectId = readStringField(container.subjectId) ?? readStringField(container.SubjectId) ??
-                    readStringField(container.subject) ?? readStringField(container.Subject);
-  const topicId = readStringField(container.topicId) ?? readStringField(container.TopicId) ??
-                  readStringField(container.topic) ?? readStringField(container.Topic);
-  const subtopicId = readStringField(container.subtopicId) ?? readStringField(container.SubtopicId) ??
-                     readStringField(container.subtopic) ?? readStringField(container.Subtopic);
+  const subjectIdRaw =
+    readStringField(container.subjectId) ??
+    readStringField(container.SubjectId) ??
+    readStringField(container.subject) ??
+    readStringField(container.Subject);
+  const topicIdRaw =
+    readStringField(container.topicId) ??
+    readStringField(container.TopicId) ??
+    readStringField(container.topic) ??
+    readStringField(container.Topic);
+  const subtopicIdRaw =
+    readStringField(container.subtopicId) ??
+    readStringField(container.SubtopicId) ??
+    readStringField(container.subtopic) ??
+    readStringField(container.Subtopic);
+
   const confidenceRaw = container.confidence ?? record.confidence;
   const confidence =
     typeof confidenceRaw === 'number'
       ? Math.max(0, Math.min(1, confidenceRaw))
       : undefined;
 
-  return { subjectId, topicId, subtopicId, confidence };
+  return {
+    subjectId: normalizeId(subjectIdRaw),
+    topicId: normalizeId(topicIdRaw),
+    subtopicId: normalizeId(subtopicIdRaw),
+    confidence,
+  };
 };
 
-export const parseTopologyPrediction = (text: string): BenchmarkTopologyPrediction => {
+const parseTopologyJson = (text: string) => {
   const trimmed = text.trim();
 
   if (!trimmed) {
@@ -130,9 +168,66 @@ export const parseTopologyPrediction = (text: string): BenchmarkTopologyPredicti
     );
   }
 
-  const topology = extractTopologyFromRecord(parsed);
+  return { parsed, topology: extractTopologyFromRecord(parsed) };
+};
 
-  // Validate that at least one topology field is present
+export const parseTopologySubjectPrediction = (text: string): BenchmarkTopologyStageResult => {
+  const { parsed, topology } = parseTopologyJson(text);
+
+  if (!topology.subjectId) {
+    throw new Error(
+      `Model JSON response missing 'subjectId'. Response: ${JSON.stringify(parsed).substring(0, 200)}`
+    );
+  }
+
+  return {
+    stage: 'subject',
+    id: topology.subjectId,
+    confidence: topology.confidence,
+    raw: parsed,
+  };
+};
+
+export const parseTopologyTopicPrediction = (text: string): BenchmarkTopologyStageResult => {
+  const { parsed, topology } = parseTopologyJson(text);
+
+  if (!topology.topicId) {
+    throw new Error(
+      `Model JSON response missing 'topicId'. Response: ${JSON.stringify(parsed).substring(0, 200)}`
+    );
+  }
+
+  return {
+    stage: 'topic',
+    id: topology.topicId,
+    confidence: topology.confidence,
+    raw: parsed,
+    subjectId: topology.subjectId,
+  };
+};
+
+export const parseTopologySubtopicPrediction = (text: string): BenchmarkTopologyStageResult => {
+  const { parsed, topology } = parseTopologyJson(text);
+
+  if (!topology.subtopicId) {
+    throw new Error(
+      `Model JSON response missing 'subtopicId'. Response: ${JSON.stringify(parsed).substring(0, 200)}`
+    );
+  }
+
+  return {
+    stage: 'subtopic',
+    id: topology.subtopicId,
+    confidence: topology.confidence,
+    raw: parsed,
+    subjectId: topology.subjectId,
+    topicId: topology.topicId,
+  };
+};
+
+export const parseTopologyPrediction = (text: string): BenchmarkTopologyPrediction => {
+  const { parsed, topology } = parseTopologyJson(text);
+
   if (!topology.subjectId && !topology.topicId && !topology.subtopicId) {
     throw new Error(
       `Model JSON response missing topology fields (subjectId, topicId, subtopicId). Response: ${JSON.stringify(parsed)}`
@@ -260,9 +355,13 @@ export const evaluateTopologyPrediction = (
   const expectedSubtopicId = expectedTopology.subtopicId ?? null;
 
   // Direct ID comparison (exact string matching)
-  const subjectMatch = prediction.subjectId === expectedSubjectId;
-  const topicMatch = prediction.topicId === expectedTopicId;
-  const subtopicMatch = prediction.subtopicId === expectedSubtopicId;
+  const subjectExpected = expectedSubjectId !== null && expectedSubjectId !== undefined;
+  const topicExpected = expectedTopicId !== null && expectedTopicId !== undefined;
+  const subtopicExpected = expectedSubtopicId !== null && expectedSubtopicId !== undefined;
+
+  const subjectMatch = subjectExpected ? prediction.subjectId === expectedSubjectId : true;
+  const topicMatch = topicExpected ? prediction.topicId === expectedTopicId : true;
+  const subtopicMatch = subtopicExpected ? prediction.subtopicId === expectedSubtopicId : true;
 
   const expectedFields = [
     { key: 'subjectId', expected: expectedSubjectId, matches: subjectMatch },
@@ -315,18 +414,41 @@ export const evaluateTopologyPrediction = (
     notes = 'Question has no topology metadata to compare.';
   }
 
+  const subjectConfidence =
+    clampConfidence(prediction.subjectConfidence) ??
+    clampConfidence(prediction.stages?.subject?.confidence);
+  const topicConfidence =
+    clampConfidence(prediction.topicConfidence) ??
+    clampConfidence(prediction.stages?.topic?.confidence);
+  const subtopicConfidence =
+    clampConfidence(prediction.subtopicConfidence) ??
+    clampConfidence(prediction.stages?.subtopic?.confidence);
+
+  const metrics = {
+    confidence: clampConfidence(
+      prediction.confidence ?? prediction.subtopicConfidence ?? prediction.topicConfidence
+    ),
+    subjectConfidence,
+    topicConfidence,
+    subtopicConfidence,
+    subjectMatch: subjectExpected ? subjectMatch : undefined,
+    topicMatch: topicExpected ? topicMatch : undefined,
+    subtopicMatch: subtopicExpected ? subtopicMatch : undefined,
+    subjectExpected,
+    topicExpected,
+    subtopicExpected,
+    subjectProvided: Boolean(prediction.subjectId),
+    topicProvided: Boolean(prediction.topicId),
+    subtopicProvided: Boolean(prediction.subtopicId),
+  };
+
   return {
     expected: expectedText,
     received: receivedText,
     passed,
     score,
     notes,
-    metrics:
-      typeof prediction.confidence === 'number'
-        ? {
-            confidence: Math.max(0, Math.min(1, prediction.confidence)),
-          }
-        : undefined,
+    metrics,
   };
 };
 

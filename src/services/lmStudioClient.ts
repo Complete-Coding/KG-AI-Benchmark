@@ -9,15 +9,33 @@ interface RequestOptions {
 }
 
 // JSON Schemas for LM Studio's json_schema format
-const TOPOLOGY_SCHEMA = {
+const TOPOLOGY_SUBJECT_SCHEMA = {
   type: 'object',
   properties: {
     subjectId: { type: 'string', description: 'Subject identifier' },
+    confidence: { type: 'number', minimum: 0, maximum: 1, description: 'Confidence score' },
+  },
+  required: ['subjectId'],
+  additionalProperties: false,
+} as const;
+
+const TOPOLOGY_TOPIC_SCHEMA = {
+  type: 'object',
+  properties: {
     topicId: { type: 'string', description: 'Topic identifier' },
+    confidence: { type: 'number', minimum: 0, maximum: 1, description: 'Confidence score' },
+  },
+  required: ['topicId'],
+  additionalProperties: false,
+} as const;
+
+const TOPOLOGY_SUBTOPIC_SCHEMA = {
+  type: 'object',
+  properties: {
     subtopicId: { type: 'string', description: 'Subtopic identifier' },
     confidence: { type: 'number', minimum: 0, maximum: 1, description: 'Confidence score' },
   },
-  required: ['subjectId', 'topicId', 'subtopicId'],
+  required: ['subtopicId'],
   additionalProperties: false,
 } as const;
 
@@ -33,7 +51,7 @@ const ANSWER_SCHEMA = {
 } as const;
 
 type JsonFormatType = 'json_object' | 'json_schema';
-type SchemaType = 'topology' | 'answer';
+type SchemaType = 'topologySubject' | 'topologyTopic' | 'topologySubtopic' | 'answer';
 
 const isJsonModeError = (payload: unknown): { isError: boolean; needsSchema: boolean } => {
   if (!payload) {
@@ -177,6 +195,20 @@ export const sendChatCompletion = async ({
   schemaType,
   signal,
 }: ChatCompletionParams): Promise<ChatCompletionResult> => {
+  const resolveSchema = (type: SchemaType) => {
+    switch (type) {
+      case 'topologySubject':
+        return TOPOLOGY_SUBJECT_SCHEMA;
+      case 'topologyTopic':
+        return TOPOLOGY_TOPIC_SCHEMA;
+      case 'topologySubtopic':
+        return TOPOLOGY_SUBTOPIC_SCHEMA;
+      case 'answer':
+      default:
+        return ANSWER_SCHEMA;
+    }
+  };
+
   // Helper to build request payload for different JSON formats
   const buildPayload = (jsonFormat: JsonFormatType | null) => {
     let responseFormat = {};
@@ -185,7 +217,7 @@ export const sendChatCompletion = async ({
       if (jsonFormat === 'json_object') {
         responseFormat = { response_format: { type: 'json_object' } };
       } else if (jsonFormat === 'json_schema' && schemaType) {
-        const schema = schemaType === 'topology' ? TOPOLOGY_SCHEMA : ANSWER_SCHEMA;
+        const schema = resolveSchema(schemaType);
         responseFormat = {
           response_format: {
             type: 'json_schema',

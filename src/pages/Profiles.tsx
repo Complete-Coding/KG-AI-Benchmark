@@ -536,7 +536,7 @@ const Profiles = () => {
                               </div>
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                              {profile.baseUrl || 'No base URL configured'}
+                              {profile.baseUrl ?? 'No base URL configured'}
                             </p>
                           </div>
 
@@ -661,7 +661,7 @@ const Profiles = () => {
                 // Count profiles per model ID
                 const profileCountByModel = new Map<string, number>();
                 profiles.forEach((profile) => {
-                  const count = profileCountByModel.get(profile.modelId) || 0;
+                  const count = profileCountByModel.get(profile.modelId) ?? 0;
                   profileCountByModel.set(profile.modelId, count + 1);
                 });
 
@@ -685,7 +685,7 @@ const Profiles = () => {
                         </div>
                         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {modelsWithProfiles.map((model) => {
-                            const profileCount = profileCountByModel.get(model.id) || 0;
+                            const profileCount = profileCountByModel.get(model.id) ?? 0;
                             return (
                               <li
                                 key={model.id}
@@ -841,7 +841,7 @@ const Profiles = () => {
                   {selectedProfile.provider} · {selectedProfile.modelId}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 break-words">
-                  {selectedProfile.baseUrl || 'No base URL configured'}
+                  {selectedProfile.baseUrl ?? 'No base URL configured'}
                 </p>
                 {selectedProfile.notes ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -902,7 +902,7 @@ const Profiles = () => {
                   Endpoint
                 </dt>
                 <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50 break-words">
-                  {selectedProfile.baseUrl || '—'}
+                  {selectedProfile.baseUrl ?? '—'}
                 </dd>
                 <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Timeout: {selectedProfile.requestTimeoutMs.toLocaleString()} ms

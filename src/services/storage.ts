@@ -1,5 +1,6 @@
 import { BenchmarkRun, ModelProfile } from '@/types/benchmark';
 import { supabase } from '@/services/supabaseClient';
+import { createEmptyRunMetrics } from '@/data/defaults';
 
 const PROFILE_TABLE = 'profiles';
 const RUN_TABLE = 'runs';
@@ -119,12 +120,31 @@ export const loadRuns = async (): Promise<BenchmarkRun[]> => {
       return [];
     }
 
-    const rows = Array.isArray(data) ? data.filter(isRunRow) : [];
+    if (!Array.isArray(data)) {
+      return [];
+    }
 
-    return rows.map((row) => ({
-      ...row.data,
-      id: isObject(row.data) && typeof row.data.id === 'string' ? row.data.id : row.id,
-    }));
+    const runs: BenchmarkRun[] = [];
+
+    data.forEach((value) => {
+      if (!isRunRow(value)) {
+        return;
+      }
+
+      const runData: BenchmarkRun = value.data;
+      const metrics = {
+        ...createEmptyRunMetrics(),
+        ...runData.metrics,
+      };
+
+      runs.push({
+        ...runData,
+        metrics,
+        id: typeof runData.id === 'string' ? runData.id : value.id,
+      });
+    });
+
+    return runs;
   } catch (error) {
     console.error('Unexpected error loading runs from Supabase', error);
     return [];

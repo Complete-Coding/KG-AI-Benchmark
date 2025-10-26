@@ -1,6 +1,12 @@
 import { ModelProfile } from '@/types/benchmark';
 import { fetchModels, sendChatCompletion } from '@/services/lmStudioClient';
-import { parseModelResponse, parseTopologyPrediction } from '@/services/evaluation';
+import {
+  parseModelResponse,
+  parseTopologySubjectPrediction,
+  parseTopologyTopicPrediction,
+  parseTopologySubtopicPrediction,
+} from '@/services/evaluation';
+import { questionTopology } from '@/data/topology';
 import createId from '@/utils/createId';
 
 export interface CompatibilityCheckLog {
@@ -46,6 +52,139 @@ const TEST_QUESTION = {
     { id: 2, order: 2, text: '5' },
     { id: 3, order: 3, text: '6' },
   ],
+};
+
+const SUBJECT_SAMPLE_LIMIT = 12;
+const TOPIC_SAMPLE_LIMIT = 12;
+const SUBTOPIC_SAMPLE_LIMIT = 20;
+
+const formatQuestionReference = (question: typeof TEST_QUESTION) => {
+  const lines: string[] = [];
+  lines.push(`Question (${question.type}): ${question.prompt}`);
+
+  if (Array.isArray(question.options) && question.options.length > 0) {
+    lines.push('');
+    lines.push('Options:');
+    question.options.forEach((option, index) => {
+      const label = String.fromCharCode(65 + index);
+      lines.push(`${label}. ${option.text}`);
+    });
+  }
+
+  return lines.join('\n');
+};
+
+const formatQuestionPrompt = (question: typeof TEST_QUESTION) => {
+  const lines: string[] = [];
+  lines.push(`Question (${question.type}): ${question.prompt}`);
+
+  if (Array.isArray(question.options) && question.options.length > 0) {
+    lines.push('');
+    lines.push('Options:');
+    question.options.forEach((option, index) => {
+      const label = String.fromCharCode(65 + index);
+      lines.push(`${label}. ${option.text}`);
+    });
+  }
+
+  lines.push('');
+  lines.push(
+    'Return a JSON object with keys `answer`, `explanation`, and `confidence` (0-1). For multiple answers, join values using commas (e.g., "A,C").'
+  );
+
+  return lines.join('\n');
+};
+
+const buildSubjectPrompt = (question: typeof TEST_QUESTION) => {
+  const subjectCatalog = questionTopology
+    .slice(0, SUBJECT_SAMPLE_LIMIT)
+    .map((subject) => `- ${subject.id} :: ${subject.name}`)
+    .join('\n');
+
+  return [
+    'Identify the best SUBJECT for the question using the catalog below.',
+    `SUBJECT CATALOG:\n${subjectCatalog}`,
+    'Rules:',
+    '1. Copy the subjectId exactly as shown (no new IDs, no "null").',
+    '2. Always provide your best guess and set `confidence` between 0 and 1.',
+    '3. Use low confidence (e.g., 0.2) if unsure, but still return a subjectId.',
+    'Return JSON:\n{\n  "subjectId": "68d24e621c69bbb6f527dabb",\n  "confidence": 0.6\n}',
+    '--- QUESTION ---',
+    formatQuestionReference(question),
+  ].join('\n\n');
+};
+
+const findSubjectById = (subjectId?: string) =>
+  subjectId ? questionTopology.find((subject) => subject.id === subjectId) ?? null : null;
+
+const buildTopicPrompt = (question: typeof TEST_QUESTION, subjectId?: string) => {
+  const subject = findSubjectById(subjectId) ?? questionTopology[0];
+  const topicCatalog = subject.topics
+    .slice(0, TOPIC_SAMPLE_LIMIT)
+    .map((topic) => `- ${topic.id} :: ${topic.name}`)
+    .join('\n');
+
+  const selectedSubject = subjectId
+    ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
+    : `${subject.id} (${subject.name}) [default]`;
+
+  return [
+    `We will refine within subject ${selectedSubject}. Choose the best TOPIC from the catalog.`,
+    `TOPIC CATALOG:\n${topicCatalog || 'No topics available for this subject.'}`,
+    'Rules:',
+    '1. Return the exact topicId shown (no "null").',
+    '2. If unsure or if the subject seems wrong, pick the closest topic and lower the confidence.',
+    '3. Confidence must be between 0 and 1.',
+    'Return JSON:\n{\n  "topicId": "68d24e71b905a26b8ed99dd0",\n  "confidence": 0.5\n}',
+    '--- QUESTION ---',
+    formatQuestionReference(question),
+  ].join('\n\n');
+};
+
+const findTopicById = (subjectId: string | undefined, topicId: string | undefined) => {
+  const subject = findSubjectById(subjectId ?? undefined);
+  if (!subject || !topicId) {
+    return null;
+  }
+  return subject.topics.find((topic) => topic.id === topicId) ?? null;
+};
+
+const buildSubtopicPrompt = (
+  question: typeof TEST_QUESTION,
+  subjectId?: string,
+  topicId?: string
+) => {
+  const subject = findSubjectById(subjectId) ?? questionTopology[0];
+  const topic =
+    findTopicById(subjectId ?? subject.id, topicId) ?? subject.topics[0] ?? null;
+
+  const subtopics = topic?.subtopics ?? [];
+  const subtopicCatalog = subtopics
+    .slice(0, SUBTOPIC_SAMPLE_LIMIT)
+    .map((subtopic) => `- ${subtopic.id} :: ${subtopic.name}`)
+    .join('\n');
+
+  const selectedSubject = subjectId
+    ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
+    : `${subject.id} (${subject.name}) [default]`;
+  const selectedTopic = topicId
+    ? `${topicId} (${topic?.name ?? 'Unknown topic'})`
+    : topic
+    ? `${topic.id} (${topic.name}) [default]`
+    : 'unknown (no topic available)';
+
+  return [
+    `Subject: ${selectedSubject}\nTopic: ${selectedTopic}`,
+    `Choose the best SUBTOPIC from the catalog below.`,
+    `SUBTOPIC CATALOG:\n${subtopicCatalog || 'No subtopics available; pick the closest classification and note low confidence.'}`,
+    'Rules:',
+    '1. Return the exact subtopicId; never respond with "null".',
+    '2. Provide your best guess even if uncertain and reflect that in the confidence score.',
+    '3. Confidence must be between 0 and 1.',
+    'Return JSON:\n{\n  "subtopicId": "68d24ec31c69bbb6f528892b",\n  "confidence": 0.4\n}',
+    '--- QUESTION ---',
+    formatQuestionReference(question),
+  ].join('\n\n');
 };
 
 /**
@@ -173,34 +312,136 @@ export const runCompatibilityCheck = async (
   protocolStep.status = 'pending';
   protocolStep.logs.push(createLog('Testing protocol compliance with topology and answer steps...'));
 
-  try {
-    // Test topology classification
-    const topologyPrompt = `Question (${TEST_QUESTION.type}): ${TEST_QUESTION.prompt}\n\nOptions:\n${TEST_QUESTION.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o.text}`).join('\n')}\n\nClassify the question before answering. Return JSON with keys \`subject\`, \`topic\`, \`subtopic\`, and optionally \`confidence\` (0-1).`;
+  let subjectCompletionResult: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
+  let topicCompletionResult: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
+  let subtopicCompletionResult: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
+  let answerCompletionResult: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
+  let topologySummary:
+    | {
+        subjectId?: string;
+        subjectConfidence?: number;
+        topicId?: string;
+        topicConfidence?: number;
+        subtopicId?: string;
+        subtopicConfidence?: number;
+        stages?: {
+          subject?: unknown;
+          topic?: unknown;
+          subtopic?: unknown;
+        };
+      }
+    | undefined;
+  let parsedAnswer: ReturnType<typeof parseModelResponse> | undefined;
 
-    const topologyCompletion = await sendChatCompletion({
+  try {
+    // SUBJECT STAGE
+    const subjectPrompt = buildSubjectPrompt(TEST_QUESTION);
+    protocolStep.logs.push(createLog(`Subject prompt length: ${subjectPrompt.length} chars`));
+    const subjectStartedAt = Date.now();
+    const subjectCompletion = await sendChatCompletion({
       profile,
       messages: [
         { role: 'system', content: profile.defaultSystemPrompt },
-        { role: 'user', content: topologyPrompt },
+        { role: 'user', content: subjectPrompt },
       ],
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
       preferJson: true,
-      schemaType: 'topology',
+      schemaType: 'topologySubject',
     });
+    subjectCompletionResult = subjectCompletion;
+    const subjectLatency = Date.now() - subjectStartedAt;
+    protocolStep.logs.push(createLog(`Subject response received in ${subjectLatency}ms`));
+    const subjectStage = parseTopologySubjectPrediction(subjectCompletion.text);
+    protocolStep.logs.push(
+      createLog(
+        `✓ Subject parsed: ${subjectStage.id ?? 'none'} (confidence ${
+          subjectStage.confidence ?? 'n/a'
+        })`
+      )
+    );
 
-    protocolStep.logs.push(createLog(`Topology response received (${topologyCompletion.text.length} chars)`));
+    // TOPIC STAGE
+    const topicPrompt = buildTopicPrompt(TEST_QUESTION, subjectStage.id);
+    protocolStep.logs.push(createLog(`Topic prompt length: ${topicPrompt.length} chars`));
+    const topicStartedAt = Date.now();
+    const topicCompletion = await sendChatCompletion({
+      profile,
+      messages: [
+        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'user', content: topicPrompt },
+      ],
+      temperature: profile.temperature,
+      maxTokens: profile.maxOutputTokens,
+      preferJson: true,
+      schemaType: 'topologyTopic',
+    });
+    topicCompletionResult = topicCompletion;
+    const topicLatency = Date.now() - topicStartedAt;
+    protocolStep.logs.push(createLog(`Topic response received in ${topicLatency}ms`));
+    const topicStage = parseTopologyTopicPrediction(topicCompletion.text);
+    protocolStep.logs.push(
+      createLog(
+        `✓ Topic parsed: ${topicStage.id ?? 'none'} (confidence ${
+          topicStage.confidence ?? 'n/a'
+        })`
+      )
+    );
 
-    let topologyParsed;
-    try {
-      topologyParsed = parseTopologyPrediction(topologyCompletion.text);
-      protocolStep.logs.push(createLog(`✓ Topology parsed: ${topologyParsed.subjectId || 'none'}, ${topologyParsed.topicId || 'none'}, ${topologyParsed.subtopicId || 'none'}`));
-    } catch (parseError) {
-      throw new Error(`Topology parsing failed: ${(parseError as Error).message}`);
-    }
+    // SUBTOPIC STAGE
+    const subtopicPrompt = buildSubtopicPrompt(TEST_QUESTION, subjectStage.id, topicStage.id);
+    protocolStep.logs.push(createLog(`Subtopic prompt length: ${subtopicPrompt.length} chars`));
+    const subtopicStartedAt = Date.now();
+    const subtopicCompletion = await sendChatCompletion({
+      profile,
+      messages: [
+        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'user', content: subtopicPrompt },
+      ],
+      temperature: profile.temperature,
+      maxTokens: profile.maxOutputTokens,
+      preferJson: true,
+      schemaType: 'topologySubtopic',
+    });
+    subtopicCompletionResult = subtopicCompletion;
+    const subtopicLatency = Date.now() - subtopicStartedAt;
+    protocolStep.logs.push(createLog(`Subtopic response received in ${subtopicLatency}ms`));
+    const subtopicStage = parseTopologySubtopicPrediction(subtopicCompletion.text);
+    protocolStep.logs.push(
+      createLog(
+        `✓ Subtopic parsed: ${subtopicStage.id ?? 'none'} (confidence ${
+          subtopicStage.confidence ?? 'n/a'
+        })`
+      )
+    );
 
-    // Test answer with topology context
-    const answerPrompt = `Question (${TEST_QUESTION.type}): ${TEST_QUESTION.prompt}\n\nOptions:\n${TEST_QUESTION.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o.text}`).join('\n')}\n\nReturn a JSON object with keys \`answer\`, \`explanation\`, and \`confidence\` (0-1). For multiple answers, join values using commas (e.g., "A,C").\n\nTopology classification: ${JSON.stringify({ subjectId: topologyParsed.subjectId, topicId: topologyParsed.topicId, subtopicId: topologyParsed.subtopicId })}`;
+    const topologyParsed = {
+      subjectId: subjectStage.id,
+      subjectConfidence: subjectStage.confidence,
+      topicId: topicStage.id,
+      topicConfidence: topicStage.confidence,
+      subtopicId: subtopicStage.id,
+      subtopicConfidence: subtopicStage.confidence,
+      stages: {
+        subject: subjectStage,
+        topic: topicStage,
+        subtopic: subtopicStage,
+      },
+    };
+    topologySummary = topologyParsed;
+
+    const topologyJson = JSON.stringify(
+      {
+        subjectId: topologyParsed.subjectId ?? null,
+        topicId: topologyParsed.topicId ?? null,
+        subtopicId: topologyParsed.subtopicId ?? null,
+      },
+      null,
+      2
+    );
+
+    const answerPrompt = formatQuestionPrompt(TEST_QUESTION) + `\n\nTopology classification:\n${topologyJson}`;
+    protocolStep.logs.push(createLog(`Answer prompt length: ${answerPrompt.length} chars`));
 
     const answerCompletion = await sendChatCompletion({
       profile,
@@ -213,29 +454,44 @@ export const runCompatibilityCheck = async (
       preferJson: true,
       schemaType: 'answer',
     });
+    answerCompletionResult = answerCompletion;
 
-    protocolStep.logs.push(createLog(`Answer response received (${answerCompletion.text.length} chars)`));
+    protocolStep.logs.push(
+      createLog(`Answer response received (${answerCompletion.text.length} chars)`)
+    );
 
-    let answerParsed;
-    try {
-      answerParsed = parseModelResponse(answerCompletion.text);
-      protocolStep.logs.push(createLog(`✓ Answer parsed: "${answerParsed.answer}"`));
-      if (answerParsed.explanation) {
-        protocolStep.logs.push(createLog(`✓ Explanation included`));
-      }
-      if (answerParsed.confidence !== undefined) {
-        protocolStep.logs.push(createLog(`✓ Confidence score: ${answerParsed.confidence}`));
-      }
-    } catch (parseError) {
-      throw new Error(`Answer parsing failed: ${(parseError as Error).message}`);
+    const parsedAnswerLocal = parseModelResponse(answerCompletion.text);
+    parsedAnswer = parsedAnswerLocal;
+    protocolStep.logs.push(createLog(`✓ Answer parsed: "${parsedAnswerLocal.answer}"`));
+    if (parsedAnswerLocal.explanation) {
+      protocolStep.logs.push(createLog('✓ Explanation included'));
+    }
+    if (parsedAnswerLocal.confidence !== undefined) {
+      protocolStep.logs.push(createLog(`✓ Confidence score: ${parsedAnswerLocal.confidence}`));
     }
 
-    protocolStep.status = 'pass';
-    protocolStep.logs.push(createLog('✓ Protocol compliance verified'));
+    const hasCompleteTopology =
+      Boolean(topologyParsed.subjectId) &&
+      Boolean(topologyParsed.topicId) &&
+      Boolean(topologyParsed.subtopicId);
 
-    // All checks passed!
-    compatible = true;
-    summary = `Compatible - Supports ${jsonFormat} format`;
+    if (hasCompleteTopology) {
+      protocolStep.logs.push(createLog('✓ All topology stages returned IDs'));
+    } else {
+      protocolStep.logs.push(
+        createLog('Topology classification did not return all required IDs', 'warn')
+      );
+    }
+
+    protocolStep.status = hasCompleteTopology ? 'pass' : 'fail';
+    if (protocolStep.status === 'pass') {
+      protocolStep.logs.push(createLog('✓ Protocol compliance verified'));
+      compatible = true;
+      summary = `Compatible - Supports ${jsonFormat} format`;
+    } else {
+      compatible = false;
+      summary = 'Topology classification missing required fields';
+    }
 
   } catch (error) {
     const errorMsg = (error as Error).message || 'unknown error';
@@ -260,6 +516,14 @@ export const runCompatibilityCheck = async (
       profileName: profile.name,
       modelId: profile.modelId,
       supportsJsonMode: jsonFormat === 'json_object' || jsonFormat === 'json_schema',
+      topologyResponse: topologySummary,
+      answerResponse: parsedAnswer,
+      rawResponses: {
+        subject: subjectCompletionResult?.raw,
+        topic: topicCompletionResult?.raw,
+        subtopic: subtopicCompletionResult?.raw,
+        answer: answerCompletionResult?.raw,
+      },
     },
   };
 };

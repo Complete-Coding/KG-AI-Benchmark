@@ -1149,7 +1149,7 @@ const Runs = () => {
 
     void runTask();
   }, [
-    runQueue.currentRunId,
+    runQueue,
     // Remove 'runs' - it causes re-runs on every run update
     // getRunById will fetch latest data
     executingRunIds,
@@ -1416,7 +1416,9 @@ const Runs = () => {
                 {filteredRuns.map((run) => (
                   <tr
                     key={run.id}
-                    onClick={() => navigate(`/runs/${run.id}`)}
+                    onClick={() => {
+                      void navigate(`/runs/${run.id}`);
+                    }}
                     className="cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
                   >
                     <th

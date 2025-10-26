@@ -14,7 +14,9 @@ import {
   evaluateModelAnswer,
   evaluateTopologyPrediction,
   parseModelResponse,
-  parseTopologyPrediction,
+  parseTopologySubjectPrediction,
+  parseTopologyTopicPrediction,
+  parseTopologySubtopicPrediction,
 } from '@/services/evaluation';
 import { createEmptyRunMetrics, defaultBenchmarkSteps } from '@/data/defaults';
 import { questionTopology } from '@/data/topology';
@@ -91,6 +93,7 @@ const stringifyPreviousOutputs = (steps: BenchmarkAttemptStepResult[]) => {
     label: step.label,
     responseText: step.responseText,
     evaluation: step.evaluation,
+    topologyStage: step.topologyStage,
     topologyPrediction: step.topologyPrediction,
     modelResponse: step.modelResponse,
   }));
@@ -109,67 +112,144 @@ const buildStepPrompt = (
   question: BenchmarkQuestion,
   stepId: string,
   stepTemplate: string,
-  previousSteps: BenchmarkAttemptStepResult[],
-  topologyPrediction?: BenchmarkTopologyPrediction
+  previousSteps: BenchmarkAttemptStepResult[]
 ) => {
-  const expectedTopology = question.metadata.topology ?? {};
+  const simpleContext = buildSimpleQuestionContext(question);
+  const questionReference = '\n---\nQUESTION FOR REFERENCE:\n' + simpleContext;
+  const previousOutputs = stringifyPreviousOutputs(previousSteps);
 
-  // Build complete topology catalog with IDs and names
-  const topologyCatalog = questionTopology.map(subject => {
-    const topics = subject.topics.map(topic => {
-      const subtopics = topic.subtopics.map(st => `      - ${st.id} (${st.name})`).join('\n');
-      return `    • ${topic.id} (${topic.name})${subtopics ? '\n' + subtopics : ''}`;
-    }).join('\n');
-    return `  ${subject.id} (${subject.name}):\n${topics}`;
-  }).join('\n\n');
+  const subjectCatalog = questionTopology
+    .map((subject) => `- ${subject.id} :: ${subject.name}`)
+    .join('\n');
 
-  const replacements: Record<string, string> = {
-    '{{questionPrompt}}': question.prompt,
-    '{{questionInstructions}}': question.instructions ?? 'None',
-    '{{questionType}}': question.type,
-    '{{questionOptions}}': question.options.length
-      ? question.options
-          .map((option, index) => `${String.fromCharCode(65 + index)}. ${option.text}`)
-          .join('\n')
-      : 'No options provided.',
-    '{{previousStepOutputs}}': stringifyPreviousOutputs(previousSteps),
-    '{{expectedTopology}}': JSON.stringify(expectedTopology, null, 2),
-    '{{predictedTopology}}': JSON.stringify(topologyPrediction ?? {}, null, 2),
-    '{{topologyCatalog}}': topologyCatalog,
-  };
+  const getSubjectPrediction = () =>
+    previousSteps
+      .slice()
+      .reverse()
+      .find((step) => step.id === 'topology-subject')?.topologyPrediction;
 
-  const renderedInstructions = applyTemplateReplacements(stepTemplate ?? '', replacements);
+  const getTopicPrediction = () =>
+    previousSteps
+      .slice()
+      .reverse()
+      .find((step) => step.id === 'topology-topic')?.topologyPrediction;
 
-  // Build prompt differently based on step type
-  if (stepId === 'topology') {
-    // For topology step: Classification instruction FIRST, then question context for reference
-    const simpleContext = buildSimpleQuestionContext(question);
+  if (stepId === 'topology-subject') {
+    const replacements: Record<string, string> = {
+      '{{subjectCatalog}}': subjectCatalog,
+      '{{questionContext}}': questionReference,
+      '{{previousStepOutputs}}': previousOutputs,
+    };
 
-    // Classification instruction + catalog FIRST, question context SECOND (for reference only)
-    const sections = [
-      renderedInstructions,
-      '\n---\nQUESTION FOR REFERENCE:\n',
-      simpleContext
-    ];
+    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
+  }
 
-    return sections.filter(Boolean).join('\n').trim();
-  } else {
-    // For answer step and others: Question context with answer format FIRST, then instructions
-    const fullContext = buildQuestionContext(question);
-    const sections = [fullContext, renderedInstructions];
+  if (stepId === 'topology-topic') {
+    const subjectPrediction = getSubjectPrediction();
+    const subjectId = subjectPrediction?.subjectId;
+    const subject = questionTopology.find((item) => item.id === subjectId ?? '');
 
-    if (question.type === 'NAT' && question.answer.kind === 'numeric') {
-      if (question.answer.range.min != null && question.answer.range.max != null) {
-        sections.push(
-          `Numeric tolerance: [${question.answer.range.min}, ${question.answer.range.max}] (precision ${question.answer.range.precision ?? 'unspecified'}).`
-        );
-      } else if (question.answer.acceptedAnswers.length > 0) {
-        sections.push(`Accepted numeric answers: ${question.answer.acceptedAnswers.join(', ')}`);
-      }
+    const selectedSubject = subjectId
+      ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
+      : 'unknown (no valid subject identified)';
+
+    const topicCatalog = subject
+      ? subject.topics.map((topic) => `- ${topic.id} :: ${topic.name}`).join('\n')
+      : questionTopology
+          .flatMap((item) =>
+            item.topics.map((topic) => `- ${topic.id} :: ${topic.name} [subject: ${item.name}]`)
+          )
+          .join('\n');
+
+    const topicGuidance = subject
+      ? 'Focus on the topics listed for this subject. If none seem to match perfectly, pick the closest topic and lower the confidence.'
+      : 'Subject prediction was missing or not recognized. Review the catalog carefully and choose the topic whose description best fits the question; use a low confidence if uncertain.';
+
+    const replacements: Record<string, string> = {
+      '{{selectedSubject}}': selectedSubject,
+      '{{topicCatalog}}': topicCatalog || 'No topics were found for the predicted subject.',
+      '{{topicGuidance}}': topicGuidance,
+      '{{questionContext}}': questionReference,
+      '{{previousStepOutputs}}': previousOutputs,
+    };
+
+    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
+  }
+
+  if (stepId === 'topology-subtopic') {
+    const subjectPrediction = getSubjectPrediction();
+    const topicPrediction = getTopicPrediction();
+
+    const subjectId = subjectPrediction?.subjectId;
+    const topicId = topicPrediction?.topicId;
+
+    const subject = questionTopology.find((item) => item.id === subjectId ?? '');
+    const topic = subject?.topics.find((item) => item.id === topicId ?? '');
+
+    const selectedSubject = subjectId
+      ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
+      : 'unknown (no valid subject identified)';
+
+    const selectedTopic = topicId
+      ? `${topicId} (${topic?.name ?? 'Unknown topic'})`
+      : 'unknown (no valid topic identified)';
+
+    let subtopicCatalog = '';
+    if (topic && topic.subtopics.length > 0) {
+      subtopicCatalog = topic.subtopics.map((sub) => `- ${sub.id} :: ${sub.name}`).join('\n');
+    } else if (subject) {
+      const allSubtopics = subject.topics.flatMap((t) =>
+        t.subtopics.map((sub) => `- ${sub.id} :: ${sub.name} [topic: ${t.name}]`)
+      );
+      subtopicCatalog =
+        allSubtopics.join('\n') || 'No subtopics are defined for this subject and topic.';
+    } else {
+      const allSubtopics = questionTopology.flatMap((s) =>
+        s.topics.flatMap((t) =>
+          t.subtopics.map((sub) => `- ${sub.id} :: ${sub.name} [${s.name} › ${t.name}]`)
+        )
+      );
+      subtopicCatalog =
+        allSubtopics.join('\n') || 'No subtopics are available in the taxonomy data.';
     }
 
-    return sections.filter(Boolean).join('\n\n').trim();
+    const subtopicGuidance =
+      topic && topic.subtopics.length > 0
+        ? 'Choose the subtopic that best matches the question. If none fit perfectly, pick the closest option and lower the confidence.'
+        : 'The selected topic does not list explicit subtopics. Choose the closest available ID from the broader catalog and return a low confidence if unsure.';
+
+    const replacements: Record<string, string> = {
+      '{{selectedSubject}}': selectedSubject,
+      '{{selectedTopic}}': selectedTopic,
+      '{{subtopicCatalog}}': subtopicCatalog,
+      '{{subtopicGuidance}}': subtopicGuidance,
+      '{{questionContext}}': questionReference,
+      '{{previousStepOutputs}}': previousOutputs,
+    };
+
+    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
   }
+
+  // For answer step and others: Question context with answer format FIRST, then instructions
+  const fullContext = buildQuestionContext(question);
+  const replacements: Record<string, string> = {
+    '{{previousStepOutputs}}': previousOutputs,
+    '{{questionContext}}': questionReference,
+  };
+  const renderedInstructions = applyTemplateReplacements(stepTemplate ?? '', replacements);
+  const sections = [fullContext, renderedInstructions];
+
+  if (question.type === 'NAT' && question.answer.kind === 'numeric') {
+    if (question.answer.range.min != null && question.answer.range.max != null) {
+      sections.push(
+        `Numeric tolerance: [${question.answer.range.min}, ${question.answer.range.max}] (precision ${question.answer.range.precision ?? 'unspecified'}).`
+      );
+    } else if (question.answer.acceptedAnswers.length > 0) {
+      sections.push(`Accepted numeric answers: ${question.answer.acceptedAnswers.join(', ')}`);
+    }
+  }
+
+  return sections.filter(Boolean).join('\n\n').trim();
 };
 
 const aggregateMetrics = (attempts: BenchmarkAttempt[]): BenchmarkRunMetrics => {
@@ -186,6 +266,47 @@ const aggregateMetrics = (attempts: BenchmarkAttempt[]): BenchmarkRunMetrics => 
   ).length;
   const topologyFailedCount = topologyEvaluations.length - topologyPassedCount;
 
+  let subjectComparisons = 0;
+  let subjectMatches = 0;
+  let topicComparisons = 0;
+  let topicMatches = 0;
+  let subtopicComparisons = 0;
+  let subtopicMatches = 0;
+
+  topologyEvaluations.forEach((attempt) => {
+    const metrics = attempt.topologyEvaluation?.metrics;
+    if (!metrics) {
+      return;
+    }
+
+    if (metrics.subjectExpected) {
+      subjectComparisons += 1;
+      if (metrics.subjectMatch) {
+        subjectMatches += 1;
+      }
+    }
+
+    if (metrics.topicExpected) {
+      topicComparisons += 1;
+      if (metrics.topicMatch) {
+        topicMatches += 1;
+      }
+    }
+
+    if (metrics.subtopicExpected) {
+      subtopicComparisons += 1;
+      if (metrics.subtopicMatch) {
+        subtopicMatches += 1;
+      }
+    }
+  });
+
+  const topologySubjectAccuracy =
+    subjectComparisons > 0 ? subjectMatches / subjectComparisons : 0;
+  const topologyTopicAccuracy = topicComparisons > 0 ? topicMatches / topicComparisons : 0;
+  const topologySubtopicAccuracy =
+    subtopicComparisons > 0 ? subtopicMatches / subtopicComparisons : 0;
+
   return {
     passedCount,
     failedCount,
@@ -196,6 +317,15 @@ const aggregateMetrics = (attempts: BenchmarkAttempt[]): BenchmarkRunMetrics => 
     topologyFailedCount,
     topologyAccuracy:
       topologyEvaluations.length > 0 ? topologyPassedCount / topologyEvaluations.length : 0,
+    topologySubjectAccuracy,
+    topologySubjectPassedCount: subjectMatches,
+    topologySubjectFailedCount: subjectComparisons - subjectMatches,
+    topologyTopicAccuracy,
+    topologyTopicPassedCount: topicMatches,
+    topologyTopicFailedCount: topicComparisons - topicMatches,
+    topologySubtopicAccuracy,
+    topologySubtopicPassedCount: subtopicMatches,
+    topologySubtopicFailedCount: subtopicComparisons - subtopicMatches,
   };
 };
 
@@ -233,7 +363,32 @@ export const executeBenchmarkRun = async ({
       profile.benchmarkSteps?.filter((step) => step.enabled) ?? defaultBenchmarkSteps;
     const fallbackSteps =
       stepsToRun.length > 0 ? stepsToRun : defaultBenchmarkSteps.filter((step) => step.enabled);
-    const executionSteps = fallbackSteps.length > 0 ? fallbackSteps : defaultBenchmarkSteps;
+    let executionSteps = fallbackSteps.length > 0 ? fallbackSteps : defaultBenchmarkSteps;
+
+    const hasNewTopologySteps = executionSteps.some(
+      (step) =>
+        step.id === 'topology-subject' ||
+        step.id === 'topology-topic' ||
+        step.id === 'topology-subtopic'
+    );
+
+    if (!hasNewTopologySteps) {
+      const withoutLegacyTopology = executionSteps.filter((step) => step.id !== 'topology');
+      const topologyDefaults = defaultBenchmarkSteps.filter((step) =>
+        ['topology-subject', 'topology-topic', 'topology-subtopic'].includes(step.id)
+      );
+      const answerIndex = withoutLegacyTopology.findIndex((step) => step.id === 'answer');
+
+      executionSteps =
+        answerIndex >= 0
+          ? [
+              ...withoutLegacyTopology.slice(0, answerIndex),
+              ...topologyDefaults,
+              ...withoutLegacyTopology.slice(answerIndex),
+            ]
+          : [...topologyDefaults, ...withoutLegacyTopology];
+    }
+
     const answerStepId =
       executionSteps.find((step) => step.id === 'answer')?.id ??
       executionSteps[executionSteps.length - 1]?.id;
@@ -252,14 +407,32 @@ export const executeBenchmarkRun = async ({
 
     try {
 
+      const ensureTopologyContainers = () => {
+        topologyPrediction ??= { raw: {}, stages: {} };
+
+        if (typeof topologyPrediction.raw !== 'object' || topologyPrediction.raw === null) {
+          topologyPrediction.raw = {};
+        }
+
+        topologyPrediction.stages ??= {};
+
+        const raw = topologyPrediction.raw;
+        const stages = topologyPrediction.stages;
+
+        if (!raw || !stages) {
+          throw new Error('Topology containers failed to initialize');
+        }
+
+        return { raw, stages };
+      };
+
       for (let stepIndex = 0; stepIndex < executionSteps.length; stepIndex += 1) {
         const step = executionSteps[stepIndex];
         const prompt = buildStepPrompt(
           question,
           step.id ?? 'unknown',
           step.promptTemplate ?? '',
-          attemptSteps,
-          topologyPrediction
+          attemptSteps
         );
 
         const stepStartedAt = Date.now();
@@ -307,7 +480,22 @@ export const executeBenchmarkRun = async ({
         };
 
         // Determine which schema to use based on step type
-        const schemaType = step.id === 'topology' ? 'topology' : 'answer';
+        const resolveSchemaType = (id?: string) => {
+          switch (id) {
+            case 'topology-subject':
+              return 'topologySubject';
+            case 'topology-topic':
+              return 'topologyTopic';
+            case 'topology-subtopic':
+              return 'topologySubtopic';
+            case 'answer':
+              return 'answer';
+            default:
+              return 'answer';
+          }
+        };
+
+        const schemaType = resolveSchemaType(step.id);
 
         const completion = await sendChatCompletion({
           profile,
@@ -337,14 +525,130 @@ export const executeBenchmarkRun = async ({
           usage,
         };
 
-        if (step.id === 'topology') {
-          const parsedTopology = parseTopologyPrediction(completion.text);
-          const topologyEval = evaluateTopologyPrediction(question, parsedTopology);
+        if (step.id === 'topology-subject') {
+          const stageResult = parseTopologySubjectPrediction(completion.text);
+          const { raw, stages } = ensureTopologyContainers();
 
-          topologyPrediction = parsedTopology;
+          topologyPrediction.subjectId = stageResult.id;
+          topologyPrediction.subjectConfidence = stageResult.confidence;
+          stages.subject = stageResult;
+          raw.subject = stageResult.raw;
+
+          const subjectInfo = stageResult.id
+            ? questionTopology.find((item) => item.id === stageResult.id)
+            : undefined;
+          const subjectIssues: string[] = [];
+
+          if (!subjectInfo) {
+            subjectIssues.push('Subject ID not found in taxonomy');
+          }
+          if (typeof stageResult.confidence === 'number' && stageResult.confidence < 0.3) {
+            subjectIssues.push(`Low confidence (${stageResult.confidence.toFixed(2)})`);
+          }
+
+          stepResult.topologyStage = stageResult;
+          stepResult.topologyPrediction = { ...topologyPrediction };
+          if (subjectIssues.length > 0) {
+            stepResult.notes = subjectIssues.join('; ');
+          }
+        } else if (step.id === 'topology-topic') {
+          const stageResult = parseTopologyTopicPrediction(completion.text);
+          const { raw, stages } = ensureTopologyContainers();
+
+          topologyPrediction.topicId = stageResult.id;
+          topologyPrediction.topicConfidence = stageResult.confidence;
+          stages.topic = stageResult;
+          raw.topic = stageResult.raw;
+
+          const subjectInfo = topologyPrediction.subjectId
+            ? questionTopology.find((item) => item.id === topologyPrediction?.subjectId)
+            : undefined;
+          const topicInfo = stageResult.id
+            ? subjectInfo?.topics.find((item) => item.id === stageResult.id)
+            : undefined;
+          const topicIssues: string[] = [];
+
+          if (!subjectInfo) {
+            topicIssues.push('Subject context missing when evaluating topic');
+          }
+          if (!topicInfo) {
+            topicIssues.push('Topic ID not found under predicted subject');
+          }
+          if (
+            stageResult.subjectId &&
+            topologyPrediction.subjectId &&
+            stageResult.subjectId !== topologyPrediction.subjectId
+          ) {
+            topicIssues.push(
+              `Model response subject (${stageResult.subjectId}) differs from prior subject (${topologyPrediction.subjectId})`
+            );
+          }
+          if (typeof stageResult.confidence === 'number' && stageResult.confidence < 0.3) {
+            topicIssues.push(`Low confidence (${stageResult.confidence.toFixed(2)})`);
+          }
+
+          stepResult.topologyStage = stageResult;
+          stepResult.topologyPrediction = { ...topologyPrediction };
+          if (topicIssues.length > 0) {
+            stepResult.notes = topicIssues.join('; ');
+          }
+        } else if (step.id === 'topology-subtopic') {
+          const stageResult = parseTopologySubtopicPrediction(completion.text);
+          const { raw, stages } = ensureTopologyContainers();
+
+          topologyPrediction.subtopicId = stageResult.id;
+          topologyPrediction.subtopicConfidence = stageResult.confidence;
+          topologyPrediction.confidence = stageResult.confidence;
+          stages.subtopic = stageResult;
+          raw.subtopic = stageResult.raw;
+
+          const subjectInfo = topologyPrediction.subjectId
+            ? questionTopology.find((item) => item.id === topologyPrediction.subjectId)
+            : undefined;
+          const topicInfo = topologyPrediction.topicId
+            ? subjectInfo?.topics.find((item) => item.id === topologyPrediction.topicId)
+            : undefined;
+          const subtopicInfo = stageResult.id
+            ? topicInfo?.subtopics.find((item) => item.id === stageResult.id)
+            : undefined;
+          const subtopicIssues: string[] = [];
+
+          if (!subjectInfo) {
+            subtopicIssues.push('Subject ID missing or not recognized when selecting subtopic');
+          }
+          if (!topicInfo) {
+            subtopicIssues.push('Topic ID missing or not recognized when selecting subtopic');
+          }
+          if (!subtopicInfo) {
+            subtopicIssues.push('Subtopic ID not found under predicted topic');
+          }
+          if (stageResult.topicId && topologyPrediction.topicId && stageResult.topicId !== topologyPrediction.topicId) {
+            subtopicIssues.push(
+              `Model response topic (${stageResult.topicId}) differs from prior topic (${topologyPrediction.topicId})`
+            );
+          }
+          if (
+            stageResult.subjectId &&
+            topologyPrediction.subjectId &&
+            stageResult.subjectId !== topologyPrediction.subjectId
+          ) {
+            subtopicIssues.push(
+              `Model response subject (${stageResult.subjectId}) differs from prior subject (${topologyPrediction.subjectId})`
+            );
+          }
+          if (typeof stageResult.confidence === 'number' && stageResult.confidence < 0.3) {
+            subtopicIssues.push(`Low confidence (${stageResult.confidence.toFixed(2)})`);
+          }
+
+          const topologyEval = evaluateTopologyPrediction(question, topologyPrediction);
           topologyEvaluation = topologyEval;
-          stepResult.topologyPrediction = parsedTopology;
+
+          stepResult.topologyStage = stageResult;
+          stepResult.topologyPrediction = { ...topologyPrediction };
           stepResult.evaluation = topologyEval;
+          if (subtopicIssues.length > 0) {
+            stepResult.notes = subtopicIssues.join('; ');
+          }
         } else if (step.id === answerStepId) {
           const parsedAnswer = parseModelResponse(completion.text);
           const answerEvaluation = evaluateModelAnswer(question, parsedAnswer);
