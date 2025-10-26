@@ -140,6 +140,31 @@ export interface DiagnosticsMetadata {
   [key: string]: unknown;
 }
 
+export interface CompatibilityCheckLog {
+  id: string;
+  timestamp: string;
+  message: string;
+  severity: 'info' | 'warn' | 'error';
+}
+
+export interface CompatibilityCheckStep {
+  id: string;
+  name: string;
+  status: 'pass' | 'fail' | 'pending';
+  logs: CompatibilityCheckLog[];
+  error?: string;
+}
+
+export interface CompatibilityCheckResult {
+  compatible: boolean;
+  summary: string;
+  jsonFormat?: 'json_object' | 'json_schema' | 'none';
+  steps: CompatibilityCheckStep[];
+  startedAt: string;
+  completedAt: string;
+  metadata: Record<string, unknown>;
+}
+
 export interface BenchmarkStepConfig {
   id: string;
   label: string;
@@ -171,6 +196,11 @@ export interface ModelProfile {
     supportsJsonMode?: boolean;
     lastHandshakeAt?: string;
     lastReadinessAt?: string;
+    // New compatibility check fields
+    compatibilityStatus?: 'compatible' | 'incompatible' | 'unknown';
+    jsonFormat?: 'json_object' | 'json_schema' | 'none';
+    lastCompatibilityCheckAt?: string;
+    compatibilitySummary?: string;
   };
 }
 

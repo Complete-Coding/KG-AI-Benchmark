@@ -54,10 +54,15 @@ const formatDateTime = (iso?: string) => {
     return '—';
   }
   const date = new Date(iso);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-    hour: '2-digit',
+  const day = date.getDate();
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  const time = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
     minute: '2-digit',
-  })}`;
+    hour12: true,
+  });
+  return `${day} ${month} ${year}, ${time}`;
 };
 
 const formatDuration = (startedAt?: string, completedAt?: string) => {
@@ -138,6 +143,21 @@ const filterQuestions = (
   });
 };
 
+/**
+ * Format date as "25 Jun 2025, 3:45 PM"
+ */
+const formatRunLabel = (date: Date): string => {
+  const day = date.getDate();
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  const time = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${day} ${month} ${year}, ${time}`;
+};
+
 interface NewRunPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -146,11 +166,21 @@ interface NewRunPanelProps {
 
 const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
   const { profiles, questions, questionSummary } = useBenchmarkContext();
+
+  // Filter to only show compatible profiles
+  const supportedProfiles = useMemo(
+    () =>
+      profiles.filter((profile) =>
+        profile.metadata.compatibilityStatus === 'compatible'
+      ),
+    [profiles]
+  );
+
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
-    () => new Set(profiles.length > 0 ? [profiles[0].id] : [])
+    () => new Set(supportedProfiles.length > 0 ? [supportedProfiles[0].id] : [])
   );
   const [runLabel, setRunLabel] = useState<string>(
-    `Run ${new Date().toLocaleString()}`
+    formatRunLabel(new Date())
   );
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(
     () => new Set(questions.map((question) => question.id))
@@ -297,54 +327,64 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
               <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-3">
                 No profiles available. Create a profile first.
               </p>
+            ) : supportedProfiles.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm font-semibold text-danger-700 dark:text-danger-400 mb-2">
+                  No compatible models available
+                </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+                  All {profiles.length} {profiles.length === 1 ? 'profile' : 'profiles'} failed compatibility checks.
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Run compatibility checks on profiles to verify they support JSON mode and can return properly formatted responses.
+                </p>
+              </div>
             ) : (
-              profiles.map((profile) => {
-                const isSelected = selectedProfileIds.has(profile.id);
-                const hasReadiness = profile.diagnostics.some(
-                  (entry) => entry.level === 'READINESS' && entry.status === 'pass'
-                );
-                return (
-                  <label
-                    key={profile.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-accent-500 bg-accent-50 dark:bg-accent-900/20'
-                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-accent-300 dark:hover:border-accent-700'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={handleToggleProfile(profile.id)}
-                      className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          {profile.name}
-                        </span>
-                        {hasReadiness ? (
+              <>
+                {supportedProfiles.map((profile) => {
+                  const isSelected = selectedProfileIds.has(profile.id);
+                  return (
+                    <label
+                      key={profile.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-accent-500 bg-accent-50 dark:bg-accent-900/20'
+                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-accent-300 dark:hover:border-accent-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={handleToggleProfile(profile.id)}
+                        className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900 dark:text-slate-50">
+                            {profile.name}
+                          </span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400">
-                            Ready
+                            ✓ Supported
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400">
-                            Not Ready
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-                        {profile.modelId}
-                      </p>
-                      {profile.metadata.lastReadinessAt ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          Last check: {formatDateTime(profile.metadata.lastReadinessAt)}
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                          {profile.modelId}
                         </p>
-                      ) : null}
-                    </div>
-                  </label>
-                );
-              })
+                        {profile.metadata.lastCompatibilityCheckAt ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Last checked: {formatDateTime(profile.metadata.lastCompatibilityCheckAt)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </label>
+                  );
+                })}
+                {profiles.length > supportedProfiles.length && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2 border-t border-slate-300 dark:border-slate-600">
+                    {profiles.length - supportedProfiles.length} {profiles.length - supportedProfiles.length === 1 ? 'profile is' : 'profiles are'} hidden (not compatible)
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -552,6 +592,7 @@ const Runs = () => {
     finalizeActiveRun,
     clearActiveRun,
     enqueueRun,
+    enqueueBatch,
     runQueue,
     getQueuePosition,
     recordDiagnostic,
@@ -720,21 +761,6 @@ const Runs = () => {
       throw new Error('No questions selected');
     }
 
-    const questionDescriptors = selectedQuestions.map((question, index) => {
-      const questionNumber = index + 1;
-      const label = question.questionId
-        ? `Question ${questionNumber} (ID: ${question.questionId})`
-        : `Question ${questionNumber}`;
-
-      return {
-        id: question.id,
-        order: index,
-        label,
-        prompt: question.prompt,
-        type: question.type,
-      };
-    });
-
     const now = new Date().toISOString();
     const createdRuns: BenchmarkRun[] = [];
 
@@ -784,103 +810,7 @@ const Runs = () => {
     const firstRun = createdRuns[0];
     void navigate(`/runs/${firstRun.id}?live=1`);
 
-    // Execute the first run (which is now the current run)
-    const executeRun = (run: BenchmarkRun) => {
-      const profile = getProfileById(run.profileId);
-      if (!profile) {
-        console.error(`Profile ${run.profileId} not found for execution`);
-        return;
-      }
-
-      // Update run status to running and set start time
-      const runningRun = upsertRun({
-        ...run,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-      });
-
-      beginActiveRun({
-        runId: runningRun.id,
-        label: runningRun.label,
-        profileName: runningRun.profileName,
-        profileModelId: runningRun.profileModelId,
-        datasetLabel: questionSummary.label,
-        filters: payload.filters,
-        questions: questionDescriptors,
-        startedAt: runningRun.startedAt ?? now,
-      });
-
-      const attempts: BenchmarkRun['attempts'] = [];
-      let latestRun = runningRun;
-
-      const runTask = async () => {
-        try {
-          const completedRun = await executeBenchmarkRun({
-            profile,
-            questions: selectedQuestions,
-            run: runningRun,
-            onQuestionStart: (question) => {
-              setActiveRunCurrentQuestion({
-                runId: runningRun.id,
-                questionId: question.id,
-                timestamp: new Date().toISOString(),
-              });
-            },
-            onProgress: (attempt, _progress, metrics) => {
-              attempts.push(attempt);
-              recordActiveRunAttempt({
-                runId: runningRun.id,
-                questionId: attempt.questionId,
-                attemptId: attempt.id,
-                passed: attempt.evaluation.passed,
-                latencyMs: attempt.latencyMs,
-                notes: attempt.error ?? attempt.evaluation.notes,
-                metrics,
-                timestamp: new Date().toISOString(),
-              });
-              latestRun = upsertRun({
-                ...latestRun,
-                status: 'running',
-                attempts: [...attempts],
-                metrics,
-              });
-            },
-          });
-
-          latestRun = upsertRun(completedRun);
-          finalizeActiveRun({
-            runId: completedRun.id,
-            status: 'completed',
-            summary: completedRun.summary ?? 'Run completed',
-            metrics: completedRun.metrics,
-            completedAt: completedRun.completedAt ?? new Date().toISOString(),
-          });
-        } catch (error) {
-          const errorMessage = (error as Error).message;
-          latestRun = upsertRun({
-            ...latestRun,
-            status: 'failed',
-            completedAt: new Date().toISOString(),
-            summary: `Run failed: ${errorMessage}`,
-          });
-          finalizeActiveRun({
-            runId: latestRun.id,
-            status: 'failed',
-            summary: latestRun.summary ?? 'Run failed',
-            metrics: latestRun.metrics,
-            completedAt: latestRun.completedAt ?? new Date().toISOString(),
-            error: errorMessage,
-          });
-          console.error('Benchmark run failed', error);
-        }
-      };
-
-      void runTask();
-    };
-
-    // Execute the first run immediately (it's the current run in the queue)
-    executeRun(firstRun);
-
+    // The queue watcher will automatically execute the run
     return Promise.resolve();
   };
 
@@ -902,6 +832,76 @@ const Runs = () => {
 
   const handleOpenNewRunPanel = () => setShowNewRunPanel(true);
   const handleCloseNewRunPanel = () => setShowNewRunPanel(false);
+
+  const handleResumeAll = () => {
+    console.log('[RESUME ALL] Starting...');
+    console.log('[RESUME ALL] Current queue state:', {
+      currentRunId: runQueue.currentRunId,
+      queuedCount: runQueue.queuedRunIds.length,
+      queuedIds: runQueue.queuedRunIds,
+    });
+
+    // Find all runs that can be started or resumed
+    const resumableRuns = runs.filter((run) => {
+      // Include draft runs (can be started)
+      if (run.status === 'draft') {
+        return true;
+      }
+
+      // Include failed/cancelled runs with partial attempts (can be resumed)
+      if (run.status === 'failed' || run.status === 'cancelled') {
+        const attemptedQuestionIds = new Set(run.attempts.map((a) => a.questionId));
+        const hasPartialAttempts = attemptedQuestionIds.size > 0 && attemptedQuestionIds.size < run.questionIds.length;
+        return hasPartialAttempts;
+      }
+
+      return false;
+    });
+
+    console.log('[RESUME ALL] Found resumable runs:', resumableRuns.length);
+
+    if (resumableRuns.length === 0) {
+      alert('No runs available to resume or start.');
+      return;
+    }
+
+    // Prepare all updated runs first
+    const updatedRunIds: string[] = [];
+
+    resumableRuns.forEach((run) => {
+      // Check if profile still exists
+      const profile = getProfileById(run.profileId);
+      if (!profile) {
+        console.warn(`[RESUME ALL] Skipping run ${run.id} - profile not found`);
+        return;
+      }
+
+      // Update run status to queued
+      const updatedRun = upsertRun({
+        ...run,
+        status: 'queued',
+        summary: run.status === 'draft'
+          ? `Starting benchmark with ${run.questionIds.length} questions`
+          : `Resuming from ${run.attempts.length}/${run.questionIds.length} questions answered`,
+        notes: run.status === 'draft'
+          ? run.notes
+          : run.notes
+            ? `${run.notes}\n\nResumed at ${new Date().toISOString()}`
+            : `Resumed at ${new Date().toISOString()}`,
+      });
+
+      console.log(`[RESUME ALL] Updated run ${updatedRun.id} to queued status`);
+      updatedRunIds.push(updatedRun.id);
+    });
+
+    console.log('[RESUME ALL] Enqueueing all runs in a single batch...');
+
+    // Enqueue all runs at once using batch operation
+    // This ensures proper queue positioning in a single state update
+    enqueueBatch(updatedRunIds);
+
+    alert(`${updatedRunIds.length} run(s) queued for execution.`);
+  };
 
   const handleNavigateToActive = () => {
     if (!activeRun) {
@@ -925,21 +925,17 @@ const Runs = () => {
 
     // Only execute if not already running/completed and not already being executed
     if (currentRun.status !== 'draft' && currentRun.status !== 'queued') {
-      console.log(`[Queue] Skipping run ${currentRunId} - status is ${currentRun.status}`);
       return;
     }
 
     // Prevent duplicate execution - check both state and ref
     if (executingRunIds.has(currentRunId) || startingRunsRef.current.has(currentRunId)) {
-      console.log(`[Queue] Skipping run ${currentRunId} - already executing or starting`);
+      console.log(`[QUEUE] ⏭️  Skipping run ${currentRunId} - already executing`);
       return;
     }
 
     // Mark as starting (synchronous, prevents race condition)
     startingRunsRef.current.add(currentRunId);
-
-    console.log(`[Queue] Auto-starting run ${currentRunId}, status: ${currentRun.status}`);
-    console.log(`[Queue] Current queue state:`, { currentRunId, queuedCount: runQueue.queuedRunIds.length });
 
     // Add to executing set
     setExecutingRunIds((prev) => {
@@ -963,10 +959,6 @@ const Runs = () => {
     const questionsToProcess = isResuming
       ? currentRun.questionIds.filter((id) => !attemptedQuestionIds.has(id))
       : currentRun.questionIds;
-
-    console.log(
-      `[Queue] Run ${currentRunId} - ${isResuming ? 'Resuming' : 'Starting'} with ${questionsToProcess.length}/${currentRun.questionIds.length} questions`
-    );
 
     const selectedQuestions = questionsToProcess
       .map((id) => questionLookup.get(id))
@@ -1033,16 +1025,13 @@ const Runs = () => {
 
     const runTask = async () => {
       try {
-        // Run diagnostics before benchmark execution
-        console.log(`[Queue] Running diagnostics for profile ${profile.id} before run ${runningRun.id}`);
-
-        // Run HANDSHAKE diagnostics
+        // Run diagnostics before benchmark execution (validates model is still available and working)
         const handshakeResult = await runDiagnostics({ profile, level: 'HANDSHAKE' });
         recordDiagnostic(handshakeResult);
 
         if (handshakeResult.status === 'fail') {
           const errorMessage = `Diagnostics failed (HANDSHAKE): ${handshakeResult.summary}`;
-          console.error(`[Queue] ${errorMessage}`);
+          console.error(`[DIAGNOSTICS] ${errorMessage}`);
 
           // Mark run as failed
           latestRun = upsertRun({
@@ -1068,7 +1057,7 @@ const Runs = () => {
 
         if (readinessResult.status === 'fail') {
           const errorMessage = `Diagnostics failed (READINESS): ${readinessResult.summary}`;
-          console.error(`[Queue] ${errorMessage}`);
+          console.error(`[DIAGNOSTICS] ${errorMessage}`);
 
           // Mark run as failed
           latestRun = upsertRun({
@@ -1087,8 +1076,6 @@ const Runs = () => {
           });
           return; // Skip this run
         }
-
-        console.log(`[Queue] Diagnostics passed for profile ${profile.id}, proceeding with run ${runningRun.id}`);
 
         // Proceed with benchmark execution
         const completedRun = await executeBenchmarkRun({
@@ -1212,13 +1199,22 @@ const Runs = () => {
             Review historical runs, filter by status, and drill into attempt analytics.
           </p>
         </div>
-        <button
-          className="bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-          type="button"
-          onClick={handleOpenNewRunPanel}
-        >
-          New run
-        </button>
+        <div className="flex gap-3">
+          <button
+            className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-50 font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            type="button"
+            onClick={handleResumeAll}
+          >
+            Resume All
+          </button>
+          <button
+            className="bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            type="button"
+            onClick={handleOpenNewRunPanel}
+          >
+            New run
+          </button>
+        </div>
       </header>
 
       {showInlineActiveRun && activeRun ? (
@@ -1390,26 +1386,20 @@ const Runs = () => {
           </p>
         ) : (
           <div className="overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10">
-            <table className="w-full min-w-[1100px] border-collapse text-sm sm:text-[0.95rem]">
+            <table className="w-full min-w-[900px] border-collapse text-sm sm:text-[0.95rem]">
               <thead className="text-left text-slate-600 dark:text-slate-400 font-semibold text-xs sm:text-sm">
                 <tr>
                   <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Run
+                    Run / Profile
                   </th>
                   <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Status
                   </th>
                   <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Profile
+                    Accuracy
                   </th>
                   <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Answer Accuracy
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Topology Accuracy
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Avg latency
+                    Time
                   </th>
                   <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                     Questions
@@ -1433,9 +1423,14 @@ const Runs = () => {
                       scope="row"
                       className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700"
                     >
-                      <span className="font-semibold text-slate-900 dark:text-slate-50">
-                        {run.label}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-slate-900 dark:text-slate-50">
+                          {run.label}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {run.profileName}
+                        </span>
+                      </div>
                     </th>
                     <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-2">
@@ -1476,30 +1471,25 @@ const Runs = () => {
                         })()}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          {run.profileName}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {run.profileModelId}
-                        </span>
-                      </div>
+                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {run.metrics && run.status === 'completed' ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span>A: {(run.metrics.accuracy * 100).toFixed(1)}%</span>
+                          <span className="text-xs">T: {(run.metrics.topologyAccuracy * 100).toFixed(1)}%</span>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {run.metrics && run.status === 'completed'
-                        ? `${(run.metrics.accuracy * 100).toFixed(1)}%`
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {run.metrics && run.status === 'completed'
-                        ? `${(run.metrics.topologyAccuracy * 100).toFixed(1)}%`
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {run.metrics && run.status === 'completed'
-                        ? formatLatency(run.metrics.averageLatencyMs)
-                        : '—'}
+                      {run.metrics && run.status === 'completed' ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span>{formatLatency(run.metrics.averageLatencyMs)}/q</span>
+                          <span className="text-xs">{formatDuration(run.startedAt, run.completedAt)} total</span>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                       {run.questionIds.length}
@@ -1508,19 +1498,24 @@ const Runs = () => {
                       {formatDateTime(run.createdAt)}
                     </td>
                     <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5">
+                        {/* View icon */}
                         <Link
-                          className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
+                          className="p-2 rounded-lg border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 transition-all duration-200"
                           to={`/runs/${run.id}`}
                           onClick={(e) => e.stopPropagation()}
+                          title="View details"
                         >
-                          View
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
                         </Link>
 
-                        {/* Draft runs: Show Start button */}
+                        {/* Draft runs: Show Start icon */}
                         {run.status === 'draft' && (
                           <button
-                            className="bg-gradient-to-r from-success-600 to-success-700 hover:from-success-700 hover:to-success-800 text-white font-semibold px-3 py-1.5 rounded-lg text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                            className="p-2 rounded-lg bg-success-600 hover:bg-success-700 text-white transition-all duration-200"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1528,35 +1523,18 @@ const Runs = () => {
                             }}
                             title="Start this benchmark run"
                           >
-                            Start
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                            </svg>
                           </button>
                         )}
 
-                        {/* Queued runs: Show queue position */}
-                        {run.status === 'queued' && (() => {
-                          const position = getQueuePosition(run.id);
-                          const isCurrentRun = runQueue.currentRunId === run.id;
-
-                          return (
-                            <span className="border border-info-400 dark:border-info-500 bg-info-500/8 dark:bg-info-500/10 text-info-700 dark:text-info-400 font-semibold px-3 py-1.5 rounded-lg text-sm">
-                              {isCurrentRun ? 'Running...' : `Queued (#${position})`}
-                            </span>
-                          );
-                        })()}
-
-                        {/* Running runs: Show running indicator */}
-                        {run.status === 'running' && (
-                          <span className="border border-info-400 dark:border-info-500 bg-info-500/8 dark:bg-info-500/10 text-info-700 dark:text-info-400 font-semibold px-3 py-1.5 rounded-lg text-sm">
-                            Running...
-                          </span>
-                        )}
-
-                        {/* Completed/Failed/Cancelled runs: Show Resume (if resumable) and Rerun */}
+                        {/* Completed/Failed/Cancelled runs: Show Resume (if resumable) and Rerun icons */}
                         {(run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') && (
                           <>
                             {canResumeRun(run) && (
                               <button
-                                className="border border-warning-400 dark:border-warning-500 bg-warning-500/8 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400 hover:bg-warning-500/16 dark:hover:bg-warning-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
+                                className="p-2 rounded-lg border border-warning-400 dark:border-warning-500 bg-warning-500/8 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400 hover:bg-warning-500/16 dark:hover:bg-warning-500/20 transition-all duration-200"
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1564,11 +1542,13 @@ const Runs = () => {
                                 }}
                                 title="Resume from where it left off"
                               >
-                                Resume
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
                               </button>
                             )}
                             <button
-                              className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
+                              className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200"
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1576,22 +1556,27 @@ const Runs = () => {
                               }}
                               title="Rerun with same settings"
                             >
-                              Rerun
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                              </svg>
                             </button>
                           </>
                         )}
 
-                        {/* Delete button - show for all non-running statuses */}
+                        {/* Delete icon - show for all non-running statuses */}
                         {run.status !== 'running' && (
                           <button
-                            className="bg-gradient-to-r from-danger-600 to-danger-700 hover:from-danger-700 hover:to-danger-800 text-white font-semibold px-3 py-1.5 rounded-lg text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                            className="p-2 rounded-lg bg-danger-600 hover:bg-danger-700 text-white transition-all duration-200"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteRun(run.id);
                             }}
+                            title="Delete run"
                           >
-                            Delete
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
                           </button>
                         )}
                       </div>

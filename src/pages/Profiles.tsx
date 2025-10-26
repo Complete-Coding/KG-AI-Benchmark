@@ -8,6 +8,7 @@ import {
 } from '@/types/benchmark';
 import { DEFAULT_PROFILE_VALUES, defaultBenchmarkSteps } from '@/data/defaults';
 import { runDiagnostics } from '@/services/diagnostics';
+import { runCompatibilityCheck } from '@/services/compatibilityCheck';
 import Modal from '@/components/Modal';
 
 interface ProfileFormState {
@@ -98,6 +99,7 @@ const Profiles = () => {
     deleteProfile,
     deleteRun,
     recordDiagnostic,
+    recordCompatibilityCheck,
     discovery,
     refreshDiscoveredModels,
   } = useBenchmarkContext();
@@ -113,6 +115,7 @@ const Profiles = () => {
     profileId: string;
     level: DiagnosticsLevel;
   } | null>(null);
+  const [runningCompatibilityCheck, setRunningCompatibilityCheck] = useState<string | null>(null);
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedProfileId),
@@ -372,6 +375,25 @@ const Profiles = () => {
     }
   };
 
+  const handleRunCompatibilityCheck = async (profile: ModelProfile) => {
+    setRunningCompatibilityCheck(profile.id);
+    setFeedback(null);
+
+    try {
+      const result = await runCompatibilityCheck(profile);
+      recordCompatibilityCheck(profile.id, result);
+      setFeedback(
+        result.compatible
+          ? `${profile.name}: Compatible`
+          : `${profile.name}: Not compatible - ${result.summary}`
+      );
+    } catch (error) {
+      setFeedback(`${profile.name}: Compatibility check failed: ${(error as Error).message}`);
+    } finally {
+      setRunningCompatibilityCheck(null);
+    }
+  };
+
   const dialogTitle = dialogMode === 'edit' ? 'Edit profile' : 'Create profile';
 
   if (loading) {
@@ -444,11 +466,7 @@ const Profiles = () => {
               ) : (
                 <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {profiles.map((profile) => {
-                    const handshake = levelSummary(profile, 'HANDSHAKE');
-                    const readiness = levelSummary(profile, 'READINESS');
                     const isActive = isProfileDetailOpen && profile.id === selectedProfileId;
-                    const isRunningForProfile = runningDiagnostics?.profileId === profile.id;
-                    const diagnosticsBusy = Boolean(runningDiagnostics);
 
                     return (
                       <li key={profile.id}>
@@ -478,32 +496,43 @@ const Profiles = () => {
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 truncate">
                                   {profile.provider} &middot; {profile.modelId}
                                 </p>
+                                {/* Model Support Status Badge */}
+                                {profile.metadata.compatibilityStatus === 'compatible' ? (
+                                  <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    Compatible
+                                  </span>
+                                ) : profile.metadata.compatibilityStatus === 'incompatible' ? (
+                                  <div className="flex flex-col gap-1 mt-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                      </svg>
+                                      Not Compatible
+                                    </span>
+                                    {profile.metadata.compatibilitySummary && (
+                                      <span className="text-xs text-danger-700 dark:text-danger-400 leading-relaxed">
+                                        {profile.metadata.compatibilitySummary}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                    </svg>
+                                    Check Needed
+                                  </span>
+                                )}
                               </div>
                               <div className="flex gap-2 flex-shrink-0">
-                                <span
-                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                                    handshake.status === 'ready'
-                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                                      : handshake.status === 'failed'
-                                      ? 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400'
-                                      : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
-                                  }`}
-                                  title={`L1: ${handshake.label} - ${handshake.lastRunAt ? formatTimestamp(handshake.lastRunAt) : 'Never run'}`}
-                                >
-                                  L1
-                                </span>
-                                <span
-                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                                    readiness.status === 'ready'
-                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                                      : readiness.status === 'failed'
-                                      ? 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400'
-                                      : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
-                                  }`}
-                                  title={`L2: ${readiness.label} - ${readiness.lastRunAt ? formatTimestamp(readiness.lastRunAt) : 'Never run'}`}
-                                >
-                                  L2
-                                </span>
+                                {profile.metadata.lastCompatibilityCheckAt && (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400" title={`Last checked: ${formatTimestamp(profile.metadata.lastCompatibilityCheckAt)}`}>
+                                    {new Date(profile.metadata.lastCompatibilityCheckAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
@@ -546,39 +575,21 @@ const Profiles = () => {
 
                           <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 mt-auto">
                             <p className="text-[0.65rem] text-slate-500 dark:text-slate-400 text-center">
-                              Click card for diagnostics &amp; history
+                              Click card for details &amp; history
                             </p>
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="grid grid-cols-3 gap-1.5">
                               <button
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  void handleRunDiagnostics(profile, 'HANDSHAKE');
+                                  void handleRunCompatibilityCheck(profile);
                                 }}
-                                disabled={diagnosticsBusy}
+                                disabled={runningCompatibilityCheck !== null}
                                 className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold border border-accent-500/70 text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
-                                {isRunningForProfile && runningDiagnostics?.level === 'HANDSHAKE'
-                                  ? 'Running…'
-                                  : 'Run L1'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleRunDiagnostics(profile, 'READINESS');
-                                }}
-                                disabled={diagnosticsBusy || handshake.status !== 'ready'}
-                                title={
-                                  handshake.status !== 'ready'
-                                    ? 'Run L1 handshake first'
-                                    : 'Run L2 readiness check'
-                                }
-                                className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold border border-accent-500/70 text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:border-accent-600 rounded-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                {isRunningForProfile && runningDiagnostics?.level === 'READINESS'
-                                  ? 'Running…'
-                                  : 'Run L2'}
+                                {runningCompatibilityCheck === profile.id
+                                  ? 'Checking…'
+                                  : 'Compatibility'}
                               </button>
                               <button
                                 type="button"

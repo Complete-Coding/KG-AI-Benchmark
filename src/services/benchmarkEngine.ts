@@ -145,10 +145,6 @@ const buildStepPrompt = (
     // For topology step: Classification instruction FIRST, then question context for reference
     const simpleContext = buildSimpleQuestionContext(question);
 
-    console.log('[TOPOLOGY PROMPT BUILD] Question ID:', question.id);
-    console.log('[TOPOLOGY PROMPT BUILD] Topology catalog subjects:', questionTopology.length);
-    console.log('[TOPOLOGY PROMPT BUILD] Using REORDERED prompt: classification FIRST, question SECOND');
-
     // Classification instruction + catalog FIRST, question context SECOND (for reference only)
     const sections = [
       renderedInstructions,
@@ -266,38 +262,7 @@ export const executeBenchmarkRun = async ({
           topologyPrediction
         );
 
-        // Enhanced logging for both topology and answer steps
-        if (step.id === 'topology') {
-          console.log('\n═══════════════════════════════════════════════════════════════');
-          console.log('[TOPOLOGY EXECUTION] Question ID:', question.id);
-          console.log('[TOPOLOGY EXECUTION] Full prompt length:', prompt.length);
-          console.log('[TOPOLOGY EXECUTION] Prompt contains taxonomy:',
-            prompt.includes('Theory of Computation') || prompt.includes('Computer Networks'));
-          console.log('[TOPOLOGY EXECUTION] First 1000 chars of prompt:');
-          console.log(prompt.substring(0, 1000));
-          console.log('═══════════════════════════════════════════════════════════════\n');
-        }
-
-        if (step.id === 'answer') {
-          console.log('\n═══════════════════════════════════════════════════════════════');
-          console.log('[ANSWER EXECUTION] Question ID:', question.id);
-          console.log('[ANSWER EXECUTION] Full prompt length:', prompt.length);
-          console.log('[ANSWER EXECUTION] Has previous step outputs:',
-            prompt.includes('previousStepOutputs') || attemptSteps.length > 0);
-          console.log('[ANSWER EXECUTION] First 1000 chars of prompt:');
-          console.log(prompt.substring(0, 1000));
-          console.log('═══════════════════════════════════════════════════════════════\n');
-        }
-
         const stepStartedAt = Date.now();
-
-        // Auto-detect thinking/reasoning models and set reasoning_effort to high
-        const modelIdLower = profile.modelId.toLowerCase();
-        const isThinkingModel =
-          modelIdLower.includes('deepseek') ||
-          modelIdLower.includes('thinking') ||
-          modelIdLower.includes('r1') ||
-          modelIdLower.includes('reasoning');
 
         // Build messages array for this step
         const messages = [
@@ -323,9 +288,6 @@ export const executeBenchmarkRun = async ({
         if (profile.presencePenalty !== undefined) {
           requestPayload.presence_penalty = profile.presencePenalty;
         }
-        if (isThinkingModel) {
-          requestPayload.reasoning_effort = 'high';
-        }
 
         // Add response format if JSON mode is supported
         const preferJson = profile.metadata.supportsJsonMode ?? true;
@@ -344,13 +306,16 @@ export const executeBenchmarkRun = async ({
           profileName: profile.name,
         };
 
+        // Determine which schema to use based on step type
+        const schemaType = step.id === 'topology' ? 'topology' : 'answer';
+
         const completion = await sendChatCompletion({
           profile,
           messages: messages as { role: 'system' | 'user' | 'assistant'; content: string }[],
           temperature: profile.temperature,
           maxTokens: profile.maxOutputTokens,
           preferJson,
-          reasoningEffort: isThinkingModel ? 'high' : undefined,
+          schemaType,
           signal,
         });
 
@@ -376,30 +341,6 @@ export const executeBenchmarkRun = async ({
           const parsedTopology = parseTopologyPrediction(completion.text);
           const topologyEval = evaluateTopologyPrediction(question, parsedTopology);
 
-          console.log('\n───────────────────────────────────────────────────────────────');
-          console.log('[TOPOLOGY RESPONSE] Question ID:', question.id);
-          console.log('[TOPOLOGY RESPONSE] Raw response (first 500 chars):');
-          console.log(completion.text.substring(0, 500));
-          console.log('[TOPOLOGY RESPONSE] Parsed prediction:', {
-            subjectId: parsedTopology.subjectId,
-            topicId: parsedTopology.topicId,
-            subtopicId: parsedTopology.subtopicId,
-            confidence: parsedTopology.confidence,
-          });
-          console.log('[TOPOLOGY RESPONSE] Expected:', {
-            subjectId: question.metadata.topology?.subjectId,
-            topicId: question.metadata.topology?.topicId,
-            subtopicId: question.metadata.topology?.subtopicId,
-          });
-          console.log('[TOPOLOGY RESPONSE] Evaluation:', {
-            passed: topologyEval.passed,
-            score: topologyEval.score,
-            expected: topologyEval.expected,
-            received: topologyEval.received,
-            notes: topologyEval.notes,
-          });
-          console.log('───────────────────────────────────────────────────────────────\n');
-
           topologyPrediction = parsedTopology;
           topologyEvaluation = topologyEval;
           stepResult.topologyPrediction = parsedTopology;
@@ -407,29 +348,6 @@ export const executeBenchmarkRun = async ({
         } else if (step.id === answerStepId) {
           const parsedAnswer = parseModelResponse(completion.text);
           const answerEvaluation = evaluateModelAnswer(question, parsedAnswer);
-
-          console.log('\n───────────────────────────────────────────────────────────────');
-          console.log('[ANSWER RESPONSE] Question ID:', question.id);
-          console.log('[ANSWER RESPONSE] Raw response (first 500 chars):');
-          console.log(completion.text.substring(0, 500));
-          console.log('[ANSWER RESPONSE] Parsed answer:', {
-            answer: parsedAnswer.answer,
-            confidence: parsedAnswer.confidence,
-            explanation: parsedAnswer.explanation?.substring(0, 100) + '...',
-          });
-          console.log('[ANSWER RESPONSE] Expected answer:', answerEvaluation.expected);
-          console.log('[ANSWER RESPONSE] Received answer:', answerEvaluation.received);
-          console.log('[ANSWER RESPONSE] Evaluation:', {
-            passed: answerEvaluation.passed,
-            score: answerEvaluation.score,
-            notes: answerEvaluation.notes,
-          });
-          console.log('[ANSWER RESPONSE] Token usage:', {
-            prompt: usage.promptTokens,
-            completion: usage.completionTokens,
-            total: usage.totalTokens,
-          });
-          console.log('───────────────────────────────────────────────────────────────\n');
 
           finalModelResponse = parsedAnswer;
           finalEvaluation = answerEvaluation;

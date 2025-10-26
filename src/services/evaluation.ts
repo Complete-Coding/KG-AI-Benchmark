@@ -44,49 +44,53 @@ const readStringField = (value: unknown): string | undefined =>
 
 export const parseModelResponse = (text: string): BenchmarkModelResponse => {
   const trimmed = text.trim();
+
+  if (!trimmed) {
+    throw new Error('Model returned empty response');
+  }
+
   const withoutCodeFence = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
   const jsonCandidate = extractJsonObject(withoutCodeFence);
   const parsed = tryParseJson(jsonCandidate);
 
-  if (isRecord(parsed)) {
-    const answerField = parsed.answer;
-    let answerValue = '';
-
-    if (typeof answerField === 'string') {
-      answerValue = answerField;
-    } else if (
-      Array.isArray(answerField) &&
-      answerField.every((item): item is string => typeof item === 'string')
-    ) {
-      answerValue = answerField.join(', ');
-    }
-
-    const explanationField = parsed.explanation;
-    const confidenceField = parsed.confidence;
-    const explanation =
-      typeof explanationField === 'string' ? explanationField.trim() : undefined;
-    const confidence =
-      typeof confidenceField === 'number'
-        ? Math.max(0, Math.min(1, confidenceField))
-        : undefined;
-    const finalAnswer = answerValue !== '' ? answerValue : trimmed;
-
-    return {
-      answer: finalAnswer,
-      explanation,
-      confidence,
-      raw: parsed,
-    };
+  if (!isRecord(parsed)) {
+    throw new Error(
+      `Model did not return valid JSON. Response: ${trimmed.substring(0, 200)}...`
+    );
   }
 
-  const fallbackMatch = /answer\s*[:\-]\s*(.*)/i.exec(trimmed);
-  const extractedAnswer = fallbackMatch ? fallbackMatch[1] : trimmed;
+  const answerField = parsed.answer;
+  let answerValue = '';
+
+  if (typeof answerField === 'string') {
+    answerValue = answerField;
+  } else if (
+    Array.isArray(answerField) &&
+    answerField.every((item): item is string => typeof item === 'string')
+  ) {
+    answerValue = answerField.join(', ');
+  }
+
+  if (!answerValue) {
+    throw new Error(
+      `Model JSON response missing required 'answer' field. Response: ${JSON.stringify(parsed)}`
+    );
+  }
+
+  const explanationField = parsed.explanation;
+  const confidenceField = parsed.confidence;
+  const explanation =
+    typeof explanationField === 'string' ? explanationField.trim() : undefined;
+  const confidence =
+    typeof confidenceField === 'number'
+      ? Math.max(0, Math.min(1, confidenceField))
+      : undefined;
 
   return {
-    answer: extractedAnswer.trim(),
-    explanation: undefined,
-    confidence: undefined,
-    raw: trimmed,
+    answer: answerValue,
+    explanation,
+    confidence,
+    raw: parsed,
   };
 };
 
@@ -109,46 +113,35 @@ const extractTopologyFromRecord = (record: Record<string, unknown>) => {
   return { subjectId, topicId, subtopicId, confidence };
 };
 
-const extractTopologyFromText = (text: string) => {
-  // Try ID fields first
-  const subjectIdMatch = /subject\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-  const topicIdMatch = /topic\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-  const subtopicIdMatch = /sub\s*-?\s*topic\s*id\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-
-  // Fall back to name fields
-  const subjectMatch = /subject\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-  const topicMatch = /topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-  const subtopicMatch = /sub\s*-?\s*topic\s*[:=\-]\s*([^\n,]+)/i.exec(text);
-
-  return {
-    subjectId: subjectIdMatch ? subjectIdMatch[1].trim() :
-               (subjectMatch ? subjectMatch[1].trim() : undefined),
-    topicId: topicIdMatch ? topicIdMatch[1].trim() :
-             (topicMatch ? topicMatch[1].trim() : undefined),
-    subtopicId: subtopicIdMatch ? subtopicIdMatch[1].trim() :
-                (subtopicMatch ? subtopicMatch[1].trim() : undefined),
-    confidence: undefined,
-  };
-};
-
 export const parseTopologyPrediction = (text: string): BenchmarkTopologyPrediction => {
   const trimmed = text.trim();
+
+  if (!trimmed) {
+    throw new Error('Model returned empty topology response');
+  }
+
   const withoutCodeFence = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
   const jsonCandidate = extractJsonObject(withoutCodeFence);
   const parsed = tryParseJson(jsonCandidate);
 
-  if (isRecord(parsed)) {
-    const topology = extractTopologyFromRecord(parsed);
-    return {
-      ...topology,
-      raw: parsed,
-    };
+  if (!isRecord(parsed)) {
+    throw new Error(
+      `Model did not return valid JSON for topology. Response: ${trimmed.substring(0, 200)}...`
+    );
   }
 
-  const fallback = extractTopologyFromText(trimmed);
+  const topology = extractTopologyFromRecord(parsed);
+
+  // Validate that at least one topology field is present
+  if (!topology.subjectId && !topology.topicId && !topology.subtopicId) {
+    throw new Error(
+      `Model JSON response missing topology fields (subjectId, topicId, subtopicId). Response: ${JSON.stringify(parsed)}`
+    );
+  }
+
   return {
-    ...fallback,
-    raw: trimmed,
+    ...topology,
+    raw: parsed,
   };
 };
 

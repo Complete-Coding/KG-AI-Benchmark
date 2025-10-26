@@ -8,13 +8,48 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
-const isJsonModeError = (payload: unknown) => {
+// JSON Schemas for LM Studio's json_schema format
+const TOPOLOGY_SCHEMA = {
+  type: 'object',
+  properties: {
+    subjectId: { type: 'string', description: 'Subject identifier' },
+    topicId: { type: 'string', description: 'Topic identifier' },
+    subtopicId: { type: 'string', description: 'Subtopic identifier' },
+    confidence: { type: 'number', minimum: 0, maximum: 1, description: 'Confidence score' },
+  },
+  required: ['subjectId', 'topicId', 'subtopicId'],
+  additionalProperties: false,
+} as const;
+
+const ANSWER_SCHEMA = {
+  type: 'object',
+  properties: {
+    answer: { type: 'string', description: 'The answer to the question' },
+    explanation: { type: 'string', description: 'Explanation of the answer' },
+    confidence: { type: 'number', minimum: 0, maximum: 1, description: 'Confidence score' },
+  },
+  required: ['answer'],
+  additionalProperties: false,
+} as const;
+
+type JsonFormatType = 'json_object' | 'json_schema';
+type SchemaType = 'topology' | 'answer';
+
+const isJsonModeError = (payload: unknown): { isError: boolean; needsSchema: boolean } => {
   if (!payload) {
-    return false;
+    return { isError: false, needsSchema: false };
   }
 
   const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  return /response[_-]?format|json mode|unable to parse/i.test(text);
+
+  // Check if LM Studio requires json_schema format instead of json_object
+  const needsJsonSchema = /response[_-]?format.*must be|json_schema.*text/i.test(text);
+  const hasJsonModeError = /json mode|unable to parse/i.test(text);
+
+  return {
+    isError: needsJsonSchema || hasJsonModeError,
+    needsSchema: needsJsonSchema,
+  };
 };
 
 const buildHeaders = (apiKey?: string) => {
@@ -76,7 +111,7 @@ export interface ChatCompletionParams {
   temperature?: number;
   maxTokens?: number;
   preferJson?: boolean;
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  schemaType?: SchemaType; // Which schema to use for json_schema mode
   signal?: AbortSignal;
 }
 
@@ -110,6 +145,7 @@ export interface ChatCompletionResult {
   raw?: RawChatCompletionResponse;
   fallbackUsed: boolean;
   supportsJsonMode: boolean;
+  jsonFormat?: JsonFormatType; // Which JSON format was successfully used
 }
 
 const extractTextFromResponse = (payload?: RawChatCompletionResponse) => {
@@ -138,18 +174,32 @@ export const sendChatCompletion = async ({
   temperature,
   maxTokens,
   preferJson = true,
-  reasoningEffort,
+  schemaType,
   signal,
 }: ChatCompletionParams): Promise<ChatCompletionResult> => {
-  const attempt = async (forcePlain = false) => {
-    const responseFormat =
-      preferJson && !forcePlain
-        ? {
-            response_format: { type: 'json_object' },
-          }
-        : {};
+  // Helper to build request payload for different JSON formats
+  const buildPayload = (jsonFormat: JsonFormatType | null) => {
+    let responseFormat = {};
 
-    const payload = {
+    if (preferJson && jsonFormat) {
+      if (jsonFormat === 'json_object') {
+        responseFormat = { response_format: { type: 'json_object' } };
+      } else if (jsonFormat === 'json_schema' && schemaType) {
+        const schema = schemaType === 'topology' ? TOPOLOGY_SCHEMA : ANSWER_SCHEMA;
+        responseFormat = {
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: `${schemaType}_response`,
+              schema,
+              strict: true,
+            },
+          },
+        };
+      }
+    }
+
+    return {
       model: profile.modelId,
       temperature,
       max_tokens: maxTokens,
@@ -157,14 +207,13 @@ export const sendChatCompletion = async ({
       ...(profile.topP !== undefined && { top_p: profile.topP }),
       ...(profile.frequencyPenalty !== undefined && { frequency_penalty: profile.frequencyPenalty }),
       ...(profile.presencePenalty !== undefined && { presence_penalty: profile.presencePenalty }),
-      ...(reasoningEffort !== undefined && { reasoning_effort: reasoningEffort }),
+      // Note: reasoning_effort is NOT supported by LM Studio
       ...responseFormat,
     };
+  };
 
-    // Log reasoning effort usage for debugging
-    if (reasoningEffort) {
-      console.log(`[LM STUDIO] Using reasoning_effort: ${reasoningEffort} for model: ${profile.modelId}`);
-    }
+  const attempt = async (jsonFormat: JsonFormatType | null) => {
+    const payload = buildPayload(jsonFormat);
 
     return request<RawChatCompletionResponse>({
       path: '/v1/chat/completions',
@@ -175,83 +224,73 @@ export const sendChatCompletion = async ({
     });
   };
 
-  // Retry logic for model loading (400 errors may indicate model not loaded yet)
-  const maxRetries = 3;
-  const retryDelays = [2000, 5000, 10000]; // 2s, 5s, 10s
-  const initial = await attempt();
-  let lastAttempt = initial;
-  let retryCount = 0;
+  if (!preferJson) {
+    // Plain text mode requested - no JSON formatting
+    const result = await attempt(null);
 
-  // Check if error might be due to model loading
-  const isModelLoadingError = (status: number, body: unknown) => {
-    if (status !== 400) return false;
-    const text = typeof body === 'string' ? body : JSON.stringify(body);
-    return /model.*not.*loaded|model.*loading|not.*ready|bad request/i.test(text);
-  };
-
-  // Retry on 400 errors that might be model loading issues
-  while (!lastAttempt.ok && retryCount < maxRetries) {
-    const errorBody = lastAttempt.data ?? (await lastAttempt.raw.text());
-
-    if (isModelLoadingError(lastAttempt.status, errorBody)) {
-      console.warn(
-        `[LM STUDIO] Model may not be loaded yet (attempt ${retryCount + 1}/${maxRetries}). Waiting ${retryDelays[retryCount]}ms before retry...`
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, retryDelays[retryCount]));
-      retryCount++;
-      lastAttempt = await attempt();
-    } else {
-      break; // Not a loading error, stop retrying
+    if (!result.ok) {
+      const error = result.data ?? (await result.raw.text());
+      throw new Error(`Chat completion failed: ${result.status} - ${JSON.stringify(error)}`);
     }
-  }
 
-  if (lastAttempt.ok && lastAttempt.data) {
-    if (retryCount > 0) {
-      console.log(`[LM STUDIO] Request succeeded after ${retryCount} ${retryCount === 1 ? 'retry' : 'retries'}`);
-    }
     return {
-      text: extractTextFromResponse(lastAttempt.data),
-      usage: mapUsage(lastAttempt.data?.usage),
-      raw: lastAttempt.data,
+      text: extractTextFromResponse(result.data),
+      usage: mapUsage(result.data?.usage),
+      raw: result.data,
       fallbackUsed: false,
-      supportsJsonMode: preferJson,
-    };
-  }
-
-  if (lastAttempt.ok) {
-    return {
-      text: '',
-      raw: lastAttempt.data,
-      fallbackUsed: false,
-      supportsJsonMode: preferJson,
-    };
-  }
-
-  const errorBody = lastAttempt.data ?? (await lastAttempt.raw.text());
-
-  // Try JSON mode fallback if that's the issue
-  if (preferJson && isJsonModeError(errorBody)) {
-    console.log('[LM STUDIO] JSON mode not supported, falling back to plain text');
-    const retry = await attempt(true);
-
-    if (!retry.ok || !retry.data) {
-      throw new Error(`Failed to fetch chat completion: ${retry.status}`);
-    }
-
-    return {
-      text: extractTextFromResponse(retry.data),
-      usage: mapUsage(retry.data?.usage),
-      raw: retry.data,
-      fallbackUsed: true,
       supportsJsonMode: false,
     };
   }
 
+  // Try JSON mode - first attempt with json_object (OpenAI format)
+  let result = await attempt('json_object');
+
+  if (result.ok && result.data) {
+    return {
+      text: extractTextFromResponse(result.data),
+      usage: mapUsage(result.data?.usage),
+      raw: result.data,
+      fallbackUsed: false,
+      supportsJsonMode: true,
+      jsonFormat: 'json_object',
+    };
+  }
+
+  // Check if we need to try json_schema format
+  const errorBody = result.data ?? (await result.raw.text());
+  const jsonError = isJsonModeError(errorBody);
+
+  if (jsonError.isError && jsonError.needsSchema && schemaType) {
+    result = await attempt('json_schema');
+
+    if (result.ok && result.data) {
+      return {
+        text: extractTextFromResponse(result.data),
+        usage: mapUsage(result.data?.usage),
+        raw: result.data,
+        fallbackUsed: false,
+        supportsJsonMode: true,
+        jsonFormat: 'json_schema',
+      };
+    }
+  }
+
+  // Both JSON formats failed - throw error (no plain text fallback)
+  const finalError = result.data ?? (await result.raw.text());
+  const errorMessage = typeof finalError === 'string' ? finalError : JSON.stringify(finalError);
+
+  // Log detailed error information for debugging
+  console.error('[JSON MODE ERROR]', {
+    status: result.status,
+    schemaType,
+    preferJson,
+    error: errorMessage,
+    triedJsonObject: true,
+    triedJsonSchema: jsonError.isError && jsonError.needsSchema && schemaType ? true : false,
+  });
+
   throw new Error(
-    `Failed to fetch chat completion: ${lastAttempt.status} - ${
-      typeof errorBody === 'string' ? errorBody : JSON.stringify(errorBody)
-    }`
+    `JSON mode required but not supported: ${result.status} - ${errorMessage}`
   );
 };
 

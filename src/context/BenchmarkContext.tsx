@@ -20,6 +20,7 @@ import {
   BenchmarkQuestion,
   BenchmarkRun,
   BenchmarkRunMetrics,
+  CompatibilityCheckResult,
   DashboardOverview,
   DiagnosticsResult,
   DiscoveredModel,
@@ -80,6 +81,7 @@ type Action =
   | { type: 'UPSERT_RUN'; payload: BenchmarkRun }
   | { type: 'DELETE_RUN'; payload: string }
   | { type: 'RECORD_DIAGNOSTIC'; payload: DiagnosticsResult }
+  | { type: 'RECORD_COMPATIBILITY_CHECK'; payload: { profileId: string; result: CompatibilityCheckResult } }
   | { type: 'ACTIVE_RUN_INITIALIZE'; payload: ActiveRunStartPayload }
   | { type: 'ACTIVE_RUN_SET_CURRENT'; payload: ActiveRunQuestionStartPayload }
   | { type: 'ACTIVE_RUN_RECORD_ATTEMPT'; payload: ActiveRunAttemptPayload }
@@ -90,6 +92,7 @@ type Action =
   | { type: 'DISCOVERY_FAILURE'; payload: { error: string; fetchedAt?: string } }
   | { type: 'QUEUE_SET_CURRENT'; payload: string | null }
   | { type: 'QUEUE_ADD'; payload: string }
+  | { type: 'QUEUE_ADD_BATCH'; payload: string[] }
   | { type: 'QUEUE_REMOVE'; payload: string }
   | { type: 'QUEUE_START_NEXT' };
 
@@ -232,6 +235,14 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
       profile.metadata?.lastHandshakeAt ?? existing?.metadata?.lastHandshakeAt ?? undefined,
     lastReadinessAt:
       profile.metadata?.lastReadinessAt ?? existing?.metadata?.lastReadinessAt ?? undefined,
+    compatibilityStatus:
+      profile.metadata?.compatibilityStatus ?? existing?.metadata?.compatibilityStatus ?? undefined,
+    jsonFormat:
+      profile.metadata?.jsonFormat ?? existing?.metadata?.jsonFormat ?? undefined,
+    lastCompatibilityCheckAt:
+      profile.metadata?.lastCompatibilityCheckAt ?? existing?.metadata?.lastCompatibilityCheckAt ?? undefined,
+    compatibilitySummary:
+      profile.metadata?.compatibilitySummary ?? existing?.metadata?.compatibilitySummary ?? undefined,
   };
 
   return {
@@ -507,6 +518,36 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         profiles,
       };
     }
+    case 'RECORD_COMPATIBILITY_CHECK': {
+      const profiles = state.profiles.map((profile) => {
+        if (profile.id !== action.payload.profileId) {
+          return profile;
+        }
+
+        const result = action.payload.result;
+        const metadata = { ...profile.metadata };
+
+        // Update compatibility status
+        metadata.compatibilityStatus = result.compatible ? 'compatible' : 'incompatible';
+        metadata.jsonFormat = result.jsonFormat ?? 'none';
+        metadata.lastCompatibilityCheckAt = result.completedAt;
+        metadata.compatibilitySummary = result.summary;
+
+        // Also update supportsJsonMode for backwards compatibility
+        metadata.supportsJsonMode = result.compatible && (result.jsonFormat === 'json_object' || result.jsonFormat === 'json_schema');
+
+        return {
+          ...profile,
+          metadata,
+          updatedAt: result.completedAt,
+        };
+      });
+
+      return {
+        ...state,
+        profiles,
+      };
+    }
     case 'ACTIVE_RUN_INITIALIZE':
       return {
         ...state,
@@ -657,6 +698,36 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
           queuedRunIds: [...state.runQueue.queuedRunIds, action.payload],
         },
       };
+    case 'QUEUE_ADD_BATCH': {
+      // Add multiple runs at once - first becomes current if no current run, rest are queued
+      const runIds = action.payload;
+      if (runIds.length === 0) {
+        return state;
+      }
+
+      const hasCurrentRun = Boolean(state.runQueue.currentRunId);
+
+      if (!hasCurrentRun) {
+        // First run becomes current, rest go to queue
+        const [firstRunId, ...restRunIds] = runIds;
+        return {
+          ...state,
+          runQueue: {
+            currentRunId: firstRunId,
+            queuedRunIds: [...state.runQueue.queuedRunIds, ...restRunIds],
+          },
+        };
+      } else {
+        // All runs go to queue
+        return {
+          ...state,
+          runQueue: {
+            ...state.runQueue,
+            queuedRunIds: [...state.runQueue.queuedRunIds, ...runIds],
+          },
+        };
+      }
+    }
     case 'QUEUE_REMOVE':
       return {
         ...state,
@@ -696,6 +767,7 @@ interface BenchmarkContextValue {
   upsertProfile: (profile: Partial<ModelProfile>) => ModelProfile;
   deleteProfile: (profileId: string) => void;
   recordDiagnostic: (diagnostic: DiagnosticsResult) => void;
+  recordCompatibilityCheck: (profileId: string, result: CompatibilityCheckResult) => void;
   upsertRun: (run: Partial<BenchmarkRun>) => BenchmarkRun;
   deleteRun: (runId: string) => void;
   getProfileById: (profileId: string) => ModelProfile | undefined;
@@ -707,6 +779,7 @@ interface BenchmarkContextValue {
   clearActiveRun: () => void;
   refreshDiscoveredModels: () => Promise<void>;
   enqueueRun: (runId: string) => void;
+  enqueueBatch: (runIds: string[]) => void;
   dequeueRun: (runId: string) => void;
   getQueuePosition: (runId: string) => number;
 }
@@ -726,21 +799,74 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Cleanup orphaned runs (runs stuck in 'running' or 'draft' after app restart)
+      // Cleanup orphaned runs (runs stuck in 'running' or 'queued' after app restart)
       const cleanedRuns = runs.map((run) => {
         const normalized = normalizeRun(run);
 
-        // Mark orphaned 'running' runs as failed
+        // Mark orphaned 'running' runs - check if actually completed
         if (normalized.status === 'running') {
-          console.log(`[Cleanup] Marking orphaned run ${normalized.id} as failed`);
+          // Check if all questions were answered
+          const attemptedQuestionIds = new Set(normalized.attempts.map(a => a.questionId));
+          const allQuestionsAnswered = normalized.questionIds.every(qid => attemptedQuestionIds.has(qid));
+
+          if (allQuestionsAnswered && normalized.attempts.length > 0) {
+            // Run actually completed - all questions answered
+            // Recalculate metrics from attempts
+            const passedCount = normalized.attempts.filter(a => a.evaluation?.passed).length;
+            const failedCount = normalized.attempts.length - passedCount;
+            const accuracy = normalized.attempts.length > 0 ? passedCount / normalized.attempts.length : 0;
+
+            // Count topology accuracy
+            const topologyPassedCount = normalized.attempts.filter(a =>
+              a.topologyEvaluation?.passed
+            ).length;
+            const topologyAccuracy = normalized.attempts.length > 0 ? topologyPassedCount / normalized.attempts.length : 0;
+
+            return {
+              ...normalized,
+              status: 'completed' as const,
+              completedAt: normalized.completedAt || new Date().toISOString(),
+              summary: `Accuracy ${(accuracy * 100).toFixed(1)}% across ${normalized.attempts.length} questions.`,
+              metrics: {
+                ...normalized.metrics,
+                passedCount,
+                failedCount,
+                totalCount: normalized.attempts.length,
+                accuracy,
+                topologyAccuracy,
+              },
+              notes: normalized.notes
+                ? `${normalized.notes}\n\nStatus corrected to completed on app restart (all questions answered).`
+                : 'Status corrected to completed on app restart (all questions answered).',
+            };
+          }
+
+          // Truly incomplete run
           return {
             ...normalized,
             status: 'failed' as const,
             completedAt: normalized.completedAt || new Date().toISOString(),
-            summary: normalized.summary || 'Run interrupted (browser closed or app restarted)',
+            summary: normalized.summary || `Run interrupted (${attemptedQuestionIds.size}/${normalized.questionIds.length} questions answered)`,
             notes: normalized.notes
               ? `${normalized.notes}\n\nRun was interrupted and marked as failed on app restart.`
               : 'Run was interrupted and marked as failed on app restart.',
+          };
+        }
+
+        // Reset orphaned 'queued' runs back to their original state
+        if (normalized.status === 'queued') {
+          // Check if this was a draft run (never started) or a resumed run (has attempts)
+          const hasAttempts = normalized.attempts.length > 0;
+
+          return {
+            ...normalized,
+            status: hasAttempts ? 'failed' as const : 'draft' as const,
+            summary: hasAttempts
+              ? normalized.summary || 'Run was queued but not executed'
+              : normalized.summary || 'Draft run',
+            notes: normalized.notes
+              ? `${normalized.notes}\n\nQueued status reset on app restart.`
+              : 'Queued status reset on app restart.',
           };
         }
 
@@ -822,6 +948,34 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     [state.profiles]
   );
 
+  const recordCompatibilityCheck = useCallback(
+    (profileId: string, result: CompatibilityCheckResult) => {
+      dispatch({ type: 'RECORD_COMPATIBILITY_CHECK', payload: { profileId, result } });
+
+      const target = state.profiles.find((profile) => profile.id === profileId);
+      if (!target) {
+        return;
+      }
+
+      const metadata = { ...target.metadata };
+
+      metadata.compatibilityStatus = result.compatible ? 'compatible' : 'incompatible';
+      metadata.jsonFormat = result.jsonFormat ?? 'none';
+      metadata.lastCompatibilityCheckAt = result.completedAt;
+      metadata.compatibilitySummary = result.summary;
+      metadata.supportsJsonMode = result.compatible && (result.jsonFormat === 'json_object' || result.jsonFormat === 'json_schema');
+
+      const updated: ModelProfile = {
+        ...target,
+        metadata,
+        updatedAt: result.completedAt,
+      };
+
+      void upsertProfileRecord(updated);
+    },
+    [state.profiles]
+  );
+
   const upsertRun = useCallback(
     (run: Partial<BenchmarkRun>): BenchmarkRun => {
       const existing = run.id ? state.runs.find((item) => item.id === run.id) : undefined;
@@ -869,11 +1023,20 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const enqueueRun = useCallback((runId: string) => {
+    console.log(`[ENQUEUE] Called for run ${runId}`);
+    console.log(`[ENQUEUE] Current queue state:`, {
+      currentRunId: state.runQueue.currentRunId,
+      queuedCount: state.runQueue.queuedRunIds.length,
+      queuedIds: state.runQueue.queuedRunIds,
+    });
+
     // If no current run, start this one immediately
     if (!state.runQueue.currentRunId) {
+      console.log(`[ENQUEUE] No current run, setting ${runId} as current`);
       dispatch({ type: 'QUEUE_SET_CURRENT', payload: runId });
       // Note: The actual run start happens in RunDetail page
     } else {
+      console.log(`[ENQUEUE] Adding ${runId} to queue (current run: ${state.runQueue.currentRunId})`);
       // Add to queue and update run status to 'queued'
       dispatch({ type: 'QUEUE_ADD', payload: runId });
       const run = state.runs.find(r => r.id === runId);
@@ -882,6 +1045,29 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [state.runQueue.currentRunId, state.runs, upsertRun]);
+
+  const enqueueBatch = useCallback((runIds: string[]) => {
+    console.log(`[ENQUEUE BATCH] Called with ${runIds.length} runs`);
+    console.log(`[ENQUEUE BATCH] Run IDs:`, runIds);
+    console.log(`[ENQUEUE BATCH] Current queue state:`, {
+      currentRunId: state.runQueue.currentRunId,
+      queuedCount: state.runQueue.queuedRunIds.length,
+      queuedIds: state.runQueue.queuedRunIds,
+    });
+
+    // Dispatch single action to add all runs at once
+    dispatch({ type: 'QUEUE_ADD_BATCH', payload: runIds });
+
+    // Update all runs to 'queued' status
+    runIds.forEach((runId) => {
+      const run = state.runs.find(r => r.id === runId);
+      if (run) {
+        upsertRun({ ...run, status: 'queued' });
+      }
+    });
+
+    console.log(`[ENQUEUE BATCH] Dispatched QUEUE_ADD_BATCH with ${runIds.length} runs`);
+  }, [state.runQueue.currentRunId, state.runQueue.queuedRunIds, state.runs, upsertRun]);
 
   const dequeueRun = useCallback((runId: string) => {
     dispatch({ type: 'QUEUE_REMOVE', payload: runId });
@@ -1002,6 +1188,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       upsertProfile,
       deleteProfile,
       recordDiagnostic,
+      recordCompatibilityCheck,
       upsertRun,
       deleteRun,
       getProfileById,
@@ -1013,6 +1200,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       clearActiveRun,
       refreshDiscoveredModels,
       enqueueRun,
+      enqueueBatch,
       dequeueRun,
       getQueuePosition,
     }),
@@ -1028,6 +1216,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       upsertProfile,
       deleteProfile,
       recordDiagnostic,
+      recordCompatibilityCheck,
       upsertRun,
       deleteRun,
       getProfileById,
@@ -1039,6 +1228,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       clearActiveRun,
       refreshDiscoveredModels,
       enqueueRun,
+      enqueueBatch,
       dequeueRun,
       getQueuePosition,
     ]

@@ -144,14 +144,6 @@ const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome
   try {
     logs.push(createLog('Attempting JSON-mode test completion.'));
 
-    // Auto-detect thinking/reasoning models
-    const modelIdLower = profile.modelId.toLowerCase();
-    const isThinkingModel =
-      modelIdLower.includes('deepseek') ||
-      modelIdLower.includes('thinking') ||
-      modelIdLower.includes('r1') ||
-      modelIdLower.includes('reasoning');
-
     const completion = await sendChatCompletion({
       profile,
       messages: [
@@ -162,12 +154,12 @@ const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome
         },
         {
           role: 'user',
-          content: 'Return the JSON object {"status":"ready"} with no additional text.',
+          content: 'Return the JSON object {"answer":"ready"} with no additional text.',
         },
       ],
       temperature: 0,
       preferJson: true,
-      reasoningEffort: isThinkingModel ? 'high' : undefined,
+      schemaType: 'answer', // Use answer schema to match parseModelResponse expectations
     });
 
     logs.push(
@@ -232,23 +224,25 @@ interface ReadinessOutcome {
  */
 const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOutcome> => {
   const logs: DiagnosticsLogEntry[] = [];
+
   logs.push(
     createLog(
       'Running Level 2 readiness check using dummy question to verify protocol compliance.'
     )
   );
 
-  // Auto-detect thinking/reasoning models
-  const modelIdLower = profile.modelId.toLowerCase();
-  const isThinkingModel =
-    modelIdLower.includes('deepseek') ||
-    modelIdLower.includes('thinking') ||
-    modelIdLower.includes('r1') ||
-    modelIdLower.includes('reasoning');
+  logs.push(createLog(`Profile configuration: ${profile.name} (${profile.modelId})`));
+  logs.push(createLog(`Test question: ${READINESS_DUMMY_QUESTION.type} - "${READINESS_DUMMY_QUESTION.prompt}"`));
 
   try {
+    // STEP 1: TOPOLOGY CLASSIFICATION
     logs.push(createLog('Step 1: Requesting topology classification.'));
     const topologyPrompt = buildTopologyPrompt(READINESS_DUMMY_QUESTION);
+
+    logs.push(createLog(`Topology prompt length: ${topologyPrompt.length} chars`));
+    logs.push(createLog('Sending topology classification request to model...'));
+
+    const topologyStartTime = Date.now();
     const topologyCompletion = await sendChatCompletion({
       profile,
       messages: [
@@ -258,32 +252,30 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
       preferJson: true,
-      reasoningEffort: isThinkingModel ? 'high' : undefined,
+      schemaType: 'topology',
     });
+    const topologyLatencyMs = Date.now() - topologyStartTime;
 
-    logs.push(
-      createLog(
-        topologyCompletion.fallbackUsed
-          ? 'Topology step fell back to plain text.'
-          : 'Topology step responded in JSON mode.'
-      )
-    );
+    logs.push(createLog(`Topology response received in ${topologyLatencyMs}ms`));
 
     const topologyPrediction = parseTopologyPrediction(topologyCompletion.text);
+
     const hasTopologyPrediction =
       Boolean(topologyPrediction.subjectId) ||
       Boolean(topologyPrediction.topicId) ||
       Boolean(topologyPrediction.subtopicId);
 
-    logs.push(createLog(`Topology response: ${topologyCompletion.text}`));
+    logs.push(createLog(`Parsed topology: subjectId=${topologyPrediction.subjectId}, topicId=${topologyPrediction.topicId}, subtopicId=${topologyPrediction.subtopicId}`));
 
     if (!hasTopologyPrediction) {
       logs.push(
         createLog(
-          'Topology response missing subject/topic/subtopic fields required for readiness.',
-          'warn'
+          'Topology validation FAILED: Missing subject/topic/subtopic fields.',
+          'error'
         )
       );
+    } else {
+      logs.push(createLog('Topology validation PASSED'));
     }
 
     const topologyContext = JSON.stringify(
@@ -296,8 +288,14 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       2
     );
 
+    // STEP 2: ANSWER WITH TOPOLOGY CONTEXT
     logs.push(createLog('Step 2: Requesting final answer using topology context.'));
     const answerPrompt = buildAnswerPromptWithTopology(READINESS_DUMMY_QUESTION, topologyContext);
+
+    logs.push(createLog(`Answer prompt length: ${answerPrompt.length} chars`));
+    logs.push(createLog('Sending answer request to model...'));
+
+    const answerStartTime = Date.now();
     const answerCompletion = await sendChatCompletion({
       profile,
       messages: [
@@ -307,46 +305,42 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       temperature: profile.temperature,
       maxTokens: profile.maxOutputTokens,
       preferJson: true,
-      reasoningEffort: isThinkingModel ? 'high' : undefined,
+      schemaType: 'answer',
     });
+    const answerLatencyMs = Date.now() - answerStartTime;
 
-    logs.push(
-      createLog(
-        answerCompletion.fallbackUsed
-          ? 'Answer step fell back to plain text.'
-          : 'Answer step replied with JSON mode enabled.'
-      )
-    );
+    logs.push(createLog(`Answer response received in ${answerLatencyMs}ms`));
 
     const parsed = parseModelResponse(answerCompletion.text);
 
-    logs.push(createLog(`Answer response: ${answerCompletion.text}`));
+    logs.push(createLog(`Parsed answer: "${parsed.answer}"`));
 
-    // Check format compliance, NOT answer correctness
+    // VALIDATION
     const hasAnswer = parsed.answer !== undefined && parsed.answer !== null && parsed.answer !== '';
     const hasValidFormat = typeof parsed.answer === 'string';
+
+    logs.push(createLog(`Validation: hasTopology=${hasTopologyPrediction}, hasAnswer=${hasAnswer}, validFormat=${hasValidFormat}`));
 
     const formatCompliant = hasTopologyPrediction && hasAnswer && hasValidFormat;
 
     if (!formatCompliant) {
+      const failureReasons: string[] = [];
+      if (!hasTopologyPrediction) failureReasons.push('Missing topology prediction');
+      if (!hasAnswer) failureReasons.push('Missing answer field');
+      if (!hasValidFormat) failureReasons.push(`Answer is not a string`);
+
       logs.push(
         createLog(
-          'Protocol check failed: topology or answer step missing required fields.',
-          'warn'
+          `Protocol check FAILED: ${failureReasons.join(', ')}`,
+          'error'
         )
       );
     } else {
-      logs.push(
-        createLog(
-          `Protocol check passed: response contains properly formatted 'answer' field ("${parsed.answer}").`
-        )
-      );
-      if (parsed.explanation) {
-        logs.push(createLog(`Optional 'explanation' field present.`));
-      }
-      if (parsed.confidence !== undefined) {
-        logs.push(createLog(`Optional 'confidence' field present: ${parsed.confidence}.`));
-      }
+      logs.push(createLog(`Protocol check PASSED`));
+    }
+
+    if (formatCompliant) {
+      logs.push(createLog('Readiness check PASSED - Model is ready for benchmarking'));
     }
 
     return {
@@ -367,12 +361,16 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
           topology: topologyCompletion.text,
           answer: answerCompletion.text,
         },
+        modelId: profile.modelId,
       },
     };
   } catch (error) {
+    const errorMessage = (error as Error).message ?? 'unknown error';
+    const errorStack = (error as Error).stack;
+
     logs.push(
       createLog(
-        `Readiness check failed: ${(error as Error).message ?? 'unknown error'}`,
+        `Readiness check failed: ${errorMessage}`,
         'error'
       )
     );
@@ -381,9 +379,11 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
       success: false,
       logs,
       supportsJsonMode: false,
-      summary: 'Readiness request failed',
+      summary: `Readiness request failed: ${errorMessage}`,
       metadata: {
-        error: (error as Error).message,
+        error: errorMessage,
+        errorStack: errorStack,
+        modelId: profile.modelId,
       },
     };
   }
