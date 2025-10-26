@@ -31,12 +31,7 @@ import {
 } from '@/types/benchmark';
 import { questionDataset, questionDatasetSummary } from '@/data/questions';
 import { questionTopology, questionTopologyGeneratedAt } from '@/data/topology';
-import {
-  defaultBenchmarkSteps,
-  defaultSystemPrompt,
-  createEmptyRunMetrics,
-  DEFAULT_PROFILE_VALUES,
-} from '@/data/defaults';
+import { defaultBenchmarkSteps, createEmptyRunMetrics, createDefaultTextBinding } from '@/data/defaults';
 import {
   deleteProfileRecord,
   deleteRunRecord,
@@ -47,6 +42,13 @@ import {
 } from '@/services/storage';
 import { discoverLmStudioModels, mergeDiscoveryResults } from '@/services/lmStudioDiscovery';
 import createId from '@/utils/createId';
+import {
+  ensureBindings,
+  normalizePipeline as normalizeProfilePipeline,
+  extractLegacyFields,
+  deriveLegacyFromBindings,
+  LegacyProfileFields,
+} from '@/utils/profile';
 
 interface BenchmarkState {
   initialized: boolean;
@@ -105,7 +107,7 @@ interface DiscoveryTarget {
 }
 
 const clampTimeout = (value?: number) => {
-  const fallback = DEFAULT_PROFILE_VALUES.requestTimeoutMs;
+  const fallback = createDefaultTextBinding().requestTimeoutMs;
   const numeric = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   return Math.min(Math.max(numeric, 3000), 20000);
 };
@@ -114,26 +116,28 @@ const resolveDiscoveryTargets = (profiles: ModelProfile[]): DiscoveryTarget[] =>
   const targets = new Map<string, DiscoveryTarget>();
 
   profiles.forEach((profile) => {
-    const baseUrl = profile.baseUrl?.trim();
-    if (!baseUrl) {
-      return;
-    }
+    profile.bindings.forEach((binding) => {
+      const baseUrl = binding.baseUrl?.trim();
+      if (!baseUrl) {
+        return;
+      }
 
-    if (!targets.has(baseUrl)) {
-      targets.set(baseUrl, {
-        baseUrl,
-        apiKey: profile.apiKey,
-        requestTimeoutMs: clampTimeout(profile.requestTimeoutMs),
-      });
-    }
+      if (!targets.has(baseUrl)) {
+        targets.set(baseUrl, {
+          baseUrl,
+          apiKey: binding.apiKey,
+          requestTimeoutMs: clampTimeout(binding.requestTimeoutMs),
+        });
+      }
+    });
   });
 
   if (targets.size === 0) {
-    const fallbackUrl = DEFAULT_PROFILE_VALUES.baseUrl;
-    targets.set(fallbackUrl, {
-      baseUrl: fallbackUrl,
-      apiKey: DEFAULT_PROFILE_VALUES.apiKey ? DEFAULT_PROFILE_VALUES.apiKey : undefined,
-      requestTimeoutMs: clampTimeout(DEFAULT_PROFILE_VALUES.requestTimeoutMs),
+    const fallbackBinding = createDefaultTextBinding();
+    targets.set(fallbackBinding.baseUrl, {
+      baseUrl: fallbackBinding.baseUrl,
+      apiKey: fallbackBinding.apiKey,
+      requestTimeoutMs: clampTimeout(fallbackBinding.requestTimeoutMs),
     });
   }
 
@@ -147,18 +151,13 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
   const subtopicDefaults = defaultStepById.get('topology-subtopic');
   const answerDefaults = defaultStepById.get('answer');
 
-  const adjustLegacyStep = (step: Partial<BenchmarkStepConfig>, index: number) => {
-    if (step.id === 'analysis') {
-      return {
-        ...step,
-        id: 'topology-subject',
-        label: step.label ?? subjectDefaults?.label ?? 'Topology – Subject',
-        description: step.description ?? subjectDefaults?.description,
-        promptTemplate: step.promptTemplate ?? subjectDefaults?.promptTemplate,
-      };
-    }
+  const legacyFields: LegacyProfileFields = extractLegacyFields(profile, existing);
+  const bindings = ensureBindings(profile, existing, legacyFields);
+  const pipeline = normalizeProfilePipeline(profile, existing, bindings);
+  const textBinding = bindings.find((binding) => binding.capability === 'text-to-text');
 
-    if (step.id === 'topology') {
+  const adjustLegacyStep = (step: Partial<BenchmarkStepConfig>, index: number) => {
+    if (step.id === 'analysis' || step.id === 'topology') {
       return {
         ...step,
         id: 'topology-subject',
@@ -192,31 +191,30 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
     return step;
   };
 
-  const normalizedSteps = (): BenchmarkStepConfig[] | undefined => {
-    const incomingSteps = profile.benchmarkSteps ?? existing?.benchmarkSteps;
+  const normalizedBenchmarkSteps = (): BenchmarkStepConfig[] | undefined => {
+    const incoming = profile.benchmarkSteps ?? existing?.benchmarkSteps;
 
-    // If no steps provided, return undefined to use defaults dynamically
-    if (!incomingSteps || incomingSteps.length === 0) {
+    if (!incoming || incoming.length === 0) {
       return undefined;
     }
 
-    // Normalize the incoming steps
-    let normalized = incomingSteps.map((step, index) => {
-      const legacyAdjusted = adjustLegacyStep(step, index);
+    let normalized: BenchmarkStepConfig[] = incoming.map((step, index) => {
+      const adjusted = adjustLegacyStep(step, index);
       const fallback =
-        (legacyAdjusted.id ? defaultStepById.get(legacyAdjusted.id) : undefined) ??
-        defaultBenchmarkSteps[index];
+        (adjusted.id ? defaultStepById.get(adjusted.id) : undefined) ?? defaultBenchmarkSteps[index];
+      const description = adjusted.description ?? fallback?.description;
 
       return {
-        id: legacyAdjusted.id ?? fallback?.id ?? `step-${index}`,
-        label: legacyAdjusted.label ?? fallback?.label ?? `Step ${index + 1}`,
-        description: legacyAdjusted.description ?? fallback?.description,
-        promptTemplate: legacyAdjusted.promptTemplate ?? fallback?.promptTemplate ?? '',
-        enabled: legacyAdjusted.enabled ?? fallback?.enabled ?? true,
+        id: adjusted.id ?? fallback?.id ?? `step-${index}`,
+        label: adjusted.label ?? fallback?.label ?? `Step ${index + 1}`,
+        ...(description !== undefined ? { description } : {}),
+        promptTemplate: adjusted.promptTemplate ?? fallback?.promptTemplate ?? '',
+        enabled: adjusted.enabled ?? fallback?.enabled ?? true,
       };
     });
 
-    const subjectStep = normalized.find((step) => step.id === 'topology-subject') ??
+    const subjectStep =
+      normalized.find((step) => step.id === 'topology-subject') ??
       (subjectDefaults
         ? {
             id: subjectDefaults.id,
@@ -226,7 +224,9 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
             enabled: subjectDefaults.enabled,
           }
         : undefined);
-    const topicStep = normalized.find((step) => step.id === 'topology-topic') ??
+
+    const topicStep =
+      normalized.find((step) => step.id === 'topology-topic') ??
       (topicDefaults
         ? {
             id: topicDefaults.id,
@@ -236,7 +236,9 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
             enabled: topicDefaults.enabled,
           }
         : undefined);
-    const subtopicStep = normalized.find((step) => step.id === 'topology-subtopic') ??
+
+    const subtopicStep =
+      normalized.find((step) => step.id === 'topology-subtopic') ??
       (subtopicDefaults
         ? {
             id: subtopicDefaults.id,
@@ -247,11 +249,8 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
           }
         : undefined);
 
-    const missingTopologyStages =
-      !subjectStep || !topicStep || !subtopicStep;
-
-    if (missingTopologyStages) {
-      const stepsWithoutTopology = normalized.filter(
+    if (!subjectStep || !topicStep || !subtopicStep) {
+      const withoutTopology = normalized.filter(
         (step) =>
           ![
             'analysis',
@@ -266,19 +265,18 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
         .filter(Boolean)
         .map((step) => step as BenchmarkStepConfig);
 
-      const answerIndex = stepsWithoutTopology.findIndex((step) => step.id === 'answer');
+      const answerIndex = withoutTopology.findIndex((step) => step.id === 'answer');
       normalized =
         answerIndex >= 0
           ? [
-              ...stepsWithoutTopology.slice(0, answerIndex),
+              ...withoutTopology.slice(0, answerIndex),
               ...insertion,
-              ...stepsWithoutTopology.slice(answerIndex),
+              ...withoutTopology.slice(answerIndex),
             ]
-          : [...insertion, ...stepsWithoutTopology];
+          : [...insertion, ...withoutTopology];
     }
 
-    // Check if normalized steps are identical to defaults (meaning no customization)
-    const isIdenticalToDefaults =
+    const isDefault =
       normalized.length === defaultBenchmarkSteps.length &&
       normalized.every((step, index) => {
         const defaultStep = defaultBenchmarkSteps[index];
@@ -291,13 +289,7 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
         );
       });
 
-    // If identical to defaults, return undefined to use defaults dynamically
-    if (isIdenticalToDefaults) {
-      return undefined;
-    }
-
-    // Otherwise, return the customized steps
-    return normalized;
+    return isDefault ? undefined : normalized;
   };
 
   const diagnostics = profile.diagnostics ?? existing?.diagnostics ?? [];
@@ -318,24 +310,33 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
       profile.metadata?.compatibilitySummary ?? existing?.metadata?.compatibilitySummary ?? undefined,
   };
 
+  const legacySnapshot = deriveLegacyFromBindings(bindings, legacyFields);
+
   return {
     id: profile.id ?? existing?.id ?? createId(),
     name: profile.name ?? existing?.name ?? 'Untitled profile',
-    provider: profile.provider ?? existing?.provider ?? 'LM Studio',
-    baseUrl: profile.baseUrl ?? existing?.baseUrl ?? 'http://localhost:1234',
-    apiKey: profile.apiKey ?? existing?.apiKey,
-    modelId: profile.modelId ?? existing?.modelId ?? '',
-    temperature: profile.temperature ?? existing?.temperature ?? 0,
-    maxOutputTokens: profile.maxOutputTokens ?? existing?.maxOutputTokens ?? 1024,
-    requestTimeoutMs: profile.requestTimeoutMs ?? existing?.requestTimeoutMs ?? 120000,
-    benchmarkSteps: normalizedSteps(),
-    defaultSystemPrompt:
-      profile.defaultSystemPrompt ?? existing?.defaultSystemPrompt ?? defaultSystemPrompt,
+    description: profile.description ?? existing?.description ?? '',
+    bindings,
+    pipeline,
+    benchmarkSteps: normalizedBenchmarkSteps(),
     createdAt: existing?.createdAt ?? profile.createdAt ?? now,
     updatedAt: profile.updatedAt ?? now,
     notes: profile.notes ?? existing?.notes,
+    provider: legacyFields.provider ?? existing?.provider ?? legacySnapshot.provider ?? 'LM Studio',
+    baseUrl: textBinding?.baseUrl ?? legacySnapshot.baseUrl,
+    apiKey: textBinding?.apiKey ?? legacySnapshot.apiKey,
+    modelId: textBinding?.modelId ?? legacySnapshot.modelId,
+    temperature: textBinding?.temperature ?? legacySnapshot.temperature,
+    maxOutputTokens: textBinding?.maxOutputTokens ?? legacySnapshot.maxOutputTokens,
+    requestTimeoutMs: textBinding?.requestTimeoutMs ?? legacySnapshot.requestTimeoutMs,
+    topP: textBinding?.topP ?? legacySnapshot.topP,
+    frequencyPenalty: textBinding?.frequencyPenalty ?? legacySnapshot.frequencyPenalty,
+    presencePenalty: textBinding?.presencePenalty ?? legacySnapshot.presencePenalty,
+    defaultSystemPrompt:
+      textBinding?.defaultSystemPrompt ?? legacySnapshot.defaultSystemPrompt ?? createDefaultTextBinding().defaultSystemPrompt,
     diagnostics,
     metadata,
+    legacy: legacySnapshot,
   };
 };
 
@@ -610,6 +611,7 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
 
         return {
           ...profile,
+          lastCompatibilityCheck: result,
           metadata,
           updatedAt: result.completedAt,
         };

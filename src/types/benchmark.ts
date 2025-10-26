@@ -63,6 +63,21 @@ export interface BenchmarkQuestionMetadata {
   };
 }
 
+export type BenchmarkQuestionMediaSource = 'prompt' | 'instructions' | 'option' | 'solution';
+
+export interface BenchmarkQuestionMediaImage {
+  id: string;
+  url: string;
+  source: BenchmarkQuestionMediaSource;
+  optionIndex?: number;
+  altText?: string | null;
+  inferredFrom?: 'markdown' | 'html' | 'url' | 'metadata';
+}
+
+export interface BenchmarkQuestionMedia {
+  images: BenchmarkQuestionMediaImage[];
+}
+
 export interface BenchmarkQuestion {
   id: string;
   questionId: number;
@@ -75,6 +90,7 @@ export interface BenchmarkQuestion {
   answer: BenchmarkQuestionAnswer;
   solution?: string;
   metadata: BenchmarkQuestionMetadata;
+  media?: BenchmarkQuestionMedia;
 }
 
 export interface QuestionDatasetSummary {
@@ -173,10 +189,15 @@ export interface BenchmarkStepConfig {
   enabled: boolean;
 }
 
-export interface ModelProfile {
+export type ModelBindingCapability = 'image-to-text' | 'text-to-text';
+
+export type ModelBindingTransport = 'lmstudio' | 'openai-compatible';
+
+export interface ModelBinding {
   id: string;
   name: string;
-  provider: string;
+  capability: ModelBindingCapability;
+  transport: ModelBindingTransport;
   baseUrl: string;
   apiKey?: string;
   modelId: string;
@@ -186,21 +207,67 @@ export interface ModelProfile {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
-  benchmarkSteps?: BenchmarkStepConfig[]; // Optional - uses defaults if undefined
   defaultSystemPrompt: string;
+  notes?: string;
+  metadata?: {
+    supportsJsonMode?: boolean;
+  };
+}
+
+export interface ProfilePipelineStep {
+  id: string;
+  label: string;
+  capability: ModelBindingCapability;
+  bindingId: string | null;
+  enabled: boolean;
+}
+
+export interface ModelProfile {
+  id: string;
+  name: string;
+  description?: string;
+  bindings: ModelBinding[];
+  pipeline: ProfilePipelineStep[];
+  benchmarkSteps?: BenchmarkStepConfig[]; // Optional - uses defaults if undefined
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  // Compatibility fields (deprecated - will be removed once callers migrate to bindings)
+  provider?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  modelId?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  requestTimeoutMs?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  defaultSystemPrompt?: string;
   diagnostics: DiagnosticsResult[];
+  lastCompatibilityCheck?: CompatibilityCheckResult;
   metadata: {
     supportsJsonMode?: boolean;
     lastHandshakeAt?: string;
     lastReadinessAt?: string;
     // New compatibility check fields
-    compatibilityStatus?: 'compatible' | 'incompatible' | 'unknown';
+    compatibilityStatus?: 'compatible' | 'incompatible' | 'unknown' | 'in_progress';
     jsonFormat?: 'json_object' | 'json_schema' | 'none';
     lastCompatibilityCheckAt?: string;
     compatibilitySummary?: string;
+  };
+  legacy?: {
+    provider?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    modelId?: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+    requestTimeoutMs?: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+    defaultSystemPrompt?: string;
   };
 }
 
@@ -307,6 +374,7 @@ export interface BenchmarkAttempt {
   topologyEvaluation?: BenchmarkAttemptEvaluation;
   steps: BenchmarkAttemptStepResult[];
   error?: string;
+  imageSummaries?: ImageSummary[];
   questionSnapshot: {
     prompt: string;
     type: QuestionType;
@@ -315,6 +383,20 @@ export interface BenchmarkAttempt {
     answer: BenchmarkQuestionAnswer;
     solution?: string;
   };
+}
+
+export interface ImageSummary {
+  id: string;
+  image: BenchmarkQuestionMediaImage;
+  url: string;
+  text: string;
+  status: 'ok' | 'skipped' | 'error';
+  bindingId: string;
+  bindingName: string;
+  confidence?: number;
+  raw?: unknown;
+  generatedAt: string;
+  errorMessage?: string;
 }
 
 export interface BenchmarkRunMetrics {

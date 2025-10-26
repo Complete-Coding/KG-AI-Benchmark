@@ -8,8 +8,9 @@ import {
   BenchmarkQuestion,
   BenchmarkTopologyPrediction,
   ModelProfile,
+  ImageSummary,
 } from '@/types/benchmark';
-import { sendChatCompletion } from '@/services/lmStudioClient';
+import { sendChatCompletion, type ChatCompletionMessage } from '@/services/lmStudioClient';
 import {
   evaluateModelAnswer,
   evaluateTopologyPrediction,
@@ -21,12 +22,37 @@ import {
 import { createEmptyRunMetrics, defaultBenchmarkSteps } from '@/data/defaults';
 import { questionTopology } from '@/data/topology';
 import createId from '@/utils/createId';
+import { preprocessQuestionImages } from '@/services/imagePreprocessor';
+import { ensureTextBinding } from '@/utils/profile';
 
 /**
  * Builds question context FOR REFERENCE ONLY - without answer format instructions.
  * Used for topology classification where we don't want to confuse the model with answer format.
  */
-const buildSimpleQuestionContext = (question: BenchmarkQuestion) => {
+const formatImageSummariesBlock = (imageSummaries?: ImageSummary[]): string[] => {
+  if (!imageSummaries || imageSummaries.length === 0) {
+    return [];
+  }
+
+  const header = 'Image summaries (preprocessed):';
+  const lines = imageSummaries.map((summary, index) => {
+    const segments: string[] = [];
+    segments.push(summary.image.source.toUpperCase());
+    if (typeof summary.image.optionIndex === 'number') {
+      segments.push(`option ${summary.image.optionIndex + 1}`);
+    }
+    const statusLabel = summary.status !== 'ok' ? `${summary.status.toUpperCase()}: ` : '';
+    const text = summary.text ?? '(no OCR text available)';
+    return `${index + 1}. [${segments.join(' ')}] — ${statusLabel}${text}`;
+  });
+
+  return [header, ...lines];
+};
+
+const buildSimpleQuestionContext = (
+  question: BenchmarkQuestion,
+  imageSummaries?: ImageSummary[]
+) => {
   const lines: string[] = [];
   lines.push(`Question (${question.type}): ${question.prompt}`);
 
@@ -43,6 +69,12 @@ const buildSimpleQuestionContext = (question: BenchmarkQuestion) => {
     });
   }
 
+  const imageBlock = formatImageSummariesBlock(imageSummaries);
+  if (imageBlock.length > 0) {
+    lines.push('');
+    lines.push(...imageBlock);
+  }
+
   return lines.join('\n');
 };
 
@@ -50,7 +82,7 @@ const buildSimpleQuestionContext = (question: BenchmarkQuestion) => {
  * Builds full question context WITH answer format instructions.
  * Used for answer step where we need the model to return answer, explanation, confidence.
  */
-const buildQuestionContext = (question: BenchmarkQuestion) => {
+const buildQuestionContext = (question: BenchmarkQuestion, imageSummaries?: ImageSummary[]) => {
   const lines: string[] = [];
   lines.push(`Question (${question.type}): ${question.prompt}`);
 
@@ -78,6 +110,12 @@ const buildQuestionContext = (question: BenchmarkQuestion) => {
         `Numeric tolerance: [${question.answer.range.min}, ${question.answer.range.max}] (precision ${question.answer.range.precision ?? 'unspecified'}).`
       );
     }
+  }
+
+  const imageBlock = formatImageSummariesBlock(imageSummaries);
+  if (imageBlock.length > 0) {
+    lines.push('');
+    lines.push(...imageBlock);
   }
 
   return lines.join('\n');
@@ -112,11 +150,13 @@ const buildStepPrompt = (
   question: BenchmarkQuestion,
   stepId: string,
   stepTemplate: string,
-  previousSteps: BenchmarkAttemptStepResult[]
+  previousSteps: BenchmarkAttemptStepResult[],
+  imageSummaries?: ImageSummary[]
 ) => {
-  const simpleContext = buildSimpleQuestionContext(question);
+  const simpleContext = buildSimpleQuestionContext(question, imageSummaries);
   const questionReference = '\n---\nQUESTION FOR REFERENCE:\n' + simpleContext;
   const previousOutputs = stringifyPreviousOutputs(previousSteps);
+  const fullQuestionContext = buildQuestionContext(question, imageSummaries);
 
   const subjectCatalog = questionTopology
     .map((subject) => `- ${subject.id} :: ${subject.name}`)
@@ -141,13 +181,13 @@ const buildStepPrompt = (
       '{{previousStepOutputs}}': previousOutputs,
     };
 
-    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
+    return applyTemplateReplacements(stepTemplate, replacements).trim();
   }
 
   if (stepId === 'topology-topic') {
     const subjectPrediction = getSubjectPrediction();
     const subjectId = subjectPrediction?.subjectId;
-    const subject = questionTopology.find((item) => item.id === subjectId ?? '');
+    const subject = questionTopology.find((item) => item.id === (subjectId ?? ''));
 
     const selectedSubject = subjectId
       ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
@@ -173,7 +213,7 @@ const buildStepPrompt = (
       '{{previousStepOutputs}}': previousOutputs,
     };
 
-    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
+    return applyTemplateReplacements(stepTemplate, replacements).trim();
   }
 
   if (stepId === 'topology-subtopic') {
@@ -183,8 +223,8 @@ const buildStepPrompt = (
     const subjectId = subjectPrediction?.subjectId;
     const topicId = topicPrediction?.topicId;
 
-    const subject = questionTopology.find((item) => item.id === subjectId ?? '');
-    const topic = subject?.topics.find((item) => item.id === topicId ?? '');
+    const subject = questionTopology.find((item) => item.id === (subjectId ?? ''));
+    const topic = subject?.topics.find((item) => item.id === (topicId ?? ''));
 
     const selectedSubject = subjectId
       ? `${subjectId} (${subject?.name ?? 'Unknown subject'})`
@@ -227,16 +267,16 @@ const buildStepPrompt = (
       '{{previousStepOutputs}}': previousOutputs,
     };
 
-    return applyTemplateReplacements(stepTemplate ?? '', replacements).trim();
+    return applyTemplateReplacements(stepTemplate, replacements).trim();
   }
 
   // For answer step and others: Question context with answer format FIRST, then instructions
-  const fullContext = buildQuestionContext(question);
+  const fullContext = fullQuestionContext;
   const replacements: Record<string, string> = {
     '{{previousStepOutputs}}': previousOutputs,
     '{{questionContext}}': questionReference,
   };
-  const renderedInstructions = applyTemplateReplacements(stepTemplate ?? '', replacements);
+  const renderedInstructions = applyTemplateReplacements(stepTemplate, replacements);
   const sections = [fullContext, renderedInstructions];
 
   if (question.type === 'NAT' && question.answer.kind === 'numeric') {
@@ -348,6 +388,15 @@ export const executeBenchmarkRun = async ({
 }: BenchmarkExecutionOptions): Promise<BenchmarkRun> => {
   const startedAt = new Date();
   const attempts: BenchmarkAttempt[] = [];
+  const imagePipelineStep = profile.pipeline?.find(
+    (step) => step.capability === 'image-to-text' && step.enabled
+  );
+  const visionBinding =
+    imagePipelineStep?.bindingId &&
+    profile.bindings.find(
+      (binding) => binding.id === imagePipelineStep.bindingId && binding.capability === 'image-to-text'
+    );
+  const imageSummaryCache = new Map<string, ImageSummary>();
 
   for (let index = 0; index < questions.length; index += 1) {
     const question = questions[index];
@@ -359,6 +408,33 @@ export const executeBenchmarkRun = async ({
     }
 
     const requestStartedAt = new Date();
+    let imageSummaries: ImageSummary[] = [];
+    if (visionBinding && (question.media?.images?.length ?? 0) > 0) {
+      try {
+        imageSummaries = await preprocessQuestionImages({
+          question,
+          binding: visionBinding,
+          cache: imageSummaryCache,
+          signal,
+        });
+      } catch (error) {
+        const now = new Date().toISOString();
+        imageSummaries = (question.media?.images ?? []).map((image) => ({
+          id: createId(),
+          image,
+          url: image.url,
+          text: `Failed to preprocess image: ${(error as Error).message}`,
+          status: 'error' as const,
+          bindingId: visionBinding.id,
+          bindingName: visionBinding.name,
+          generatedAt: now,
+          raw: {
+            reason: 'vision_preprocess_error',
+          },
+          errorMessage: (error as Error).message,
+        }));
+      }
+    }
     const stepsToRun =
       profile.benchmarkSteps?.filter((step) => step.enabled) ?? defaultBenchmarkSteps;
     const fallbackSteps =
@@ -395,7 +471,7 @@ export const executeBenchmarkRun = async ({
 
     const attemptSteps: BenchmarkAttemptStepResult[] = [];
     const attemptStartedAtMs = Date.now();
-    let topologyPrediction: BenchmarkTopologyPrediction | undefined;
+    let topologyPrediction: BenchmarkTopologyPrediction = { raw: {}, stages: {} };
     let finalResponseText = '';
     let finalResponsePayload: unknown;
     let finalModelResponse: BenchmarkModelResponse | undefined;
@@ -405,11 +481,13 @@ export const executeBenchmarkRun = async ({
     let totalCompletionTokens = 0;
     let totalTokens = 0;
 
+    const defaultTextBinding = ensureTextBinding(profile);
+    if (!defaultTextBinding) {
+      throw new Error('Profile is missing a text binding required for benchmark execution.');
+    }
     try {
 
       const ensureTopologyContainers = () => {
-        topologyPrediction ??= { raw: {}, stages: {} };
-
         if (typeof topologyPrediction.raw !== 'object' || topologyPrediction.raw === null) {
           topologyPrediction.raw = {};
         }
@@ -432,38 +510,48 @@ export const executeBenchmarkRun = async ({
           question,
           step.id ?? 'unknown',
           step.promptTemplate ?? '',
-          attemptSteps
+          attemptSteps,
+          imageSummaries
         );
 
         const stepStartedAt = Date.now();
 
+        const resolvedBinding = defaultTextBinding;
+
+        if (resolvedBinding.capability !== 'text-to-text') {
+          // Vision/other capabilities will be handled in Phase III. Skip for now.
+          continue;
+        }
+
         // Build messages array for this step
-        const messages = [
-          { role: 'system', content: profile.defaultSystemPrompt },
+        const messages: ChatCompletionMessage[] = [
+          { role: 'system', content: resolvedBinding.defaultSystemPrompt },
           { role: 'user', content: prompt },
         ];
 
         // Build complete request payload exactly as it will be sent to the API
         const requestPayload: Record<string, unknown> = {
-          model: profile.modelId,
-          temperature: profile.temperature,
-          max_tokens: profile.maxOutputTokens,
+          model: resolvedBinding.modelId,
+          temperature: resolvedBinding.temperature,
+          max_tokens: resolvedBinding.maxOutputTokens,
+          bindingId: resolvedBinding.id,
           messages,
         };
 
         // Add optional parameters if they exist
-        if (profile.topP !== undefined) {
-          requestPayload.top_p = profile.topP;
+        if (resolvedBinding.topP !== undefined) {
+          requestPayload.top_p = resolvedBinding.topP;
         }
-        if (profile.frequencyPenalty !== undefined) {
-          requestPayload.frequency_penalty = profile.frequencyPenalty;
+        if (resolvedBinding.frequencyPenalty !== undefined) {
+          requestPayload.frequency_penalty = resolvedBinding.frequencyPenalty;
         }
-        if (profile.presencePenalty !== undefined) {
-          requestPayload.presence_penalty = profile.presencePenalty;
+        if (resolvedBinding.presencePenalty !== undefined) {
+          requestPayload.presence_penalty = resolvedBinding.presencePenalty;
         }
 
         // Add response format if JSON mode is supported
-        const preferJson = profile.metadata.supportsJsonMode ?? true;
+        const preferJson =
+          resolvedBinding.metadata?.supportsJsonMode ?? profile.metadata.supportsJsonMode ?? true;
         if (preferJson) {
           requestPayload.response_format = { type: 'json_object' };
         }
@@ -477,6 +565,9 @@ export const executeBenchmarkRun = async ({
           timestamp: new Date().toISOString(),
           profileId: profile.id,
           profileName: profile.name,
+          bindingId: resolvedBinding.id,
+          bindingName: resolvedBinding.name,
+          imageSummaryCount: imageSummaries.length,
         };
 
         // Determine which schema to use based on step type
@@ -498,10 +589,13 @@ export const executeBenchmarkRun = async ({
         const schemaType = resolveSchemaType(step.id);
 
         const completion = await sendChatCompletion({
-          profile,
-          messages: messages as { role: 'system' | 'user' | 'assistant'; content: string }[],
-          temperature: profile.temperature,
-          maxTokens: profile.maxOutputTokens,
+          binding: resolvedBinding,
+          messages,
+          temperature: resolvedBinding.temperature,
+          maxTokens: resolvedBinding.maxOutputTokens,
+          topP: resolvedBinding.topP,
+          frequencyPenalty: resolvedBinding.frequencyPenalty,
+          presencePenalty: resolvedBinding.presencePenalty,
           preferJson,
           schemaType,
           signal,
@@ -688,15 +782,19 @@ export const executeBenchmarkRun = async ({
           // Complete profile configuration used for this attempt
           profileId: profile.id,
           profileName: profile.name,
-          model: profile.modelId,
-          temperature: profile.temperature,
-          maxOutputTokens: profile.maxOutputTokens,
-          topP: profile.topP,
-          frequencyPenalty: profile.frequencyPenalty,
-          presencePenalty: profile.presencePenalty,
-          requestTimeoutMs: profile.requestTimeoutMs,
-          systemPrompt: profile.defaultSystemPrompt,
-          supportsJsonMode: profile.metadata.supportsJsonMode,
+          bindingId: defaultTextBinding.id,
+          bindingName: defaultTextBinding.name,
+          model: defaultTextBinding.modelId,
+          baseUrl: defaultTextBinding.baseUrl,
+          temperature: defaultTextBinding.temperature,
+          maxOutputTokens: defaultTextBinding.maxOutputTokens,
+          topP: defaultTextBinding.topP,
+          frequencyPenalty: defaultTextBinding.frequencyPenalty,
+          presencePenalty: defaultTextBinding.presencePenalty,
+          requestTimeoutMs: defaultTextBinding.requestTimeoutMs,
+          systemPrompt: defaultTextBinding.defaultSystemPrompt,
+          supportsJsonMode:
+            defaultTextBinding.metadata?.supportsJsonMode ?? profile.metadata.supportsJsonMode,
           // Complete step details including full prompts
           steps: attemptSteps.map((step) => ({
             id: step.id,
@@ -714,6 +812,12 @@ export const executeBenchmarkRun = async ({
             questionType: question.type,
             timestamp: requestStartedAt.toISOString(),
             totalSteps: attemptSteps.length,
+            imageSummaries: imageSummaries.map((summary) => ({
+              id: summary.id,
+              url: summary.url,
+              status: summary.status,
+              source: summary.image.source,
+            })),
           },
         },
         responsePayload: finalResponsePayload,
@@ -723,6 +827,7 @@ export const executeBenchmarkRun = async ({
         topologyPrediction,
         topologyEvaluation,
         steps: attemptSteps,
+        imageSummaries,
         questionSnapshot: {
           prompt: question.prompt,
           type: question.type,
@@ -752,15 +857,19 @@ export const executeBenchmarkRun = async ({
           // Complete profile configuration used for this attempt
           profileId: profile.id,
           profileName: profile.name,
-          model: profile.modelId,
-          temperature: profile.temperature,
-          maxOutputTokens: profile.maxOutputTokens,
-          topP: profile.topP,
-          frequencyPenalty: profile.frequencyPenalty,
-          presencePenalty: profile.presencePenalty,
-          requestTimeoutMs: profile.requestTimeoutMs,
-          systemPrompt: profile.defaultSystemPrompt,
-          supportsJsonMode: profile.metadata.supportsJsonMode,
+          bindingId: defaultTextBinding.id,
+          bindingName: defaultTextBinding.name,
+          model: defaultTextBinding.modelId,
+          baseUrl: defaultTextBinding.baseUrl,
+          temperature: defaultTextBinding.temperature,
+          maxOutputTokens: defaultTextBinding.maxOutputTokens,
+          topP: defaultTextBinding.topP,
+          frequencyPenalty: defaultTextBinding.frequencyPenalty,
+          presencePenalty: defaultTextBinding.presencePenalty,
+          requestTimeoutMs: defaultTextBinding.requestTimeoutMs,
+          systemPrompt: defaultTextBinding.defaultSystemPrompt,
+          supportsJsonMode:
+            defaultTextBinding.metadata?.supportsJsonMode ?? profile.metadata.supportsJsonMode,
           // Complete step details including full prompts
           steps: attemptSteps.map((step) => ({
             id: step.id,
@@ -779,6 +888,12 @@ export const executeBenchmarkRun = async ({
             timestamp: requestStartedAt.toISOString(),
             totalSteps: attemptSteps.length,
             error: (error as Error).message,
+            imageSummaries: imageSummaries.map((summary) => ({
+              id: summary.id,
+              url: summary.url,
+              status: summary.status,
+              source: summary.image.source,
+            })),
           },
         },
         responsePayload: attemptSteps[attemptSteps.length - 1]?.responsePayload,
@@ -794,6 +909,7 @@ export const executeBenchmarkRun = async ({
         topologyPrediction,
         topologyEvaluation,
         error: (error as Error).message,
+        imageSummaries,
         questionSnapshot: {
           prompt: question.prompt,
           type: question.type,

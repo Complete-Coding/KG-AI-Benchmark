@@ -1,4 +1,10 @@
-import { BenchmarkRunMetrics, BenchmarkStepConfig } from '@/types/benchmark';
+import {
+  BenchmarkRunMetrics,
+  BenchmarkStepConfig,
+  ModelBinding,
+  ProfilePipelineStep,
+} from '@/types/benchmark';
+import createId from '@/utils/createId';
 
 export const defaultBenchmarkSteps: BenchmarkStepConfig[] = [
   {
@@ -114,67 +120,109 @@ export const createEmptyRunMetrics = (): BenchmarkRunMetrics => ({
  * Default values for LM Studio profile parameters.
  * These are used as intelligent defaults when creating a new profile.
  */
-export const DEFAULT_PROFILE_VALUES = {
-  /** Profile name */
-  name: 'New Profile',
+export const DEFAULT_TEXT_BINDING_ID = 'text-main';
+export const DEFAULT_VISION_BINDING_ID = 'vision-main';
 
-  /** Provider name (typically "LM Studio" for local models) */
-  provider: 'LM Studio',
-
-  /** Base URL for the LM Studio server */
+export const createDefaultTextBinding = (): ModelBinding => ({
+  id: DEFAULT_TEXT_BINDING_ID,
+  name: 'Text model',
+  capability: 'text-to-text',
+  transport: 'lmstudio',
   baseUrl: 'http://localhost:1234',
-
-  /** API key (optional for LM Studio) */
   apiKey: '',
-
-  /** Model identifier (e.g., "openai/gpt-oss-120b") */
   modelId: '',
-
-  /**
-   * Temperature controls randomness in responses.
-   * Lower values (0.0-0.3) = more focused and deterministic
-   * Higher values (0.7-2.0) = more creative and varied
-   */
   temperature: 0.2,
-
-  /**
-   * Maximum number of tokens in the model's response.
-   * Set to 4096 to allow for detailed explanations in benchmark responses.
-   * This will be auto-adjusted based on model's max context length when
-   * adopting from LM Studio discovery.
-   */
   maxOutputTokens: 4096,
-
-  /** Request timeout in milliseconds (2 minutes default) */
   requestTimeoutMs: 120000,
-
-  /**
-   * Top P (nucleus sampling) controls response diversity.
-   * Only tokens with cumulative probability <= topP are considered.
-   * Range: 0.0-1.0, where 1.0 considers all tokens.
-   */
   topP: 0.9,
-
-  /**
-   * Frequency penalty reduces repetition of individual tokens.
-   * Higher values discourage the model from repeating the same words.
-   * Range: 0.0-2.0, where 0.0 = no penalty.
-   */
-  frequencyPenalty: 0.0,
-
-  /**
-   * Presence penalty reduces repetition of topics.
-   * Higher values encourage the model to talk about new topics.
-   * Range: 0.0-2.0, where 0.0 = no penalty.
-   */
-  presencePenalty: 0.0,
-
-  /** Default system prompt for benchmark evaluations */
+  frequencyPenalty: 0,
+  presencePenalty: 0,
   defaultSystemPrompt,
+  metadata: {
+    supportsJsonMode: true,
+  },
+});
 
-  /** Optional notes about the profile */
+export const createDefaultVisionBinding = (): ModelBinding => ({
+  id: DEFAULT_VISION_BINDING_ID,
+  name: 'Vision model',
+  capability: 'image-to-text',
+  transport: 'lmstudio',
+  baseUrl: 'http://localhost:1234',
+  apiKey: '',
+  modelId: '',
+  temperature: 0,
+  maxOutputTokens: 2048,
+  requestTimeoutMs: 180000,
+  topP: 1,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  defaultSystemPrompt: 'You are a meticulous OCR assistant. Extract readable text from images and keep formatting minimal.',
+  metadata: {
+    supportsJsonMode: false,
+  },
+});
+
+const DEFAULT_TEXT_BINDING_TEMPLATE = createDefaultTextBinding();
+const DEFAULT_VISION_BINDING_TEMPLATE = createDefaultVisionBinding();
+
+export const createDefaultDeepSeekVisionBinding = (): ModelBinding => ({
+  id: `vision-deepseek-${createId()}`,
+  name: 'DeepSeek OCR (future)',
+  capability: 'image-to-text',
+  transport: 'openai-compatible',
+  baseUrl: 'http://localhost:11434',
+  apiKey: '',
+  modelId: 'DeepSeek-OCR',
+  temperature: 0,
+  maxOutputTokens: 1024,
+  requestTimeoutMs: 180000,
+  topP: 1,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  defaultSystemPrompt:
+    'You are DeepSeek-OCR. Extract text faithfully from the provided image. Return concise text (no hallucinations).',
+  metadata: {
+    supportsJsonMode: false,
+  },
+  notes:
+    'Placeholder configuration until a macOS/GGUF build is available. Replace baseUrl/modelId with the deployed endpoint and enable compression if supported.',
+});
+
+export const DEFAULT_PROFILE_PIPELINE: ProfilePipelineStep[] = [
+  {
+    id: 'image-preprocess',
+    label: 'Image preprocessing',
+    capability: 'image-to-text',
+    bindingId: DEFAULT_VISION_BINDING_ID,
+    enabled: true,
+  },
+  {
+    id: 'text-main',
+    label: 'Text reasoning',
+    capability: 'text-to-text',
+    bindingId: DEFAULT_TEXT_BINDING_ID,
+    enabled: true,
+  },
+];
+
+export const DEFAULT_PROFILE_VALUES = {
+  name: 'New Profile',
+  description: '',
   notes: '',
-
-  /** Benchmark step configurations */
+  bindings: [DEFAULT_VISION_BINDING_TEMPLATE, DEFAULT_TEXT_BINDING_TEMPLATE],
+  pipeline: DEFAULT_PROFILE_PIPELINE,
   benchmarkSteps: defaultBenchmarkSteps,
+  // Compatibility fields used by legacy code paths
+  provider: 'LM Studio',
+  baseUrl: DEFAULT_TEXT_BINDING_TEMPLATE.baseUrl,
+  apiKey: DEFAULT_TEXT_BINDING_TEMPLATE.apiKey ?? '',
+  modelId: DEFAULT_TEXT_BINDING_TEMPLATE.modelId,
+  temperature: DEFAULT_TEXT_BINDING_TEMPLATE.temperature,
+  maxOutputTokens: DEFAULT_TEXT_BINDING_TEMPLATE.maxOutputTokens,
+  requestTimeoutMs: DEFAULT_TEXT_BINDING_TEMPLATE.requestTimeoutMs,
+  topP: DEFAULT_TEXT_BINDING_TEMPLATE.topP ?? 0.9,
+  frequencyPenalty: DEFAULT_TEXT_BINDING_TEMPLATE.frequencyPenalty ?? 0,
+  presencePenalty: DEFAULT_TEXT_BINDING_TEMPLATE.presencePenalty ?? 0,
+  defaultSystemPrompt: DEFAULT_TEXT_BINDING_TEMPLATE.defaultSystemPrompt,
 } as const;

@@ -3,65 +3,61 @@ import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import {
   ModelProfile,
   BenchmarkStepConfig,
-  DiagnosticsLevel,
   DiscoveredModel,
+  ModelBinding,
+  ProfilePipelineStep,
 } from '@/types/benchmark';
-import { DEFAULT_PROFILE_VALUES, defaultBenchmarkSteps } from '@/data/defaults';
-import { runDiagnostics } from '@/services/diagnostics';
+import {
+  DEFAULT_PROFILE_VALUES,
+  DEFAULT_PROFILE_PIPELINE,
+  defaultBenchmarkSteps,
+  createDefaultTextBinding,
+  createDefaultVisionBinding,
+} from '@/data/defaults';
 import { runCompatibilityCheck } from '@/services/compatibilityCheck';
+import { fetchModels } from '@/services/lmStudioClient';
 import Modal from '@/components/Modal';
+import createId from '@/utils/createId';
 
 interface ProfileFormState {
   id?: string;
   name: string;
-  provider: string;
-  baseUrl: string;
-  apiKey: string;
-  modelId: string;
-  temperature: number;
-  maxOutputTokens: number;
-  requestTimeoutMs: number;
-  topP: number;
-  frequencyPenalty: number;
-  presencePenalty: number;
-  defaultSystemPrompt: string;
+  description: string;
   notes: string;
+  bindings: ModelBinding[];
+  pipeline: ProfilePipelineStep[];
   benchmarkSteps: BenchmarkStepConfig[];
 }
+
+const cloneBinding = (binding: ModelBinding): ModelBinding => ({
+  ...binding,
+  metadata: binding.metadata ? { ...binding.metadata } : undefined,
+});
+
+const clonePipelineStep = (step: ProfilePipelineStep): ProfilePipelineStep => ({
+  ...step,
+});
+
 
 const toFormState = (profile?: ModelProfile): ProfileFormState =>
   profile
     ? {
         id: profile.id,
         name: profile.name,
-        provider: profile.provider,
-        baseUrl: profile.baseUrl,
-        apiKey: profile.apiKey ?? '',
-        modelId: profile.modelId,
-        temperature: profile.temperature,
-        maxOutputTokens: profile.maxOutputTokens,
-        requestTimeoutMs: profile.requestTimeoutMs,
-        topP: profile.topP ?? DEFAULT_PROFILE_VALUES.topP,
-        frequencyPenalty: profile.frequencyPenalty ?? DEFAULT_PROFILE_VALUES.frequencyPenalty,
-        presencePenalty: profile.presencePenalty ?? DEFAULT_PROFILE_VALUES.presencePenalty,
-        defaultSystemPrompt: profile.defaultSystemPrompt,
+        description: profile.description ?? '',
         notes: profile.notes ?? '',
-        benchmarkSteps: profile.benchmarkSteps?.map((step) => ({ ...step })) ?? defaultBenchmarkSteps.map((step) => ({ ...step })),
+        bindings: profile.bindings.map(cloneBinding),
+        pipeline: profile.pipeline.map(clonePipelineStep),
+        benchmarkSteps:
+          profile.benchmarkSteps?.map((step) => ({ ...step })) ??
+          defaultBenchmarkSteps.map((step) => ({ ...step })),
       }
     : {
         name: DEFAULT_PROFILE_VALUES.name,
-        provider: DEFAULT_PROFILE_VALUES.provider,
-        baseUrl: DEFAULT_PROFILE_VALUES.baseUrl,
-        apiKey: DEFAULT_PROFILE_VALUES.apiKey,
-        modelId: DEFAULT_PROFILE_VALUES.modelId,
-        temperature: DEFAULT_PROFILE_VALUES.temperature,
-        maxOutputTokens: DEFAULT_PROFILE_VALUES.maxOutputTokens,
-        requestTimeoutMs: DEFAULT_PROFILE_VALUES.requestTimeoutMs,
-        topP: DEFAULT_PROFILE_VALUES.topP,
-        frequencyPenalty: DEFAULT_PROFILE_VALUES.frequencyPenalty,
-        presencePenalty: DEFAULT_PROFILE_VALUES.presencePenalty,
-        defaultSystemPrompt: DEFAULT_PROFILE_VALUES.defaultSystemPrompt,
+        description: DEFAULT_PROFILE_VALUES.description ?? '',
         notes: DEFAULT_PROFILE_VALUES.notes,
+        bindings: DEFAULT_PROFILE_VALUES.bindings.map(cloneBinding),
+        pipeline: DEFAULT_PROFILE_PIPELINE.map(clonePipelineStep),
         benchmarkSteps: DEFAULT_PROFILE_VALUES.benchmarkSteps.map((step) => ({ ...step })),
       };
 
@@ -76,20 +72,6 @@ const formatTimestamp = (iso?: string) => {
   })}`;
 };
 
-const levelSummary = (profile: ModelProfile, level: DiagnosticsLevel) => {
-  const history = profile.diagnostics.filter((entry) => entry.level === level);
-  if (history.length === 0) {
-    return { status: 'pending', label: 'Not run yet', lastRunAt: undefined } as const;
-  }
-
-  const last = history[history.length - 1];
-  return {
-    status: last.status === 'pass' ? 'ready' : 'failed',
-    label: last.summary,
-    lastRunAt: last.completedAt,
-  } as const;
-};
-
 const Profiles = () => {
   const {
     loading,
@@ -98,7 +80,6 @@ const Profiles = () => {
     upsertProfile,
     deleteProfile,
     deleteRun,
-    recordDiagnostic,
     recordCompatibilityCheck,
     discovery,
     refreshDiscoveredModels,
@@ -111,24 +92,14 @@ const Profiles = () => {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isProfileDetailOpen, setProfileDetailOpen] = useState(false);
-  const [runningDiagnostics, setRunningDiagnostics] = useState<{
-    profileId: string;
-    level: DiagnosticsLevel;
-  } | null>(null);
   const [runningCompatibilityCheck, setRunningCompatibilityCheck] = useState<string | null>(null);
+  const [loadingModels, setLoadingModels] = useState<{ [bindingId: string]: boolean }>({});
+  const [availableModels, setAvailableModels] = useState<{ [bindingId: string]: { id: string; object: string }[] }>({});
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedProfileId),
     [profiles, selectedProfileId]
   );
-  const handshakeStats = selectedProfile ? levelSummary(selectedProfile, 'HANDSHAKE') : null;
-  const readinessStats = selectedProfile ? levelSummary(selectedProfile, 'READINESS') : null;
-  const isDetailProfileRunning =
-    selectedProfile != null && runningDiagnostics?.profileId === selectedProfile.id;
-  const isDetailHandshakeRunning =
-    isDetailProfileRunning && runningDiagnostics?.level === 'HANDSHAKE';
-  const isDetailReadinessRunning =
-    isDetailProfileRunning && runningDiagnostics?.level === 'READINESS';
 
   useEffect(() => {
     if (!selectedProfileId) {
@@ -218,10 +189,16 @@ const Profiles = () => {
   }, [refreshDiscoveredModels]);
 
   const handleAdoptDiscoveredModel = useCallback(
-    (model: DiscoveredModel) => {
+    (model: DiscoveredModel, capability: 'text-to-text' | 'image-to-text') => {
       const baseUrl = model.origin?.baseUrl ?? DEFAULT_PROFILE_VALUES.baseUrl;
-      const defaults = toFormState();
-      const matchingProfile = profiles.find((profile) => profile.baseUrl === baseUrl);
+      const existingProfileForBaseUrl = profiles.find((profile) =>
+        profile.bindings.some(
+          (binding) => binding.capability === 'text-to-text' && binding.baseUrl === baseUrl
+        )
+      );
+      const referenceBinding = existingProfileForBaseUrl?.bindings.find(
+        (binding) => binding.capability === 'text-to-text'
+      );
       const capabilityNote =
         model.capabilities.length > 0
           ? `Capabilities: ${model.capabilities.join(', ')}.`
@@ -230,28 +207,131 @@ const Profiles = () => {
         model.quantization ? `Quantization: ${model.quantization}.` : undefined;
       const sourceNote = `Discovered via LM Studio (${baseUrl}).`;
 
-      // Intelligently set maxOutputTokens based on model's max context length
-      // Use 50% of context for output, capping at 8192 tokens
       const intelligentMaxOutputTokens = model.maxContextLength
         ? Math.min(Math.floor(model.maxContextLength * 0.5), 8192)
-        : defaults.maxOutputTokens;
+        : DEFAULT_PROFILE_VALUES.maxOutputTokens;
 
-      // Count existing profiles for this model to create unique name
       const existingProfileCount = profiles.filter((p) => p.modelId === model.id).length;
-      const profileName = existingProfileCount > 0
-        ? `${model.displayName ?? model.id} (${existingProfileCount + 1})`
-        : model.displayName ?? model.id;
+      const profileName =
+        existingProfileCount > 0
+          ? `${model.displayName ?? model.id} (${existingProfileCount + 1})`
+          : model.displayName ?? model.id;
 
-      // Create profile immediately with defaults
-      const newProfileData = {
-        ...defaults,
+      const template = createDefaultTextBinding();
+      const textBinding: ModelBinding = {
+        ...template,
         name: profileName,
         baseUrl,
-        apiKey: matchingProfile?.apiKey ?? defaults.apiKey,
-        requestTimeoutMs: matchingProfile?.requestTimeoutMs ?? defaults.requestTimeoutMs,
-        modelId: model.id,
+        apiKey: referenceBinding?.apiKey ?? template.apiKey,
+        modelId: capability === 'text-to-text' ? model.id : template.modelId,
+        temperature: referenceBinding?.temperature ?? template.temperature,
         maxOutputTokens: intelligentMaxOutputTokens,
-        notes: [sourceNote, quantizationNote, capabilityNote].filter(Boolean).join(' '),
+        requestTimeoutMs: referenceBinding?.requestTimeoutMs ?? template.requestTimeoutMs,
+        topP: referenceBinding?.topP ?? template.topP,
+        frequencyPenalty: referenceBinding?.frequencyPenalty ?? template.frequencyPenalty,
+        presencePenalty: referenceBinding?.presencePenalty ?? template.presencePenalty,
+        defaultSystemPrompt:
+          referenceBinding?.defaultSystemPrompt ?? template.defaultSystemPrompt,
+        notes: referenceBinding?.notes,
+        metadata: {
+          ...(template.metadata ?? {}),
+          supportsJsonMode:
+            referenceBinding?.metadata?.supportsJsonMode ??
+            template.metadata?.supportsJsonMode ??
+            true,
+        },
+      };
+
+      const basePipeline = DEFAULT_PROFILE_PIPELINE.map((step) =>
+        step.capability === 'text-to-text'
+          ? {
+              ...step,
+              bindingId: textBinding.id,
+            }
+          : { ...step }
+      );
+
+      const baseNotes = [sourceNote, quantizationNote, capabilityNote]
+        .filter(Boolean)
+        .join(' ');
+
+      if (capability === 'text-to-text') {
+        const newProfileData: Partial<ModelProfile> = {
+          name: profileName,
+          description: model.kind ?? '',
+          bindings: [textBinding],
+          pipeline: basePipeline,
+          notes: baseNotes,
+        };
+
+        try {
+          const saved = upsertProfile(newProfileData);
+          setSelectedProfileId(saved.id);
+          setFeedback(`Profile "${saved.name}" created successfully from ${model.id}.`);
+        } catch (error) {
+          setFeedback(`Failed to create profile: ${(error as Error).message}`);
+        }
+        return;
+      }
+
+      const identity = `${model.displayName ?? ''} ${model.id}`.toLowerCase();
+      let recommendedVisionPrompt =
+        'You are an OCR assistant. Extract all visible text from the supplied image and keep formatting minimal.';
+      if (/got|ocr/.test(identity)) {
+        recommendedVisionPrompt =
+          'You are GOT-OCR 2.0. Transcribe every legible character from the image. Return plain text preserving line breaks.';
+      } else if (/qwen/.test(identity)) {
+        recommendedVisionPrompt =
+          'You are Qwen2.5-VL. Read the image and output only the detected text with newline separators. Do not describe visuals.';
+      } else if (/gemma/.test(identity)) {
+        recommendedVisionPrompt =
+          'You are Gemma3 Vision. Provide a faithful transcription of any printed or handwritten text in the image.';
+      }
+
+      const visionBinding: ModelBinding = {
+        id: createId(),
+        name: `${profileName} (Vision)`,
+        capability: 'image-to-text',
+        transport: 'lmstudio',
+        baseUrl,
+        apiKey: referenceBinding?.apiKey ?? template.apiKey,
+        modelId: model.id,
+        temperature: 0,
+        maxOutputTokens: 1024,
+        requestTimeoutMs: referenceBinding?.requestTimeoutMs ?? template.requestTimeoutMs,
+        topP: 1,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        defaultSystemPrompt: recommendedVisionPrompt,
+        metadata: {
+          supportsJsonMode: false,
+        },
+      };
+
+      const pipeline = basePipeline.map((step) =>
+        step.capability === 'image-to-text'
+          ? {
+              ...step,
+              bindingId: visionBinding.id,
+              enabled: true,
+            }
+          : step
+      );
+
+      const visionNotes = [
+        baseNotes,
+        'Vision preprocessing enabled by default.',
+        `Seeded OCR prompt for ${model.displayName ?? model.id}.`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      const newProfileData: Partial<ModelProfile> = {
+        name: `${profileName} (Vision chain)`,
+        description: model.kind ?? 'Vision pipeline',
+        bindings: [textBinding, visionBinding],
+        pipeline,
+        notes: visionNotes,
       };
 
       try {
@@ -265,34 +345,199 @@ const Profiles = () => {
     [profiles, upsertProfile]
   );
 
-  const handleChange =
-    (field: keyof ProfileFormState) =>
+  const handleFieldChange =
+    (field: 'name' | 'description' | 'notes') =>
     (event: FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = 'value' in event.currentTarget ? event.currentTarget.value : '';
-
-      setFormState((prev) => {
-        const numericFields = [
-          'temperature',
-          'maxOutputTokens',
-          'requestTimeoutMs',
-          'topP',
-          'frequencyPenalty',
-          'presencePenalty',
-        ];
-
-        if (numericFields.includes(field)) {
-          return {
-            ...prev,
-            [field]: Number(value),
-          };
-        }
-
-        return {
-          ...prev,
-          [field]: value,
-        };
-      });
+      const value = event.currentTarget.value;
+      setFormState((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
     };
+
+  const handleBindingFieldChange =
+    (bindingId: string, field: keyof ModelBinding) =>
+    (
+      event: FormEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
+      const numericFields: Array<keyof ModelBinding> = [
+        'temperature',
+        'maxOutputTokens',
+        'requestTimeoutMs',
+        'topP',
+        'frequencyPenalty',
+        'presencePenalty',
+      ];
+      const rawValue = event.currentTarget.value;
+      const nextValue = numericFields.includes(field) ? Number(rawValue) : rawValue;
+
+      setFormState((prev) => ({
+        ...prev,
+        bindings: prev.bindings.map((binding) =>
+          binding.id === bindingId
+            ? {
+                ...binding,
+                [field]: nextValue as ModelBinding[typeof field],
+              }
+            : binding
+        ),
+      }));
+    };
+
+  const handleBindingMetadataChange =
+    (bindingId: string, key: 'supportsJsonMode') =>
+    (event: FormEvent<HTMLInputElement>) => {
+      const checked = event.currentTarget.checked;
+      setFormState((prev) => ({
+        ...prev,
+        bindings: prev.bindings.map((binding) =>
+          binding.id === bindingId
+            ? {
+                ...binding,
+                metadata: {
+                  ...(binding.metadata ?? {}),
+                  [key]: checked,
+                },
+              }
+            : binding
+        ),
+      }));
+    };
+
+  const handleLoadModels = async (bindingId: string) => {
+    const binding = formState.bindings.find((b) => b.id === bindingId);
+    if (!binding || !binding.baseUrl) {
+      alert('Please enter a Base URL first');
+      return;
+    }
+
+    setLoadingModels((prev) => ({ ...prev, [bindingId]: true }));
+    try {
+      const models = await fetchModels({
+        baseUrl: binding.baseUrl,
+        apiKey: binding.apiKey,
+        requestTimeoutMs: binding.requestTimeoutMs,
+      });
+      setAvailableModels((prev) => ({ ...prev, [bindingId]: models }));
+    } catch (error) {
+      console.error('Failed to load models:', error);
+      alert(`Failed to load models: ${(error as Error).message}`);
+    } finally {
+      setLoadingModels((prev) => ({ ...prev, [bindingId]: false }));
+    }
+  };
+
+  const handleSelectModel = (bindingId: string, modelId: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      bindings: prev.bindings.map((binding) =>
+        binding.id === bindingId
+          ? {
+              ...binding,
+              modelId,
+            }
+          : binding
+      ),
+    }));
+  };
+
+  const handleVisionEnabledChange = () => {
+    // Vision is always enabled - this function only adds the binding if missing
+    setFormState((prev) => {
+      const current = prev.bindings.find((binding) => binding.capability === 'image-to-text');
+
+      // If binding already exists, do nothing
+      if (current) {
+        return prev;
+      }
+
+      // Create new vision binding
+      const binding = createDefaultVisionBinding();
+      const bindings = [...prev.bindings, binding];
+
+      return {
+        ...prev,
+        bindings,
+        pipeline: prev.pipeline.map((step) =>
+          step.capability === 'image-to-text'
+            ? {
+                ...step,
+                enabled: true,
+                bindingId: binding.id,
+              }
+            : step
+        ),
+      };
+    });
+  };
+
+  const handleRestoreTextBinding = () => {
+    setFormState((prev) => {
+      const existing = prev.bindings.find((binding) => binding.capability === 'text-to-text');
+      if (existing) {
+        return prev;
+      }
+
+      const template = createDefaultTextBinding();
+      return {
+        ...prev,
+        bindings: [template, ...prev.bindings],
+        pipeline: prev.pipeline.map((step) =>
+          step.capability === 'text-to-text'
+            ? {
+                ...step,
+                bindingId: template.id,
+                enabled: true,
+              }
+            : step
+        ),
+      };
+    });
+  };
+
+  const handlePipelineBindingChange =
+    (stepId: string) =>
+    (event: FormEvent<HTMLSelectElement>) => {
+      const bindingId = event.currentTarget.value || null;
+      setFormState((prev) => ({
+        ...prev,
+        pipeline: prev.pipeline.map((step) =>
+          step.id === stepId
+            ? {
+                ...step,
+                bindingId,
+              }
+            : step
+        ),
+      }));
+    };
+
+  const textBinding = useMemo(
+    () => formState.bindings.find((binding) => binding.capability === 'text-to-text'),
+    [formState.bindings]
+  );
+  const visionBinding = useMemo(
+    () => formState.bindings.find((binding) => binding.capability === 'image-to-text'),
+    [formState.bindings]
+  );
+  const imagePipelineStep = useMemo(
+    () => formState.pipeline.find((step) => step.capability === 'image-to-text'),
+    [formState.pipeline]
+  );
+  const textPipelineStep = useMemo(
+    () => formState.pipeline.find((step) => step.capability === 'text-to-text'),
+    [formState.pipeline]
+  );
+  const availableVisionBindings = useMemo(
+    () => formState.bindings.filter((binding) => binding.capability === 'image-to-text'),
+    [formState.bindings]
+  );
+  const availableTextBindings = useMemo(
+    () => formState.bindings.filter((binding) => binding.capability === 'text-to-text'),
+    [formState.bindings]
+  );
 
   const handleStepChange =
     (index: number, key: keyof BenchmarkStepConfig) =>
@@ -324,8 +569,28 @@ const Profiles = () => {
     setSaving(true);
     setFormError(null);
 
+    const hasTextBinding = formState.bindings.some(
+      (binding) => binding.capability === 'text-to-text'
+    );
+
+    if (!hasTextBinding) {
+      setFormError('Profiles must include a text binding for the reasoning step.');
+      setSaving(false);
+      return;
+    }
+
     try {
-      const saved = upsertProfile(formState);
+      const payload: Partial<ModelProfile> = {
+        id: formState.id,
+        name: formState.name.trim() || DEFAULT_PROFILE_VALUES.name,
+        description: formState.description.trim(),
+        notes: formState.notes,
+        bindings: formState.bindings.map(cloneBinding),
+        pipeline: formState.pipeline.map(clonePipelineStep),
+        benchmarkSteps: formState.benchmarkSteps.map((step) => ({ ...step })),
+      };
+
+      const saved = upsertProfile(payload);
       setSelectedProfileId(saved.id);
       setFeedback(
         dialogMode === 'edit' ? 'Profile updated successfully.' : 'Profile created successfully.'
@@ -358,36 +623,38 @@ const Profiles = () => {
     setSelectedProfileId((current) => (current === targetId ? undefined : current));
   };
 
-  const handleRunDiagnostics = async (profile: ModelProfile, level: DiagnosticsLevel) => {
-    setRunningDiagnostics({ profileId: profile.id, level });
-    setFeedback(null);
-
-    try {
-      const result = await runDiagnostics({ profile, level });
-      recordDiagnostic(result);
-      setFeedback(
-        `${profile.name}: ${level === 'HANDSHAKE' ? 'Handshake' : 'Readiness'} diagnostics complete.`
-      );
-    } catch (error) {
-      setFeedback(`${profile.name}: Diagnostics failed: ${(error as Error).message}`);
-    } finally {
-      setRunningDiagnostics(null);
-    }
-  };
-
   const handleRunCompatibilityCheck = async (profile: ModelProfile) => {
     setRunningCompatibilityCheck(profile.id);
     setFeedback(null);
 
+    // Set status to in_progress immediately
+    const updatedProfile = upsertProfile({
+      id: profile.id,
+      metadata: {
+        ...profile.metadata,
+        compatibilityStatus: 'in_progress',
+        compatibilitySummary: 'Running compatibility check...',
+      },
+    });
+
     try {
-      const result = await runCompatibilityCheck(profile);
-      recordCompatibilityCheck(profile.id, result);
+      const result = await runCompatibilityCheck(updatedProfile);
+      recordCompatibilityCheck(updatedProfile.id, result);
       setFeedback(
         result.compatible
           ? `${profile.name}: Compatible`
           : `${profile.name}: Not compatible - ${result.summary}`
       );
     } catch (error) {
+      // On error, set status to incompatible
+      upsertProfile({
+        id: profile.id,
+        metadata: {
+          ...profile.metadata,
+          compatibilityStatus: 'incompatible',
+          compatibilitySummary: `Check failed: ${(error as Error).message}`,
+        },
+      });
       setFeedback(`${profile.name}: Compatibility check failed: ${(error as Error).message}`);
     } finally {
       setRunningCompatibilityCheck(null);
@@ -467,6 +734,35 @@ const Profiles = () => {
                 <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                   {profiles.map((profile) => {
                     const isActive = isProfileDetailOpen && profile.id === selectedProfileId;
+                    const textBinding = profile.bindings.find(
+                      (binding) => binding.capability === 'text-to-text'
+                    );
+                    const visionPipelineStep = profile.pipeline.find(
+                      (step) => step.capability === 'image-to-text'
+                    );
+                    const visionBinding =
+                      (visionPipelineStep?.bindingId
+                        ? profile.bindings.find((binding) => binding.id === visionPipelineStep.bindingId)
+                        : null) ??
+                      profile.bindings.find((binding) => binding.capability === 'image-to-text');
+                    const visionEnabled =
+                      Boolean(visionPipelineStep?.enabled) && Boolean(visionBinding);
+                    const bindingBadges = [
+                      {
+                        label: 'Text',
+                        value: textBinding?.modelId || 'Not set',
+                        tone: textBinding?.modelId ? 'accent' : 'muted',
+                      },
+                      {
+                        label: 'Vision',
+                        value: visionEnabled
+                          ? visionBinding?.modelId ?? 'Assigned'
+                          : visionBinding
+                          ? 'Disabled'
+                          : 'Not configured',
+                        tone: visionEnabled ? 'success' : 'muted',
+                      },
+                    ];
 
                     return (
                       <li key={profile.id}>
@@ -538,6 +834,25 @@ const Profiles = () => {
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                               {profile.baseUrl ?? 'No base URL configured'}
                             </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {bindingBadges.map((badge) => (
+                                <span
+                                  key={badge.label}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.7rem] font-semibold tracking-wide ${
+                                    badge.tone === 'success'
+                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                      : badge.tone === 'accent'
+                                      ? 'bg-accent-100 text-accent-800 dark:bg-accent-900/30 dark:text-accent-300'
+                                      : 'bg-slate-200 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <span>{badge.label}:</span>
+                                  <span className="font-medium truncate max-w-[10rem]">
+                                    {badge.value}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
                           </div>
 
                           <dl className="grid grid-cols-3 gap-2 text-xs">
@@ -661,6 +976,9 @@ const Profiles = () => {
                 // Count profiles per model ID
                 const profileCountByModel = new Map<string, number>();
                 profiles.forEach((profile) => {
+                  if (!profile.modelId) {
+                    return;
+                  }
                   const count = profileCountByModel.get(profile.modelId) ?? 0;
                   profileCountByModel.set(profile.modelId, count + 1);
                 });
@@ -685,6 +1003,7 @@ const Profiles = () => {
                         </div>
                         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {modelsWithProfiles.map((model) => {
+                            const supportsVision = model.capabilities.includes('vision');
                             const profileCount = profileCountByModel.get(model.id) ?? 0;
                             return (
                               <li
@@ -721,13 +1040,28 @@ const Profiles = () => {
                                     </span>
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAdoptDiscoveredModel(model)}
-                                  className="w-full text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
-                                >
-                                  Create another profile
-                                </button>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAdoptDiscoveredModel(model, 'text-to-text')}
+                                    className="flex-1 text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
+                                  >
+                                    Create text profile
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAdoptDiscoveredModel(model, 'image-to-text')}
+                                    disabled={!supportsVision}
+                                    className="flex-1 text-sm font-semibold border rounded-lg px-3 py-1.5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-accent-400 dark:hover:border-accent-500"
+                                  >
+                                    Vision pipeline
+                                  </button>
+                                </div>
+                                {!supportsVision ? (
+                                  <p className="text-xs text-slate-500 dark:text-slate-500">
+                                    Vision option disabled — model does not advertise vision capability.
+                                  </p>
+                                ) : null}
                                 <div className="flex flex-wrap gap-1.5">
                                   {model.capabilities.length > 0 ? (
                                     model.capabilities.slice(0, 3).map((capability) => (
@@ -761,62 +1095,80 @@ const Profiles = () => {
                           <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
                         </div>
                         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {modelsWithoutProfiles.map((model) => (
-                            <li
-                              key={model.id}
-                              className="border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 rounded-xl p-4 flex flex-col gap-3 transition-theme"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h5 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
-                                    {model.displayName ?? model.id}
-                                  </h5>
-                                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                    {model.kind ?? 'Model'} · {model.state ?? 'unknown'}
-                                  </p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                                    {model.maxContextLength
-                                      ? `${model.maxContextLength.toLocaleString()} tokens`
-                                      : 'Context unknown'}
-                                    {model.quantization ? ` · ${model.quantization}` : ''}
-                                  </p>
-                                </div>
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide flex-shrink-0 ${
-                                    model.loaded
-                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                                      : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
-                                  }`}
-                                >
-                                  {model.loaded ? 'Loaded' : 'Unloaded'}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAdoptDiscoveredModel(model)}
-                                className="w-full text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
+                          {modelsWithoutProfiles.map((model) => {
+                            const supportsVision = model.capabilities.includes('vision');
+                            return (
+                              <li
+                                key={model.id}
+                                className="border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 rounded-xl p-4 flex flex-col gap-3 transition-theme"
                               >
-                                Create profile
-                              </button>
-                              <div className="flex flex-wrap gap-1.5">
-                                {model.capabilities.length > 0 ? (
-                                  model.capabilities.slice(0, 3).map((capability) => (
-                                    <span
-                                      key={capability}
-                                      className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300"
-                                    >
-                                      {capability.replace(/_/g, ' ')}
-                                    </span>
-                                  ))
-                                ) : null}
-                                {model.capabilities.length > 3 && (
-                                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400">
-                                    +{model.capabilities.length - 3}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h5 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
+                                      {model.displayName ?? model.id}
+                                    </h5>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                      {model.kind ?? 'Model'} · {model.state ?? 'unknown'}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                                      {model.maxContextLength
+                                        ? `${model.maxContextLength.toLocaleString()} tokens`
+                                        : 'Context unknown'}
+                                      {model.quantization ? ` · ${model.quantization}` : ''}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide flex-shrink-0 ${
+                                      model.loaded
+                                        ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                        : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
+                                    }`}
+                                  >
+                                    {model.loaded ? 'Loaded' : 'Unloaded'}
                                   </span>
-                                )}
-                              </div>
-                            </li>
-                          ))}
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAdoptDiscoveredModel(model, 'text-to-text')}
+                                    className="flex-1 text-sm font-semibold text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 border border-accent-500/60 hover:border-accent-600 rounded-lg px-3 py-1.5 transition-all duration-200"
+                                  >
+                                    Create text profile
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAdoptDiscoveredModel(model, 'image-to-text')}
+                                    disabled={!supportsVision}
+                                    className="flex-1 text-sm font-semibold border rounded-lg px-3 py-1.5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-accent-400 dark:hover:border-accent-500"
+                                  >
+                                    Vision pipeline
+                                  </button>
+                                </div>
+                                {!supportsVision ? (
+                                  <p className="text-xs text-slate-500 dark:text-slate-500">
+                                    Vision option disabled — model does not advertise vision capability.
+                                  </p>
+                                ) : null}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {model.capabilities.length > 0 ? (
+                                    model.capabilities.slice(0, 3).map((capability) => (
+                                      <span
+                                        key={capability}
+                                        className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300"
+                                      >
+                                        {capability.replace(/_/g, ' ')}
+                                      </span>
+                                    ))
+                                  ) : null}
+                                  {model.capabilities.length > 3 && (
+                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400">
+                                      +{model.capabilities.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
@@ -837,15 +1189,14 @@ const Profiles = () => {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="space-y-2">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {selectedProfile.provider} · {selectedProfile.modelId}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 break-words">
-                  {selectedProfile.baseUrl ?? 'No base URL configured'}
-                </p>
+                {selectedProfile.description ? (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {selectedProfile.description}
+                  </p>
+                ) : null}
                 {selectedProfile.notes ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Notes: {selectedProfile.notes}
+                    {selectedProfile.notes}
                   </p>
                 ) : null}
               </div>
@@ -860,168 +1211,227 @@ const Profiles = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    void handleRunDiagnostics(selectedProfile, 'HANDSHAKE');
+                    void handleRunCompatibilityCheck(selectedProfile);
                   }}
-                  disabled={Boolean(runningDiagnostics)}
+                  disabled={runningCompatibilityCheck !== null}
                   className="inline-flex items-center px-4 py-2.5 text-sm font-semibold border border-accent-400 dark:border-accent-500 bg-accent-500/10 dark:bg-accent-500/15 text-accent-700 dark:text-accent-300 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDetailHandshakeRunning ? 'Running…' : 'Run Level 1'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleRunDiagnostics(selectedProfile, 'READINESS');
-                  }}
-                  disabled={Boolean(runningDiagnostics) || handshakeStats?.status !== 'ready'}
-                  title={
-                    handshakeStats?.status !== 'ready'
-                      ? 'Run L1 handshake first'
-                      : 'Run L2 readiness check'
-                  }
-                  className="inline-flex items-center px-4 py-2.5 text-sm font-semibold border border-accent-400 dark:border-accent-500 bg-accent-500/10 dark:bg-accent-500/15 text-accent-700 dark:text-accent-300 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isDetailReadinessRunning ? 'Running…' : 'Run Level 2'}
+                  {runningCompatibilityCheck === selectedProfile.id ? 'Checking…' : 'Run Compatibility Check'}
                 </button>
               </div>
             </div>
 
-            <dl className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4">
-                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                  Provider
-                </dt>
-                <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {selectedProfile.provider}
-                </dd>
-                <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Model: {selectedProfile.modelId}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4">
-                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                  Endpoint
-                </dt>
-                <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50 break-words">
-                  {selectedProfile.baseUrl ?? '—'}
-                </dd>
-                <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Timeout: {selectedProfile.requestTimeoutMs.toLocaleString()} ms
-                </dd>
-              </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4">
-                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                  Generation params
-                </dt>
-                <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Temp {selectedProfile.temperature} · Top P {selectedProfile.topP}
-                </dd>
-                <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Max tokens: {selectedProfile.maxOutputTokens.toLocaleString()}
-                </dd>
-              </div>
-            </dl>
+            <section className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-white dark:bg-slate-900/40">
+              <header className="mb-3">
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Pipeline Overview
+                </h4>
+              </header>
+              <ul className="flex flex-col gap-2 text-sm">
+                {selectedProfile.pipeline.map((step, index) => {
+                  const binding = selectedProfile.bindings.find((b) => b.id === step.bindingId);
+                  return (
+                    <li key={step.id} className="flex items-start gap-2">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{index + 1}.</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-900 dark:text-slate-50">{step.label}</span>
+                          {step.enabled ? (
+                            <span className="px-1.5 py-0.5 bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400 text-xs font-semibold rounded">
+                              Enabled
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold rounded">
+                              Disabled
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                          {binding ? `${binding.name} (${binding.modelId || 'model unknown'})` : 'No binding assigned'}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+
+            <section className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-white dark:bg-slate-900/40">
+              <header className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Binding overview
+                </h4>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {selectedProfile.bindings.length}{' '}
+                  {selectedProfile.bindings.length === 1 ? 'binding' : 'bindings'}
+                </span>
+              </header>
+              <ul className="flex flex-col gap-3">
+                {selectedProfile.bindings.map((binding) => {
+                  const pipelineSteps = selectedProfile.pipeline.filter(
+                    (step) => step.bindingId === binding.id
+                  );
+                  const isVision = binding.capability === 'image-to-text';
+                  const stepNames =
+                    pipelineSteps.length > 0
+                      ? pipelineSteps.map((step) => `${step.label}${step.enabled ? '' : ' (disabled)'}`).join(', ')
+                      : 'Not assigned to pipeline';
+                  return (
+                    <li
+                      key={binding.id}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 bg-slate-50/70 dark:bg-slate-900/30"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            {binding.name}{' '}
+                            <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                              {binding.capability === 'text-to-text' ? 'Text' : 'Vision'}
+                            </span>
+                          </span>
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            {binding.modelId || 'Model not assigned'}
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {binding.baseUrl ?? 'No base URL'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400">
+                          <strong className="font-semibold text-slate-700 dark:text-slate-200">
+                            Pipeline:
+                          </strong>{' '}
+                          {stepNames}
+                        </div>
+                      </div>
+                      {isVision && binding.metadata?.supportsJsonMode === false ? (
+                        <p className="text-[0.65rem] text-warning-600 dark:text-warning-400 mt-2">
+                          Vision binding marked as non-JSON; OCR summaries will capture plain text only.
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
 
             <div className="flex flex-col gap-6 border-t border-slate-200 dark:border-slate-700 pt-6">
               <header className="flex justify-between items-start gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                    Diagnostics
+                    Compatibility Status
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
-                    Run Level 1 (handshake) and Level 2 (readiness) checks before kicking off long
-                    benchmarks.
+                    Run compatibility checks to verify model support for vision and text reasoning.
                   </p>
                 </div>
               </header>
-              <dl className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-4">
-                  <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                    Handshake status
-                  </dt>
-                  <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    {handshakeStats?.label ?? 'Not run yet'}
-                  </dd>
-                  <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Last run: {formatTimestamp(handshakeStats?.lastRunAt)}
-                  </dd>
-                </div>
-                <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-4">
-                  <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                    Readiness status
-                  </dt>
-                  <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    {readinessStats?.label ?? 'Not run yet'}
-                  </dd>
-                  <dd className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Last run: {formatTimestamp(readinessStats?.lastRunAt)}
-                  </dd>
-                </div>
-                <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-4">
-                  <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                    JSON mode
-                  </dt>
-                  <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    {selectedProfile.metadata.supportsJsonMode === false
-                      ? 'Fallback to plain text'
-                      : 'JSON preferred'}
-                  </dd>
-                </div>
-              </dl>
-              <div className="flex flex-col gap-4">
-                <h4 className="font-semibold text-slate-900 dark:text-slate-50">Recent log entries</h4>
-                <div className="max-h-80 overflow-y-auto flex flex-col gap-3">
-                  {selectedProfile.diagnostics.length === 0 ? (
-                    <p className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center">
-                      Run diagnostics to populate logs.
-                    </p>
-                  ) : (
-                    selectedProfile.diagnostics
-                      .slice(-10)
-                      .reverse()
-                      .map((entry) => (
-                        <article
-                          key={entry.id}
-                          className="border border-slate-300 dark:border-slate-600 rounded-xl p-4 flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/30"
-                        >
-                          <header className="flex items-center justify-between">
-                            <span
-                              className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                                entry.status === 'pass'
-                                  ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                                  : 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400'
-                              }`}
-                            >
-                              {entry.level === 'HANDSHAKE' ? 'L1' : 'L2'} {entry.status}
-                            </span>
-                            <time className="text-xs text-slate-500 dark:text-slate-400">
-                              {formatTimestamp(entry.completedAt)}
-                            </time>
-                          </header>
-                          <strong className="text-sm text-slate-900 dark:text-slate-50">
-                            {entry.summary}
-                          </strong>
-                          <ul className="flex flex-col gap-2">
-                            {entry.logs.map((log) => (
-                              <li
-                                key={log.id}
-                                className={`text-xs border-l-2 pl-3 py-1 ${
-                                  log.severity === 'error'
-                                    ? 'border-danger-500 text-danger-700 dark:text-danger-400'
-                                    : log.severity === 'warn'
-                                    ? 'border-warning-500 text-warning-700 dark:text-warning-400'
-                                    : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400'
-                                }`}
-                              >
-                                <span className="font-semibold">{formatTimestamp(log.timestamp)}</span>
-                                <p className="mt-0.5">{log.message}</p>
-                              </li>
-                            ))}
-                          </ul>
-                        </article>
-                      ))
-                  )}
-                </div>
+
+              <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-4">
+                <dl className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
+                      Status
+                    </dt>
+                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {selectedProfile.metadata.compatibilityStatus === 'compatible' ? (
+                        <span className="text-success-600 dark:text-success-400">Compatible</span>
+                      ) : selectedProfile.metadata.compatibilityStatus === 'incompatible' ? (
+                        <span className="text-danger-600 dark:text-danger-400">Incompatible</span>
+                      ) : selectedProfile.metadata.compatibilityStatus === 'in_progress' ? (
+                        <span className="text-accent-600 dark:text-accent-400">Checking...</span>
+                      ) : (
+                        <span className="text-slate-500 dark:text-slate-400">Not checked</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
+                      JSON Format
+                    </dt>
+                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {selectedProfile.metadata.jsonFormat || 'Unknown'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
+                      Last Check
+                    </dt>
+                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      {formatTimestamp(selectedProfile.metadata.lastCompatibilityCheckAt)}
+                    </dd>
+                  </div>
+                </dl>
+                {selectedProfile.metadata.compatibilitySummary && (
+                  <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+                    {selectedProfile.metadata.compatibilitySummary}
+                  </p>
+                )}
               </div>
+
+              {selectedProfile.lastCompatibilityCheck && selectedProfile.lastCompatibilityCheck.steps.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    Check Details
+                  </h4>
+                  {selectedProfile.lastCompatibilityCheck.steps.map((step) => (
+                    <div
+                      key={step.id}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 p-3"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                          {step.name}
+                        </span>
+                        {step.status === 'pass' ? (
+                          <span className="px-2 py-0.5 bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400 text-xs font-semibold rounded">
+                            Pass
+                          </span>
+                        ) : step.status === 'fail' ? (
+                          <span className="px-2 py-0.5 bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-400 text-xs font-semibold rounded">
+                            Fail
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold rounded">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                      {step.error && (
+                        <p className="text-xs text-danger-600 dark:text-danger-400 mb-2">
+                          {step.error}
+                        </p>
+                      )}
+                      {step.logs.length > 0 && (
+                        <div className="space-y-1">
+                          {step.logs.map((log) => (
+                            <div
+                              key={log.id}
+                              className="flex items-start gap-2 text-xs font-mono"
+                            >
+                              {log.severity === 'error' ? (
+                                <span className="text-danger-600 dark:text-danger-400">✗</span>
+                              ) : log.severity === 'warn' ? (
+                                <span className="text-warning-600 dark:text-warning-400">⚠</span>
+                              ) : (
+                                <span className="text-slate-500 dark:text-slate-400">•</span>
+                              )}
+                              <span className={
+                                log.severity === 'error'
+                                  ? 'text-danger-600 dark:text-danger-400'
+                                  : log.severity === 'warn'
+                                  ? 'text-warning-600 dark:text-warning-400'
+                                  : 'text-slate-600 dark:text-slate-400'
+                              }>
+                                {log.message}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : null}
@@ -1049,147 +1459,502 @@ const Profiles = () => {
                 required
                 type="text"
                 value={formState.name}
-                onChange={handleChange('name')}
+                onChange={handleFieldChange('name')}
                 placeholder="My LM Studio profile"
                 className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
               />
             </label>
             <label className="flex flex-col">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Provider
+                Description
               </span>
               <input
                 type="text"
-                value={formState.provider}
-                onChange={handleChange('provider')}
-                placeholder="LM Studio"
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Base URL
-              </span>
-              <input
-                required
-                type="text"
-                value={formState.baseUrl}
-                onChange={handleChange('baseUrl')}
-                placeholder="http://localhost:1234/v1"
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                API key
-              </span>
-              <input
-                type="password"
-                value={formState.apiKey}
-                onChange={handleChange('apiKey')}
-                placeholder="Optional"
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col md:col-span-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Model ID
-              </span>
-              <input
-                required
-                type="text"
-                value={formState.modelId}
-                onChange={handleChange('modelId')}
-                placeholder="example/model-identifier"
+                value={formState.description}
+                onChange={handleFieldChange('description')}
+                placeholder="Optional short label"
                 className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
               />
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Temperature
-              </span>
-              <input
-                type="number"
-                step="0.1"
-                value={formState.temperature}
-                onChange={handleChange('temperature')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Max output tokens
-              </span>
-              <input
-                type="number"
-                value={formState.maxOutputTokens}
-                onChange={handleChange('maxOutputTokens')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Request timeout (ms)
-              </span>
-              <input
-                type="number"
-                value={formState.requestTimeoutMs}
-                onChange={handleChange('requestTimeoutMs')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Top P
-              </span>
-              <input
-                type="number"
-                step="0.05"
-                value={formState.topP}
-                onChange={handleChange('topP')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Frequency penalty
-              </span>
-              <input
-                type="number"
-                step="0.1"
-                value={formState.frequencyPenalty}
-                onChange={handleChange('frequencyPenalty')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Presence penalty
-              </span>
-              <input
-                type="number"
-                step="0.1"
-                value={formState.presencePenalty}
-                onChange={handleChange('presencePenalty')}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-              />
-            </label>
-          </div>
+          <section className="border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-3 transition-theme">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+              Pipeline overview
+            </h3>
+            <ul className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-2">
+              <li className="flex items-start gap-2">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">1.</span>
+                <span>
+                  Image preprocessing &mdash;{' '}
+                  {imagePipelineStep?.enabled
+                    ? visionBinding
+                      ? `${visionBinding.name} (${visionBinding.modelId || 'model unknown'})`
+                      : 'Binding required'
+                    : 'Disabled'}
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">2.</span>
+                <span>
+                  Text reasoning &mdash;{' '}
+                  {textBinding
+                    ? `${textBinding.name} (${textBinding.modelId || 'model unknown'})`
+                    : 'Binding required'}
+                </span>
+              </li>
+            </ul>
+          </section>
 
-          <label className="flex flex-col">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Default system prompt
-            </span>
-            <textarea
-              value={formState.defaultSystemPrompt}
-              onChange={handleChange('defaultSystemPrompt')}
-              rows={4}
-              className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-            />
-          </label>
+          <section className="border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-4 transition-theme">
+            <header className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                  Vision preprocessing binding
+                </h3>
+                <span className="px-2 py-0.5 bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-400 text-xs font-semibold rounded">
+                  Required
+                </span>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Used to extract text from images before the text reasoning step. All profiles must support vision.
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Quick start prompts: GOT-OCR — "Transcribe every character and return plain text" · Qwen-VL — "Output only detected text with newline separators" · Gemma Vision — "Provide faithful transcription of printed or handwritten content".
+              </p>
+            </header>
+            {visionBinding ? (
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Binding name
+                    </span>
+                    <input
+                      type="text"
+                      value={visionBinding.name}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'name')}
+                      placeholder="Vision model"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Transport
+                    </span>
+                    <select
+                      value={visionBinding.transport}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'transport')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    >
+                      <option value="lmstudio">LM Studio</option>
+                      <option value="openai-compatible">OpenAI-compatible</option>
+                    </select>
+                  </label>
+                </div>
+                {visionBinding.transport === 'lmstudio' && (
+                  <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Select model from LM Studio
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadModels(visionBinding.id)}
+                        disabled={loadingModels[visionBinding.id]}
+                        className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {loadingModels[visionBinding.id] ? 'Loading...' : 'Load Models'}
+                      </button>
+                    </div>
+                    {availableModels[visionBinding.id] && availableModels[visionBinding.id].length > 0 && (
+                      <select
+                        value={visionBinding.modelId}
+                        onChange={(e) => handleSelectModel(visionBinding.id, e.target.value)}
+                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                      >
+                        <option value="">Select a model...</option>
+                        {availableModels[visionBinding.id].map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.id}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {availableModels[visionBinding.id] && availableModels[visionBinding.id].length === 0 && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        No models found. Make sure LM Studio is running and has models loaded.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Base URL
+                    </span>
+                    <input
+                      type="text"
+                      value={visionBinding.baseUrl}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'baseUrl')}
+                      placeholder="http://localhost:1235/v1"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Model ID
+                    </span>
+                    <input
+                      type="text"
+                      value={visionBinding.modelId}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'modelId')}
+                      placeholder="vision/model"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Max output tokens
+                    </span>
+                    <input
+                      type="number"
+                      value={visionBinding.maxOutputTokens}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'maxOutputTokens')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Temperature
+                    </span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={visionBinding.temperature}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'temperature')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Request timeout (ms)
+                    </span>
+                    <input
+                      type="number"
+                      value={visionBinding.requestTimeoutMs}
+                      onChange={handleBindingFieldChange(visionBinding.id, 'requestTimeoutMs')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <label className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Default prompt (optional)
+                  </span>
+                  <textarea
+                    value={visionBinding.defaultSystemPrompt}
+                    onChange={handleBindingFieldChange(visionBinding.id, 'defaultSystemPrompt')}
+                    rows={3}
+                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                  />
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={visionBinding.metadata?.supportsJsonMode ?? false}
+                    onChange={handleBindingMetadataChange(visionBinding.id, 'supportsJsonMode')}
+                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-accent-500"
+                  />
+                  Vision binding expects JSON
+                </label>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Vision binding is missing. All profiles require vision support to pass compatibility checks.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleVisionEnabledChange as any}
+                  className="inline-flex items-center justify-center px-3 py-2 text-sm font-semibold border border-accent-500/70 text-accent-600 hover:text-accent-700 hover:border-accent-600 rounded-xl transition-all duration-200"
+                >
+                  Add vision binding
+                </button>
+              </div>
+            )}
+            {imagePipelineStep ? (
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-2">
+                <label className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    Vision step binding
+                  </span>
+                  <select
+                    value={imagePipelineStep.bindingId ?? ''}
+                    onChange={handlePipelineBindingChange(imagePipelineStep.id)}
+                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme md:w-72"
+                    disabled={availableVisionBindings.length === 0}
+                  >
+                    <option value="">Unassigned</option>
+                    {availableVisionBindings.map((binding) => (
+                      <option key={binding.id} value={binding.id}>
+                        {binding.name} · {binding.modelId || 'model unknown'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-4 transition-theme">
+            <header className="flex flex-col gap-1">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                Text reasoning binding
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Primary text-to-text model used for benchmark steps.
+              </p>
+            </header>
+            {textBinding ? (
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Binding name
+                    </span>
+                    <input
+                      type="text"
+                      value={textBinding.name}
+                      onChange={handleBindingFieldChange(textBinding.id, 'name')}
+                      placeholder="Text model"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Transport
+                    </span>
+                    <select
+                      value={textBinding.transport}
+                      onChange={handleBindingFieldChange(textBinding.id, 'transport')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    >
+                      <option value="lmstudio">LM Studio</option>
+                      <option value="openai-compatible">OpenAI-compatible</option>
+                    </select>
+                  </label>
+                </div>
+                {textBinding.transport === 'lmstudio' && (
+                  <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Select model from LM Studio
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadModels(textBinding.id)}
+                        disabled={loadingModels[textBinding.id]}
+                        className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {loadingModels[textBinding.id] ? 'Loading...' : 'Load Models'}
+                      </button>
+                    </div>
+                    {availableModels[textBinding.id] && availableModels[textBinding.id].length > 0 && (
+                      <select
+                        value={textBinding.modelId}
+                        onChange={(e) => handleSelectModel(textBinding.id, e.target.value)}
+                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                      >
+                        <option value="">Select a model...</option>
+                        {availableModels[textBinding.id].map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.id}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {availableModels[textBinding.id] && availableModels[textBinding.id].length === 0 && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        No models found. Make sure LM Studio is running and has models loaded.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Base URL
+                    </span>
+                    <input
+                      required
+                      type="text"
+                      value={textBinding.baseUrl}
+                      onChange={handleBindingFieldChange(textBinding.id, 'baseUrl')}
+                      placeholder="http://localhost:1234/v1"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      API key
+                    </span>
+                    <input
+                      type="password"
+                      value={textBinding.apiKey ?? ''}
+                      onChange={handleBindingFieldChange(textBinding.id, 'apiKey')}
+                      placeholder="Optional"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Model ID
+                    </span>
+                    <input
+                      required
+                      type="text"
+                      value={textBinding.modelId}
+                      onChange={handleBindingFieldChange(textBinding.id, 'modelId')}
+                      placeholder="example/model-identifier"
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Request timeout (ms)
+                    </span>
+                    <input
+                      type="number"
+                      value={textBinding.requestTimeoutMs}
+                      onChange={handleBindingFieldChange(textBinding.id, 'requestTimeoutMs')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Temperature
+                    </span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={textBinding.temperature}
+                      onChange={handleBindingFieldChange(textBinding.id, 'temperature')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Top P
+                    </span>
+                    <input
+                      type="number"
+                      step="0.05"
+                      value={textBinding.topP ?? DEFAULT_PROFILE_VALUES.topP}
+                      onChange={handleBindingFieldChange(textBinding.id, 'topP')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Max output tokens
+                    </span>
+                    <input
+                      type="number"
+                      value={textBinding.maxOutputTokens}
+                      onChange={handleBindingFieldChange(textBinding.id, 'maxOutputTokens')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Frequency penalty
+                    </span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={textBinding.frequencyPenalty ?? DEFAULT_PROFILE_VALUES.frequencyPenalty}
+                      onChange={handleBindingFieldChange(textBinding.id, 'frequencyPenalty')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      Presence penalty
+                    </span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={textBinding.presencePenalty ?? DEFAULT_PROFILE_VALUES.presencePenalty}
+                      onChange={handleBindingFieldChange(textBinding.id, 'presencePenalty')}
+                      className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                    />
+                  </label>
+                </div>
+                <label className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Default system prompt
+                  </span>
+                  <textarea
+                    value={textBinding.defaultSystemPrompt}
+                    onChange={handleBindingFieldChange(textBinding.id, 'defaultSystemPrompt')}
+                    rows={4}
+                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
+                  />
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={textBinding.metadata?.supportsJsonMode ?? true}
+                    onChange={handleBindingMetadataChange(textBinding.id, 'supportsJsonMode')}
+                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-accent-500"
+                  />
+                  Prefer JSON responses
+                </label>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  This profile is missing a text binding. Restore the default to continue editing.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRestoreTextBinding}
+                  className="inline-flex items-center justify-center px-3 py-2 text-sm font-semibold border border-accent-500/70 text-accent-600 hover:text-accent-700 hover:border-accent-600 rounded-xl transition-all duration-200"
+                >
+                  Restore default text binding
+                </button>
+              </div>
+            )}
+            {textPipelineStep ? (
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-2">
+                <label className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    Text step binding
+                  </span>
+                  <select
+                    value={textPipelineStep.bindingId ?? textBinding?.id ?? ''}
+                    onChange={handlePipelineBindingChange(textPipelineStep.id)}
+                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme md:w-72"
+                  >
+                    {availableTextBindings.map((binding) => (
+                      <option key={binding.id} value={binding.id}>
+                        {binding.name} · {binding.modelId || 'Unassigned'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </section>
 
           <label className="flex flex-col">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -1197,7 +1962,7 @@ const Profiles = () => {
             </span>
             <textarea
               value={formState.notes}
-              onChange={handleChange('notes')}
+              onChange={handleFieldChange('notes')}
               rows={3}
               placeholder="Optional notes or troubleshooting tips"
               className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"

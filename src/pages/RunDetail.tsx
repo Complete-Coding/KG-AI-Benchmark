@@ -3,13 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ActiveRunQuestionStatus,
   BenchmarkAttempt,
-  BenchmarkQuestion,
+  ImageSummary,
   RunStatus,
 } from '@/types/benchmark';
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
-import { createEmptyRunMetrics } from '@/data/defaults';
-import { executeBenchmarkRun } from '@/services/benchmarkEngine';
 import { formatTopologyIds } from '@/utils/topologyLookup';
 
 const runStatusLabels: Record<RunStatus, string> = {
@@ -61,6 +59,12 @@ const stepStatusClasses: Record<'passed' | 'failed' | 'completed', string> = {
   passed: 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400',
   failed: 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
   completed: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+};
+
+const imageSummaryStatusClasses: Record<ImageSummary['status'], string> = {
+  ok: 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400',
+  skipped: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  error: 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-400',
 };
 
 const formatDateTime = (iso?: string) => {
@@ -133,15 +137,8 @@ const RunDetail = () => {
   const {
     loading,
     getRunById,
-    getProfileById,
     deleteRun,
     activeRun,
-    upsertRun,
-    questionSummary,
-    beginActiveRun,
-    setActiveRunCurrentQuestion,
-    recordActiveRunAttempt,
-    finalizeActiveRun,
     runQueue,
     getQueuePosition,
     dequeueRun,
@@ -305,15 +302,24 @@ const RunDetail = () => {
   const selectedItem =
     questionItems.find((item) => item.id === selectedQuestionId) ?? questionItems[0];
 
-  const selectedDefinition = useMemo(() => {
-    if (!selectedItem) {
-      return undefined;
-    }
-    if (selectedItem.attempt?.questionSnapshot) {
-      return selectedItem.attempt.questionSnapshot;
-    }
-    return questionLookup.get(selectedItem.id);
-  }, [selectedItem]);
+const selectedDefinition = useMemo(() => {
+  if (!selectedItem) {
+    return undefined;
+  }
+  if (selectedItem.attempt?.questionSnapshot) {
+    return selectedItem.attempt.questionSnapshot;
+  }
+  return questionLookup.get(selectedItem.id);
+}, [selectedItem]);
+
+  const selectedImageSummaries = selectedItem?.attempt?.imageSummaries ?? [];
+  const attemptRequestMetadata = (selectedItem?.attempt?.requestPayload ?? null) as
+    | (Record<string, unknown> & {
+        bindingId?: string;
+        bindingName?: string;
+        baseUrl?: string;
+      })
+    | null;
 
   if (loading) {
     return (
@@ -394,147 +400,16 @@ const RunDetail = () => {
       return;
     }
 
-    const profile = getProfileById(run.profileId);
-    if (!profile) {
-      alert('Profile not found. The model profile may have been deleted.');
-      return;
-    }
-
-    const readinessPass = profile.diagnostics.some(
-      (entry) => entry.level === 'READINESS' && entry.status === 'pass'
-    );
-
-    if (!readinessPass) {
-      const confirmed = window.confirm(
-        'Level 2 diagnostics have not passed for this profile. Run diagnostics before launching. Continue anyway?'
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
-    const selectedQuestions = run.questionIds
-      .map((id) => questionLookup.get(id))
-      .filter((question): question is BenchmarkQuestion => Boolean(question));
-
-    if (selectedQuestions.length === 0) {
-      alert('No questions found for this run.');
-      return;
-    }
-
-    const questionDescriptors = selectedQuestions.map((question, index) => {
-      const questionNumber = index + 1;
-      const label = question.questionId
-        ? `Question ${questionNumber} (ID: ${question.questionId})`
-        : `Question ${questionNumber}`;
-
-      return {
-        id: question.id,
-        order: index,
-        label,
-        prompt: question.prompt,
-        type: question.type,
-      };
-    });
-
-    const now = new Date().toISOString();
-    const newRun = upsertRun({
-      label: `Rerun of ${run.label}`,
-      profileId: profile.id,
-      profileName: profile.name,
-      profileModelId: profile.modelId,
-      status: 'running',
-      createdAt: now,
-      startedAt: now,
-      questionIds: run.questionIds,
-      dataset: {
-        label: questionSummary.label,
-        totalQuestions: selectedQuestions.length,
-        filters: run.dataset.filters ?? [],
+    // Navigate to /runs with rerun state to open the New Run panel
+    void navigate('/runs', {
+      state: {
+        rerun: {
+          questionIds: run.questionIds,
+          label: `Rerun of ${run.label}`,
+          filters: run.dataset.filters ?? [],
+        },
       },
-      metrics: createEmptyRunMetrics(),
-      attempts: [],
     });
-
-    beginActiveRun({
-      runId: newRun.id,
-      label: newRun.label,
-      profileName: newRun.profileName,
-      profileModelId: newRun.profileModelId,
-      datasetLabel: questionSummary.label,
-      filters: run.dataset.filters ?? [],
-      questions: questionDescriptors,
-      startedAt: now,
-    });
-
-    void navigate(`/runs/${newRun.id}?live=1`);
-
-    const attempts: BenchmarkAttempt[] = [];
-    let latestRun = newRun;
-
-    const runTask = async () => {
-      try {
-        const completedRun = await executeBenchmarkRun({
-          profile,
-          questions: selectedQuestions,
-          run: newRun,
-          onQuestionStart: (question) => {
-            setActiveRunCurrentQuestion({
-              runId: newRun.id,
-              questionId: question.id,
-              timestamp: new Date().toISOString(),
-            });
-          },
-          onProgress: (attempt, _progress, metrics) => {
-            attempts.push(attempt);
-            recordActiveRunAttempt({
-              runId: newRun.id,
-              questionId: attempt.questionId,
-              attemptId: attempt.id,
-              passed: attempt.evaluation.passed,
-              latencyMs: attempt.latencyMs,
-              notes: attempt.error ?? attempt.evaluation.notes,
-              metrics,
-              timestamp: new Date().toISOString(),
-            });
-            latestRun = upsertRun({
-              ...latestRun,
-              status: 'running',
-              attempts: [...attempts],
-              metrics,
-            });
-          },
-        });
-
-        latestRun = upsertRun(completedRun);
-        finalizeActiveRun({
-          runId: completedRun.id,
-          status: 'completed',
-          summary: completedRun.summary ?? 'Run completed',
-          metrics: completedRun.metrics,
-          completedAt: completedRun.completedAt ?? new Date().toISOString(),
-        });
-      } catch (error) {
-        const errorMessage = (error as Error).message;
-        latestRun = upsertRun({
-          ...latestRun,
-          status: 'failed',
-          completedAt: new Date().toISOString(),
-          summary: `Run failed: ${errorMessage}`,
-        });
-        finalizeActiveRun({
-          runId: latestRun.id,
-          status: 'failed',
-          summary: latestRun.summary ?? 'Run failed',
-          metrics: latestRun.metrics,
-          completedAt: latestRun.completedAt ?? new Date().toISOString(),
-          error: errorMessage,
-        });
-        console.error('Benchmark run failed', error);
-      }
-    };
-
-    void runTask();
   };
 
   return (
@@ -905,8 +780,97 @@ const RunDetail = () => {
                                 : '—'}
                             </span>
                           </div>
+                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1 sm:col-span-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Binding (text reasoning)
+                            </span>
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {attemptRequestMetadata?.bindingName ?? 'Unknown binding'}
+                              {attemptRequestMetadata?.bindingId
+                                ? ` · ${attemptRequestMetadata.bindingId}`
+                                : ''}
+                            </span>
+                            {selectedImageSummaries.length > 0 ? (
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                {selectedImageSummaries.length} image{' '}
+                                {selectedImageSummaries.length === 1 ? 'summary' : 'summaries'} generated via{' '}
+                                {selectedImageSummaries[0]?.bindingName ?? 'vision binding'}.
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                No vision preprocessing for this question.
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </section>
+
+                      {selectedImageSummaries.length > 0 ? (
+                        <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-4">
+                          <header className="flex flex-col gap-1">
+                            <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              Image preprocessing
+                            </h5>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              OCR summaries generated by {selectedImageSummaries[0]?.bindingName ?? 'vision binding'}.
+                            </p>
+                          </header>
+                          <ul className="flex flex-col gap-3">
+                            {selectedImageSummaries.map((summary, index) => (
+                              <li
+                                key={summary.id}
+                                className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-900/30 flex flex-col gap-2"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                    <span>Image {index + 1}</span>
+                                    <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                      {summary.image.source}
+                                      {typeof summary.image.optionIndex === 'number'
+                                        ? ` · option ${summary.image.optionIndex + 1}`
+                                        : ''}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${imageSummaryStatusClasses[summary.status]}`}
+                                  >
+                                    {summary.status}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                  {summary.text}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                                  <span>
+                                    Vision binding: {summary.bindingName} · Confidence:{' '}
+                                    {summary.confidence != null
+                                      ? `${Math.round(summary.confidence * 100)}%`
+                                      : '—'}
+                                  </span>
+                                  <a
+                                    href={summary.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="underline hover:text-accent-600 dark:hover:text-accent-400"
+                                  >
+                                    Open image
+                                  </a>
+                                </div>
+                                {summary.raw ? (
+                                  <details className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-xs text-slate-600 dark:text-slate-300">
+                                    <summary className="cursor-pointer font-semibold text-slate-700 dark:text-slate-200">
+                                      View raw response
+                                    </summary>
+                                    <pre className="mt-2 whitespace-pre-wrap overflow-x-auto">
+{JSON.stringify(summary.raw, null, 2)}
+                                    </pre>
+                                  </details>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ) : null}
 
                       {selectedItem.attempt.topologyEvaluation ? (
                         <section className="border border-accent-200 dark:border-accent-700 rounded-xl bg-accent-50/60 dark:bg-accent-900/10 p-4 flex flex-col gap-3">
@@ -996,6 +960,11 @@ const RunDetail = () => {
                               const tokensText = step.usage?.totalTokens
                                 ? `${step.usage.totalTokens} (prompt ${step.usage.promptTokens ?? 0}, completion ${step.usage.completionTokens ?? 0})`
                                 : '—';
+                              const metadata = ((step.requestPayload as Record<string, unknown>)._metadata ?? {}) as {
+                                bindingId?: string;
+                                bindingName?: string;
+                                imageSummaryCount?: number;
+                              };
                               return (
                                 <article
                                   key={`${step.id}-${step.order}`}
@@ -1020,7 +989,7 @@ const RunDetail = () => {
                                         : 'Failed'}
                                     </span>
                                   </header>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                     <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
                                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         Latency
@@ -1039,7 +1008,21 @@ const RunDetail = () => {
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
                                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Prompt schema
+                                        Binding
+                                      </span>
+                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
+                                        {metadata.bindingName ?? metadata.bindingId ?? '—'}
+                                      </span>
+                                      {metadata.imageSummaryCount != null ? (
+                                        <span className="block text-xs text-slate-500 dark:text-slate-400">
+                                          {metadata.imageSummaryCount}{' '}
+                                          {metadata.imageSummaryCount === 1 ? 'image summary' : 'image summaries'}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
+                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Prompt preview
                                       </span>
                                       <span className="block text-xs text-slate-700 dark:text-slate-300 break-words">
                                         {step.prompt.slice(0, 140)}{step.prompt.length > 140 ? '…' : ''}

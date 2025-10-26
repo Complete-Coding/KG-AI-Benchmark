@@ -3,10 +3,13 @@ import {
   BenchmarkQuestion,
   BenchmarkQuestionAnswer,
   BenchmarkQuestionOption,
+  BenchmarkQuestionMediaImage,
+  BenchmarkQuestionMediaSource,
   QuestionDatasetSummary,
   QuestionType,
 } from '@/types/benchmark';
 import { richTextToPlain } from '@/utils/richText';
+import createId from '@/utils/createId';
 
 type RawNode =
   | string
@@ -112,6 +115,131 @@ const countsByType =
     return acc;
   }, {});
 
+const markdownImagePattern = /!\[(?<alt>[^\]]*)\]\((?<url>[^)]+)\)/gi;
+const htmlImagePattern =
+  /<img\s[^>]*src=["'](?<url>[^"']+)["'][^>]*?(?:alt=["'](?<alt>[^"']*)["'])?[^>]*>/gi;
+const plainImagePattern =
+  /(https?:\/\/[^\s)]+?\.(?:png|jpe?g|gif|webp|svg)(?:\?[^\s)]*)?)/gi;
+
+const normalizeImageUrl = (candidate?: string | null): string | null => {
+  if (!candidate) {
+    return null;
+  }
+  const cleaned = candidate.trim().replace(/^['"]|['"]$/g, '');
+  if (!cleaned) {
+    return null;
+  }
+  try {
+    const url = new URL(cleaned);
+    return url.toString();
+  } catch (_error) {
+    return null;
+  }
+};
+
+const extractImagesFromText = (
+  text: string | undefined,
+  source: BenchmarkQuestionMediaSource,
+  optionIndex?: number
+): Omit<BenchmarkQuestionMediaImage, 'id'>[] => {
+  if (!text) {
+    return [];
+  }
+
+  const matches: Omit<BenchmarkQuestionMediaImage, 'id'>[] = [];
+  const seen = new Set<string>();
+
+  const register = (
+    urlCandidate: string | null,
+    alt: string | undefined | null,
+    inferredFrom: BenchmarkQuestionMediaImage['inferredFrom']
+  ) => {
+    const normalized = normalizeImageUrl(urlCandidate);
+    if (!normalized) {
+      return;
+    }
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    matches.push({
+      url: normalized,
+      source,
+      optionIndex,
+      altText: alt ?? null,
+      inferredFrom,
+    });
+  };
+
+  let match: RegExpExecArray | null;
+
+  markdownImagePattern.lastIndex = 0;
+  while ((match = markdownImagePattern.exec(text)) !== null) {
+    register(match.groups?.url ?? null, match.groups?.alt, 'markdown');
+  }
+
+  htmlImagePattern.lastIndex = 0;
+  while ((match = htmlImagePattern.exec(text)) !== null) {
+    register(match.groups?.url ?? null, match.groups?.alt, 'html');
+  }
+
+  plainImagePattern.lastIndex = 0;
+  while ((match = plainImagePattern.exec(text)) !== null) {
+    register(match[1] ?? null, null, 'url');
+  }
+
+  return matches;
+};
+
+const collectImageReferences = (
+  question: RawQuestion,
+  prompt: string,
+  instructions: string,
+  solution: string,
+  options: BenchmarkQuestionOption[]
+): BenchmarkQuestionMediaImage[] => {
+  const images: Omit<BenchmarkQuestionMediaImage, 'id'>[] = [];
+
+  const rawPromptText =
+    typeof question.content?.questionText === 'string'
+      ? question.content?.questionText
+      : prompt;
+  images.push(...extractImagesFromText(rawPromptText, 'prompt'));
+
+  const rawInstructionsText =
+    typeof question.content?.instructions === 'string'
+      ? question.content?.instructions
+      : instructions;
+  images.push(
+    ...extractImagesFromText(rawInstructionsText, 'instructions')
+  );
+
+  options.forEach((option, index) => {
+    images.push(
+      ...extractImagesFromText(option.text, 'option', index)
+    );
+  });
+
+  const rawSolutionText =
+    typeof question.solution === 'string' ? question.solution : solution;
+  images.push(...extractImagesFromText(rawSolutionText, 'solution'));
+
+  const uniqueImages = new Map<string, BenchmarkQuestionMediaImage>();
+  images.forEach((image) => {
+    const key = image.url.toLowerCase();
+    if (uniqueImages.has(key)) {
+      return;
+    }
+    uniqueImages.set(key, {
+      ...image,
+      id: createId(),
+    });
+  });
+
+  return Array.from(uniqueImages.values());
+};
+
 const buildOptions = (question: RawQuestion): BenchmarkQuestionOption[] => {
   if (question.type === 'TRUE_FALSE') {
     return [
@@ -198,6 +326,15 @@ const mapQuestion = (question: RawQuestion): BenchmarkQuestion => {
   const instructions = richTextToPlain(question.content?.instructions);
   const solution = richTextToPlain(question.solution);
   const metadata = question.metadata ?? {};
+  const options = buildOptions(question);
+  const imageReferences = collectImageReferences(
+    question,
+    prompt,
+    instructions,
+    solution,
+    options
+  );
+  const hasImages = Boolean(metadata.hasImages || imageReferences.length > 0);
 
   return {
     id: (question.id ?? String(question.questionId)).toString(),
@@ -207,12 +344,12 @@ const mapQuestion = (question: RawQuestion): BenchmarkQuestion => {
     difficulty: question.difficulty ?? 'UNKNOWN',
     prompt,
     instructions: instructions || undefined,
-    options: buildOptions(question),
+    options,
     answer: mapAnswer(question),
     solution: solution || undefined,
     metadata: {
       status: metadata.status ?? 'UNKNOWN',
-      hasImages: Boolean(metadata.hasImages),
+      hasImages,
       createdAt: metadata.createdAt,
       updatedAt: metadata.updatedAt,
       tags: Array.isArray(metadata.tags) ? metadata.tags : [],
@@ -229,6 +366,7 @@ const mapQuestion = (question: RawQuestion): BenchmarkQuestion => {
         paper: toTopologyValue(question.pyq?.paper),
       },
     },
+    media: imageReferences.length > 0 ? { images: imageReferences } : undefined,
   };
 };
 
@@ -256,14 +394,23 @@ const describeFilters = (filters?: RawDataset['filters']): string[] => {
 
 export const questionDataset: BenchmarkQuestion[] = rawQuestions.map(mapQuestion);
 
+const questionsWithImages = questionDataset.reduce(
+  (count, question) => (question.metadata.hasImages ? count + 1 : count),
+  0
+);
+
+const derivedPoolSize = dataset.stats?.poolSize ?? questionDataset.length;
+const derivedPoolWithoutImages =
+  dataset.stats?.poolWithoutImages ?? derivedPoolSize - questionsWithImages;
+
 export const questionDatasetSummary: QuestionDatasetSummary = {
   label: 'GATE PYQ Sample',
   generatedAt: dataset.generatedAt ?? 'Unknown',
   total: dataset.total ?? rawQuestions.length,
   filters: describeFilters(dataset.filters),
   stats: {
-    poolSize: dataset.stats?.poolSize ?? rawQuestions.length,
-    poolWithoutImages: dataset.stats?.poolWithoutImages ?? rawQuestions.length,
+    poolSize: derivedPoolSize,
+    poolWithoutImages: Math.max(derivedPoolWithoutImages, 0),
     countsByType,
   },
 };

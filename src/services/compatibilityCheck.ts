@@ -8,6 +8,7 @@ import {
 } from '@/services/evaluation';
 import { questionTopology } from '@/data/topology';
 import createId from '@/utils/createId';
+import { ensureTextBinding } from '@/utils/profile';
 
 export interface CompatibilityCheckLog {
   id: string;
@@ -196,19 +197,80 @@ const buildSubtopicPrompt = (
  * 2. JSON Mode - Does the server support JSON formatting? (json_object or json_schema)
  * 3. Protocol - Can the model return properly formatted responses?
  */
+// Very minimal 1x1 red pixel PNG - smallest valid PNG possible
+const TEST_IMAGE_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+
 export const runCompatibilityCheck = async (
   profile: ModelProfile
 ): Promise<CompatibilityCheckResult> => {
   const startedAt = new Date().toISOString();
+
+  // Check if profile has vision preprocessing enabled
+  const visionBinding = profile.bindings.find((b) => b.capability === 'image-to-text');
+  const visionStep = profile.pipeline.find((s) => s.capability === 'image-to-text');
+  const hasVisionEnabled = Boolean(visionBinding && visionStep?.enabled);
+
   const steps: CompatibilityCheckStep[] = [
     { id: 'connectivity', name: 'Server Connectivity', status: 'pending', logs: [] },
     { id: 'json_mode', name: 'JSON Mode Support', status: 'pending', logs: [] },
     { id: 'protocol', name: 'Protocol Compliance', status: 'pending', logs: [] },
+    { id: 'vision', name: 'Vision Model Test (Required)', status: 'pending', logs: [] },
   ];
+
+  // Vision is now mandatory - fail early if not configured
+  if (!hasVisionEnabled || !visionBinding) {
+    const errorMsg = 'Vision preprocessing is required but not configured. All profiles must support image-to-text capability.';
+    steps.forEach((step) => {
+      step.status = 'fail';
+      step.logs.push(createLog(errorMsg, 'error'));
+      step.error = errorMsg;
+    });
+
+    const completedAt = new Date().toISOString();
+    return {
+      compatible: false,
+      summary: errorMsg,
+      jsonFormat: 'none',
+      steps,
+      startedAt,
+      completedAt,
+      metadata: { error: errorMsg },
+    };
+  }
 
   let compatible = false;
   let summary = '';
   let jsonFormat: 'json_object' | 'json_schema' | 'none' = 'none';
+
+  const textBinding = ensureTextBinding(profile);
+  if (!textBinding) {
+    const errorMsg = 'Profile has no text-to-text binding configured';
+    steps.forEach((step) => {
+      step.status = 'fail';
+      step.logs.push(createLog(errorMsg, 'error'));
+      step.error = errorMsg;
+    });
+
+    const completedAt = new Date().toISOString();
+    return {
+      compatible: false,
+      summary: errorMsg,
+      jsonFormat: 'none',
+      steps,
+      startedAt,
+      completedAt,
+      metadata: { error: errorMsg },
+    };
+  }
+
+  const bindingDefaults = {
+    temperature: textBinding.temperature,
+    maxTokens: textBinding.maxOutputTokens,
+    topP: textBinding.topP,
+    frequencyPenalty: textBinding.frequencyPenalty,
+    presencePenalty: textBinding.presencePenalty,
+  };
+  const systemPrompt = textBinding.defaultSystemPrompt;
 
   // STEP 1: CONNECTIVITY CHECK
   const connectivityStep = steps[0];
@@ -216,7 +278,11 @@ export const runCompatibilityCheck = async (
   connectivityStep.logs.push(createLog('Testing server connectivity...'));
 
   try {
-    const models = await fetchModels(profile);
+    const models = await fetchModels({
+      baseUrl: textBinding.baseUrl,
+      apiKey: textBinding.apiKey,
+      requestTimeoutMs: textBinding.requestTimeoutMs,
+    });
     const modelIds = models.map((m) => m.id).join(', ') || 'no models reported';
 
     connectivityStep.logs.push(createLog(`✓ Server responded successfully`));
@@ -228,7 +294,7 @@ export const runCompatibilityCheck = async (
     connectivityStep.status = 'fail';
     connectivityStep.error = errorMsg;
 
-    summary = `Server not reachable at ${profile.baseUrl}`;
+    summary = `Server not reachable at ${textBinding.baseUrl}`;
     const completedAt = new Date().toISOString();
 
     return {
@@ -249,7 +315,7 @@ export const runCompatibilityCheck = async (
 
   try {
     const testCompletion = await sendChatCompletion({
-      profile,
+      binding: textBinding,
       messages: [
         {
           role: 'system',
@@ -261,6 +327,7 @@ export const runCompatibilityCheck = async (
         },
       ],
       temperature: 0,
+      maxTokens: bindingDefaults.maxTokens,
       preferJson: true,
       schemaType: 'answer',
     });
@@ -339,13 +406,16 @@ export const runCompatibilityCheck = async (
     protocolStep.logs.push(createLog(`Subject prompt length: ${subjectPrompt.length} chars`));
     const subjectStartedAt = Date.now();
     const subjectCompletion = await sendChatCompletion({
-      profile,
+      binding: textBinding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: subjectPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologySubject',
     });
@@ -366,13 +436,16 @@ export const runCompatibilityCheck = async (
     protocolStep.logs.push(createLog(`Topic prompt length: ${topicPrompt.length} chars`));
     const topicStartedAt = Date.now();
     const topicCompletion = await sendChatCompletion({
-      profile,
+      binding: textBinding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: topicPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologyTopic',
     });
@@ -393,13 +466,16 @@ export const runCompatibilityCheck = async (
     protocolStep.logs.push(createLog(`Subtopic prompt length: ${subtopicPrompt.length} chars`));
     const subtopicStartedAt = Date.now();
     const subtopicCompletion = await sendChatCompletion({
-      profile,
+      binding: textBinding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: subtopicPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologySubtopic',
     });
@@ -444,13 +520,16 @@ export const runCompatibilityCheck = async (
     protocolStep.logs.push(createLog(`Answer prompt length: ${answerPrompt.length} chars`));
 
     const answerCompletion = await sendChatCompletion({
-      profile,
+      binding: textBinding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: answerPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'answer',
     });
@@ -502,6 +581,99 @@ export const runCompatibilityCheck = async (
     summary = 'Model does not follow required response format';
   }
 
+  // STEP 4: VISION MODEL TEST (MANDATORY)
+  const visionTestStep = steps.find((s) => s.id === 'vision');
+  if (visionTestStep) {
+    visionTestStep.status = 'pending';
+    visionTestStep.logs.push(createLog('Testing vision model with sample image...'));
+
+    try {
+      // Test vision model with a simple test image
+      const visionTestPrompt = 'Describe what you see in this image.';
+
+      visionTestStep.logs.push(createLog(`Vision binding: ${visionBinding.modelId} at ${visionBinding.baseUrl}`));
+      visionTestStep.logs.push(createLog(`Transport: ${visionBinding.transport}`));
+      visionTestStep.logs.push(createLog(`Image data length: ${TEST_IMAGE_BASE64.length} chars`));
+      visionTestStep.logs.push(createLog(`Image prefix: ${TEST_IMAGE_BASE64.substring(0, 50)}...`));
+      visionTestStep.logs.push(createLog('Sending minimal 1x1 red pixel PNG for vision test'));
+      const visionStartedAt = Date.now();
+
+      const visionCompletion = await sendChatCompletion({
+        binding: visionBinding,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: visionTestPrompt,
+              },
+              {
+                type: 'input_image',
+                image_url: {
+                  url: TEST_IMAGE_BASE64,
+                },
+              },
+            ],
+          },
+        ],
+        temperature: 0,
+        maxTokens: visionBinding.maxOutputTokens,
+        preferJson: false, // Vision models typically return plain text
+      });
+
+      const visionLatency = Date.now() - visionStartedAt;
+      visionTestStep.logs.push(createLog(`Vision response received in ${visionLatency}ms`));
+
+      const extractedText = visionCompletion.text.trim();
+      visionTestStep.logs.push(createLog(`Extracted text: "${extractedText}"`));
+
+      // Check if the model extracted any text
+      if (extractedText.length > 0) {
+        visionTestStep.logs.push(createLog('✓ Vision model successfully extracted text from image'));
+        visionTestStep.status = 'pass';
+
+        // Vision test passed - update overall status only if text tests also passed
+        if (compatible) {
+          summary = `Compatible - Supports ${jsonFormat} format with vision`;
+        }
+      } else {
+        visionTestStep.logs.push(createLog('❌ Vision model returned empty response', 'error'));
+        visionTestStep.status = 'fail';
+        visionTestStep.error = 'Vision model did not extract any text';
+
+        // Vision is mandatory - fail overall compatibility
+        compatible = false;
+        summary = 'Vision model test failed - did not extract any text from test image';
+      }
+    } catch (error) {
+      const errorMsg = (error as Error).message || 'unknown error';
+      const errorStack = (error as Error).stack || '';
+
+      visionTestStep.logs.push(createLog(`❌ Vision test failed: ${errorMsg}`, 'error'));
+
+      // Log additional error details if available
+      if (error && typeof error === 'object') {
+        const errorObj = error as any;
+        if (errorObj.response) {
+          visionTestStep.logs.push(createLog(`HTTP status: ${errorObj.response.status}`, 'error'));
+          visionTestStep.logs.push(createLog(`Response: ${JSON.stringify(errorObj.response.data)}`, 'error'));
+        }
+        if (errorObj.cause) {
+          visionTestStep.logs.push(createLog(`Cause: ${JSON.stringify(errorObj.cause)}`, 'error'));
+        }
+      }
+
+      visionTestStep.logs.push(createLog(`Stack: ${errorStack.substring(0, 500)}`, 'error'));
+      visionTestStep.status = 'fail';
+      visionTestStep.error = errorMsg;
+
+      // Vision is mandatory - fail overall compatibility
+      compatible = false;
+      summary = `Vision model test failed: ${errorMsg}`;
+    }
+  }
+
   const completedAt = new Date().toISOString();
 
   return {
@@ -514,7 +686,24 @@ export const runCompatibilityCheck = async (
     metadata: {
       profileId: profile.id,
       profileName: profile.name,
-      modelId: profile.modelId,
+      binding: {
+        id: textBinding.id,
+        modelId: textBinding.modelId,
+        baseUrl: textBinding.baseUrl,
+        capability: textBinding.capability,
+        transport: textBinding.transport,
+      },
+      ...(visionBinding && hasVisionEnabled
+        ? {
+            visionBinding: {
+              id: visionBinding.id,
+              modelId: visionBinding.modelId,
+              baseUrl: visionBinding.baseUrl,
+              capability: visionBinding.capability,
+              transport: visionBinding.transport,
+            },
+          }
+        : {}),
       supportsJsonMode: jsonFormat === 'json_object' || jsonFormat === 'json_schema',
       topologyResponse: topologySummary,
       answerResponse: parsedAnswer,

@@ -1,10 +1,10 @@
-import { ModelProfile } from '@/types/benchmark';
+import { ModelBinding } from '@/types/benchmark';
 
 interface RequestOptions {
   path: string;
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
-  profile: Pick<ModelProfile, 'baseUrl' | 'apiKey' | 'requestTimeoutMs'>;
+  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs'>;
   signal?: AbortSignal;
 }
 
@@ -86,16 +86,16 @@ const request = async <T>({
   path,
   method = 'GET',
   body,
-  profile,
+  binding,
   signal,
 }: RequestOptions): Promise<{ ok: boolean; status: number; data?: T; raw: Response }> => {
-  const url = new URL(path, profile.baseUrl).toString();
+  const url = new URL(path, binding.baseUrl).toString();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), profile.requestTimeoutMs);
+  const timeout = setTimeout(() => controller.abort(), binding.requestTimeoutMs);
 
   const response = await fetch(url, {
     method,
-    headers: buildHeaders(profile.apiKey),
+    headers: buildHeaders(binding.apiKey),
     body: body ? JSON.stringify(body) : undefined,
     signal: signal ?? controller.signal,
   }).finally(() => {
@@ -118,16 +118,28 @@ const request = async <T>({
   };
 };
 
+export type MessageContentPart =
+  | { type: 'input_text'; text: string }
+  | {
+      type: 'input_image';
+      image_url: {
+        url: string;
+      };
+    };
+
 export interface ChatCompletionMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | MessageContentPart[];
 }
 
 export interface ChatCompletionParams {
-  profile: ModelProfile;
+  binding: ModelBinding;
   messages: ChatCompletionMessage[];
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   preferJson?: boolean;
   schemaType?: SchemaType; // Which schema to use for json_schema mode
   signal?: AbortSignal;
@@ -187,14 +199,27 @@ const mapUsage = (usage?: RawChatCompletionUsage) =>
     : undefined;
 
 export const sendChatCompletion = async ({
-  profile,
+  binding,
   messages,
   temperature,
   maxTokens,
-  preferJson = true,
+  topP,
+  frequencyPenalty,
+  presencePenalty,
+  preferJson,
   schemaType,
   signal,
 }: ChatCompletionParams): Promise<ChatCompletionResult> => {
+  const activeBinding = binding;
+
+  const effectiveTemperature = temperature ?? activeBinding.temperature;
+  const effectiveMaxTokens = maxTokens ?? activeBinding.maxOutputTokens;
+  const effectiveTopP = topP ?? activeBinding.topP;
+  const effectiveFrequencyPenalty =
+    frequencyPenalty ?? activeBinding.frequencyPenalty;
+  const effectivePresencePenalty = presencePenalty ?? activeBinding.presencePenalty;
+  const prefersJson = preferJson ?? activeBinding.metadata?.supportsJsonMode ?? true;
+
   const resolveSchema = (type: SchemaType) => {
     switch (type) {
       case 'topologySubject':
@@ -210,10 +235,10 @@ export const sendChatCompletion = async ({
   };
 
   // Helper to build request payload for different JSON formats
-  const buildPayload = (jsonFormat: JsonFormatType | null) => {
+const buildPayload = (jsonFormat: JsonFormatType | null) => {
     let responseFormat = {};
 
-    if (preferJson && jsonFormat) {
+    if (prefersJson && jsonFormat) {
       if (jsonFormat === 'json_object') {
         responseFormat = { response_format: { type: 'json_object' } };
       } else if (jsonFormat === 'json_schema' && schemaType) {
@@ -232,13 +257,17 @@ export const sendChatCompletion = async ({
     }
 
     return {
-      model: profile.modelId,
-      temperature,
-      max_tokens: maxTokens,
+      model: activeBinding.modelId,
+      temperature: effectiveTemperature,
+      max_tokens: effectiveMaxTokens,
       messages,
-      ...(profile.topP !== undefined && { top_p: profile.topP }),
-      ...(profile.frequencyPenalty !== undefined && { frequency_penalty: profile.frequencyPenalty }),
-      ...(profile.presencePenalty !== undefined && { presence_penalty: profile.presencePenalty }),
+      ...(effectiveTopP !== undefined && { top_p: effectiveTopP }),
+      ...(effectiveFrequencyPenalty !== undefined && {
+        frequency_penalty: effectiveFrequencyPenalty,
+      }),
+      ...(effectivePresencePenalty !== undefined && {
+        presence_penalty: effectivePresencePenalty,
+      }),
       // Note: reasoning_effort is NOT supported by LM Studio
       ...responseFormat,
     };
@@ -251,12 +280,12 @@ export const sendChatCompletion = async ({
       path: '/v1/chat/completions',
       method: 'POST',
       body: payload,
-      profile,
+      binding: activeBinding,
       signal,
     });
   };
 
-  if (!preferJson) {
+  if (!prefersJson) {
     // Plain text mode requested - no JSON formatting
     const result = await attempt(null);
 
@@ -315,7 +344,7 @@ export const sendChatCompletion = async ({
   console.error('[JSON MODE ERROR]', {
     status: result.status,
     schemaType,
-    preferJson,
+    preferJson: prefersJson,
     error: errorMessage,
     triedJsonObject: true,
     triedJsonSchema: jsonError.isError && jsonError.needsSchema && schemaType ? true : false,
@@ -326,11 +355,13 @@ export const sendChatCompletion = async ({
   );
 };
 
-export const fetchModels = async (profile: ModelProfile) => {
+export const fetchModels = async (
+  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs'>
+) => {
   const response = await request<{ data?: { id: string; object: string }[] }>({
     path: '/v1/models',
     method: 'GET',
-    profile,
+    binding,
   });
 
   if (!response.ok) {

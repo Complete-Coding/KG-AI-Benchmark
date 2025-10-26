@@ -107,6 +107,32 @@ const toCapabilities = (value: unknown): string[] => {
   return items.filter((item): item is string => typeof item === 'string');
 };
 
+/**
+ * Infers vision capability from model ID/name if not explicitly provided.
+ * Common patterns: VL, vision, visual, multimodal, mm, etc.
+ */
+const inferVisionCapability = (modelId: string, displayName?: string): boolean => {
+  const checkString = `${modelId} ${displayName ?? ''}`.toLowerCase();
+  const visionIndicators = [
+    'vl',           // Vision-Language models (e.g., Qwen-VL)
+    'vision',       // Explicit vision keyword
+    'visual',       // Visual models
+    'multimodal',   // Multimodal models
+    '-mm-',         // Multimodal abbreviation
+    'vlm',          // Vision Language Model
+    'clip',         // CLIP models
+    'blip',         // BLIP models
+    'llava',        // LLaVA models
+    'cogvlm',       // CogVLM models
+    'mplug',        // mPLUG models
+    'minigpt',      // MiniGPT models
+    'internvl',     // InternVL models
+    'qwen-vl',      // Qwen VL specifically
+  ];
+
+  return visionIndicators.some(indicator => checkString.includes(indicator));
+};
+
 const normalizeRichEntry = (entry: RichModelEntry, baseUrl: string, endpoint: string): DiscoveredModel | null => {
   const id = entry.id ?? entry.name;
 
@@ -154,7 +180,12 @@ const normalizeRichEntry = (entry: RichModelEntry, baseUrl: string, endpoint: st
             ? entry.archive
             : null;
 
-  const capabilities = toCapabilities(entry.capabilities);
+  let capabilities = toCapabilities(entry.capabilities);
+
+  // Infer vision capability from model ID/name if not explicitly provided
+  if (!capabilities.includes('vision') && inferVisionCapability(id, displayName)) {
+    capabilities = [...capabilities, 'vision'];
+  }
 
   const loaded =
     typeof entry.loaded === 'boolean'
@@ -189,10 +220,16 @@ const normalizeBasicEntry = (
     return null;
   }
 
+  // Infer capabilities from model ID since basic endpoint doesn't provide them
+  const capabilities: string[] = [];
+  if (inferVisionCapability(id)) {
+    capabilities.push('vision');
+  }
+
   return {
     id,
     displayName: id,
-    capabilities: [],
+    capabilities,
     origin: { baseUrl, endpoint },
     metadata: entry,
   };

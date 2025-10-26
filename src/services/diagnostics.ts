@@ -3,6 +3,7 @@ import {
   DiagnosticsLevel,
   DiagnosticsLogEntry,
   DiagnosticsResult,
+  ModelBinding,
   ModelProfile,
 } from '@/types/benchmark';
 import createId from '@/utils/createId';
@@ -14,6 +15,7 @@ import {
   parseTopologySubtopicPrediction,
 } from '@/services/evaluation';
 import { questionTopology } from '@/data/topology';
+import { ensureTextBinding } from '@/utils/profile';
 
 /**
  * Dummy question used exclusively for L2 readiness checks.
@@ -208,6 +210,14 @@ const buildAnswerPromptWithTopology = (
   return `${prompt}${topologyContext}`;
 };
 
+const requireTextBinding = (profile: ModelProfile): ModelBinding => {
+  const binding = ensureTextBinding(profile);
+  if (!binding) {
+    throw new Error('Profile is missing a text-to-text binding required for diagnostics.');
+  }
+  return binding;
+};
+
 interface HandshakeOutcome {
   success: boolean;
   logs: DiagnosticsLogEntry[];
@@ -215,13 +225,17 @@ interface HandshakeOutcome {
   summary: string;
 }
 
-const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome> => {
+const performHandshake = async (binding: ModelBinding): Promise<HandshakeOutcome> => {
   const logs: DiagnosticsLogEntry[] = [];
   logs.push(createLog('Starting Level 1 handshake diagnostic.'));
 
   try {
     logs.push(createLog('Fetching model list from LM Studio server...'));
-    const models = await fetchModels(profile);
+    const models = await fetchModels({
+      baseUrl: binding.baseUrl,
+      apiKey: binding.apiKey,
+      requestTimeoutMs: binding.requestTimeoutMs,
+    });
     const modelIds = models.map((model) => model.id).join(', ') || 'no models reported';
     logs.push(createLog(`Received models: ${modelIds}`));
   } catch (error) {
@@ -243,7 +257,7 @@ const performHandshake = async (profile: ModelProfile): Promise<HandshakeOutcome
     logs.push(createLog('Attempting JSON-mode test completion.'));
 
     const completion = await sendChatCompletion({
-      profile,
+      binding,
       messages: [
         {
           role: 'system',
@@ -320,7 +334,10 @@ interface ReadinessOutcome {
  * - Response can be parsed into expected format
  * - Response contains required 'answer' field
  */
-const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOutcome> => {
+const performReadinessCheck = async (
+  profile: ModelProfile,
+  binding: ModelBinding
+): Promise<ReadinessOutcome> => {
   const logs: DiagnosticsLogEntry[] = [];
 
   logs.push(
@@ -329,12 +346,21 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     )
   );
 
-  logs.push(createLog(`Profile configuration: ${profile.name} (${profile.modelId})`));
+  logs.push(createLog(`Profile configuration: ${profile.name} (binding ${binding.modelId})`));
   logs.push(
     createLog(
       `Test question: ${READINESS_DUMMY_QUESTION.type} - "${READINESS_DUMMY_QUESTION.prompt}"`
     )
   );
+
+  const bindingDefaults = {
+    temperature: binding.temperature,
+    maxTokens: binding.maxOutputTokens,
+    topP: binding.topP,
+    frequencyPenalty: binding.frequencyPenalty,
+    presencePenalty: binding.presencePenalty,
+  };
+  const systemPrompt = binding.defaultSystemPrompt;
 
   let subjectCompletion: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
   let topicCompletion: Awaited<ReturnType<typeof sendChatCompletion>> | undefined;
@@ -363,13 +389,16 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     logs.push(createLog(`Subject prompt length: ${subjectPrompt.length} chars`));
     const subjectStart = Date.now();
     subjectCompletion = await sendChatCompletion({
-      profile,
+      binding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: subjectPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologySubject',
     });
@@ -388,13 +417,16 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     logs.push(createLog(`Topic prompt length: ${topicPrompt.length} chars`));
     const topicStart = Date.now();
     topicCompletion = await sendChatCompletion({
-      profile,
+      binding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: topicPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologyTopic',
     });
@@ -417,13 +449,16 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     logs.push(createLog(`Subtopic prompt length: ${subtopicPrompt.length} chars`));
     const subtopicStart = Date.now();
     subtopicCompletion = await sendChatCompletion({
-      profile,
+      binding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: subtopicPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'topologySubtopic',
     });
@@ -466,13 +501,16 @@ const performReadinessCheck = async (profile: ModelProfile): Promise<ReadinessOu
     logs.push(createLog(`Answer prompt length: ${answerPrompt.length} chars`));
     const answerStart = Date.now();
     answerCompletion = await sendChatCompletion({
-      profile,
+      binding,
       messages: [
-        { role: 'system', content: profile.defaultSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: answerPrompt },
       ],
-      temperature: profile.temperature,
-      maxTokens: profile.maxOutputTokens,
+      temperature: bindingDefaults.temperature,
+      maxTokens: bindingDefaults.maxTokens,
+      topP: bindingDefaults.topP,
+      frequencyPenalty: bindingDefaults.frequencyPenalty,
+      presencePenalty: bindingDefaults.presencePenalty,
       preferJson: true,
       schemaType: 'answer',
     });
@@ -586,15 +624,42 @@ export const runDiagnostics = async ({
   let supportsJsonMode = false;
   let metadata: Record<string, unknown> | undefined;
 
+  let textBinding: ModelBinding;
+  try {
+    textBinding = requireTextBinding(profile);
+  } catch (error) {
+    completedAt = new Date().toISOString();
+    const message = (error as Error).message ?? 'Profile missing text binding';
+    logs = [createLog(message, 'error')];
+    summary = message;
+    supportsJsonMode = false;
+
+    return {
+      id: createId(),
+      profileId: profile.id,
+      level,
+      startedAt,
+      completedAt,
+      status: 'fail',
+      summary,
+      fallbackApplied: true,
+      metadata: {
+        error: message,
+        supportsJsonMode,
+      },
+      logs,
+    };
+  }
+
   if (level === 'HANDSHAKE') {
-    const result = await performHandshake(profile);
+    const result = await performHandshake(textBinding);
     completedAt = new Date().toISOString();
     status = result.success ? 'pass' : 'fail';
     logs = result.logs;
     summary = result.summary;
     supportsJsonMode = result.supportsJsonMode;
   } else {
-    const result = await performReadinessCheck(profile);
+    const result = await performReadinessCheck(profile, textBinding);
     completedAt = new Date().toISOString();
     status = result.success ? 'pass' : 'fail';
     logs = result.logs;

@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ActiveRunPhase,
   BenchmarkQuestion,
   BenchmarkRun,
+  ModelProfile,
   RunStatus,
 } from '@/types/benchmark';
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
@@ -100,6 +101,16 @@ const formatLatency = (latencyMs?: number) => {
   return `${Math.round(latencyMs)} ms`;
 };
 
+const profileSupportsVision = (profile: ModelProfile): boolean => {
+  const visionStep = profile.pipeline.find((step) => step.capability === 'image-to-text');
+  if (!visionStep || !visionStep.enabled || !visionStep.bindingId) {
+    return false;
+  }
+  return profile.bindings.some(
+    (binding) => binding.id === visionStep.bindingId && binding.capability === 'image-to-text'
+  );
+};
+
 interface LaunchRunPayload {
   profileIds: string[];  // Changed to array for multi-profile support
   label: string;
@@ -162,28 +173,30 @@ interface NewRunPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onLaunch: (payload: LaunchRunPayload) => Promise<void>;
+  initialQuestionIds?: string[];
+  initialLabel?: string;
 }
 
-const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
+const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLabel }: NewRunPanelProps) => {
   const { profiles, questions, questionSummary } = useBenchmarkContext();
 
-  // Filter to only show compatible profiles
-  const supportedProfiles = useMemo(
+  // Filter to only show compatibility-passed profiles
+  const compatibleProfiles = useMemo(
     () =>
-      profiles.filter((profile) =>
-        profile.metadata.compatibilityStatus === 'compatible'
+      profiles.filter(
+        (profile) => profile.metadata.compatibilityStatus === 'compatible'
       ),
     [profiles]
   );
 
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
-    () => new Set(supportedProfiles.length > 0 ? [supportedProfiles[0].id] : [])
+    () => new Set(compatibleProfiles.length > 0 ? [compatibleProfiles[0].id] : [])
   );
   const [runLabel, setRunLabel] = useState<string>(
-    formatRunLabel(new Date())
+    initialLabel ?? formatRunLabel(new Date())
   );
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(
-    () => new Set(questions.map((question) => question.id))
+    () => new Set(initialQuestionIds ?? questions.map((question) => question.id))
   );
   const [filters, setFilters] = useState({
     types: new Set<string>(),
@@ -197,6 +210,64 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
     () => filterQuestions(questions, filters),
     [questions, filters]
   );
+  const selectionHasImages = useMemo(() => {
+    if (selectedQuestionIds.size === 0) {
+      return false;
+    }
+    for (const id of selectedQuestionIds) {
+      const question = questionLookup.get(id);
+      if (question?.metadata.hasImages) {
+        return true;
+      }
+    }
+    return false;
+  }, [selectedQuestionIds]);
+  const filteredHasImages = useMemo(
+    () => filteredQuestions.some((question) => question.metadata.hasImages),
+    [filteredQuestions]
+  );
+  const requiresVision = selectionHasImages;
+  const supportedProfiles = useMemo(() => {
+    if (!requiresVision) {
+      return compatibleProfiles;
+    }
+    return compatibleProfiles.filter((profile) => profileSupportsVision(profile));
+  }, [compatibleProfiles, requiresVision]);
+  const incompatibleCount = profiles.length - compatibleProfiles.length;
+  const visionFilteredCount = compatibleProfiles.length - supportedProfiles.length;
+
+  useEffect(() => {
+    if (supportedProfiles.length === 0) {
+      setSelectedProfileIds((prev) => (prev.size === 0 ? prev : new Set()));
+      return;
+    }
+    setSelectedProfileIds((prev) => {
+      const allowed = new Set(supportedProfiles.map((profile) => profile.id));
+      const retained = Array.from(prev).filter((id) => allowed.has(id));
+      const hasSameSelection =
+        retained.length === prev.size && retained.every((id) => prev.has(id));
+      if (hasSameSelection) {
+        return prev;
+      }
+      const next = new Set<string>(retained);
+      if (next.size === 0) {
+        next.add(supportedProfiles[0].id);
+      }
+      return next;
+    });
+  }, [supportedProfiles]);
+
+  // Sync state with initial props when panel opens with rerun data
+  useEffect(() => {
+    if (isOpen) {
+      if (initialQuestionIds) {
+        setSelectedQuestionIds(new Set(initialQuestionIds));
+      }
+      if (initialLabel) {
+        setRunLabel(initialLabel);
+      }
+    }
+  }, [isOpen, initialQuestionIds, initialLabel]);
 
   const toggleSet = (set: Set<string>, value: string) => {
     const next = new Set(set);
@@ -322,12 +393,21 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
               {selectedProfileIds.size} selected → {selectedProfileIds.size} {selectedProfileIds.size === 1 ? 'run' : 'runs'} will be created
             </span>
           </div>
+          {requiresVision ? (
+            <p className="text-xs text-warning-700 dark:text-warning-400">
+              Selected questions include images. Only profiles with an active vision binding are shown.
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Profiles that passed compatibility checks appear here. Select one or more to launch parallel runs.
+            </p>
+          )}
           <div className="max-h-60 overflow-y-auto flex flex-col gap-2 border border-slate-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/30">
             {profiles.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-3">
                 No profiles available. Create a profile first.
               </p>
-            ) : supportedProfiles.length === 0 ? (
+            ) : compatibleProfiles.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm font-semibold text-danger-700 dark:text-danger-400 mb-2">
                   No compatible models available
@@ -339,10 +419,34 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
                   Run compatibility checks on profiles to verify they support JSON mode and can return properly formatted responses.
                 </p>
               </div>
+            ) : supportedProfiles.length === 0 && requiresVision ? (
+              <div className="text-center py-4">
+                <p className="text-sm font-semibold text-danger-700 dark:text-danger-400 mb-2">
+                  No vision-capable profiles available
+                </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+                  Configure at least one profile with an image-to-text binding enabled in the pipeline before running on image questions.
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Tip: edit a profile to assign a vision binding, then enable the “Image preprocessing” step.
+                </p>
+              </div>
             ) : (
               <>
                 {supportedProfiles.map((profile) => {
                   const isSelected = selectedProfileIds.has(profile.id);
+                  const textBinding = profile.bindings.find(
+                    (binding) => binding.capability === 'text-to-text'
+                  );
+                  const visionStep = profile.pipeline.find(
+                    (step) => step.capability === 'image-to-text'
+                  );
+                  const visionBinding =
+                    (visionStep?.bindingId
+                      ? profile.bindings.find((binding) => binding.id === visionStep.bindingId)
+                      : null) ??
+                    profile.bindings.find((binding) => binding.capability === 'image-to-text');
+                  const visionActive = Boolean(visionStep?.enabled && visionBinding);
                   return (
                     <label
                       key={profile.id}
@@ -368,8 +472,27 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
                           </span>
                         </div>
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-                          {profile.modelId}
+                          {textBinding?.modelId ?? profile.modelId ?? 'Model not assigned'}
                         </p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-accent-100 text-accent-800 dark:bg-accent-900/30 dark:text-accent-300">
+                            Text: {textBinding?.modelId ?? 'Not set'}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-semibold ${
+                              visionActive
+                                ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                : 'bg-slate-200 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300'
+                            }`}
+                          >
+                            Vision:{' '}
+                            {visionActive
+                              ? visionBinding?.modelId ?? 'Assigned'
+                              : visionBinding
+                              ? 'Disabled'
+                              : 'Not configured'}
+                          </span>
+                        </div>
                         {profile.metadata.lastCompatibilityCheckAt ? (
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                             Last checked: {formatDateTime(profile.metadata.lastCompatibilityCheckAt)}
@@ -379,10 +502,22 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
                     </label>
                   );
                 })}
-                {profiles.length > supportedProfiles.length && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2 border-t border-slate-300 dark:border-slate-600">
-                    {profiles.length - supportedProfiles.length} {profiles.length - supportedProfiles.length === 1 ? 'profile is' : 'profiles are'} hidden (not compatible)
-                  </p>
+                {(incompatibleCount > 0 || visionFilteredCount > 0) && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 text-center py-2 border-t border-slate-300 dark:border-slate-600 space-y-1">
+                    {incompatibleCount > 0 ? (
+                      <p>
+                        {incompatibleCount} {incompatibleCount === 1 ? 'profile' : 'profiles'} hidden
+                        — failed compatibility checks
+                      </p>
+                    ) : null}
+                    {visionFilteredCount > 0 && requiresVision ? (
+                      <p>
+                        {visionFilteredCount}{' '}
+                        {visionFilteredCount === 1 ? 'profile' : 'profiles'} hidden — no vision
+                        binding
+                      </p>
+                    ) : null}
+                  </div>
                 )}
               </>
             )}
@@ -518,6 +653,15 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Showing {filteredQuestions.length} questions from {questionSummary.label}. Selected{' '}
             {selectedQuestionIds.size}.
+            {selectionHasImages ? (
+              <span className="ml-1 text-warning-700 dark:text-warning-400 font-semibold">
+                Includes image-based questions.
+              </span>
+            ) : filteredHasImages ? (
+              <span className="ml-1 text-slate-500 dark:text-slate-400">
+                (Images available in this filtered set.)
+              </span>
+            ) : null}
           </p>
           <ul className="max-h-96 overflow-y-auto flex flex-col gap-2 border border-slate-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/30">
             {filteredQuestions.map((question) => {
@@ -539,9 +683,16 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch }: NewRunPanelProps) => {
                       className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
                     />
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {question.type} · {question.difficulty}
-                      </h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          {question.type} · {question.difficulty}
+                        </h4>
+                        {question.metadata.hasImages ? (
+                          <span className="text-[0.65rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300">
+                            Image
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
                         {question.prompt}
                       </p>
@@ -598,14 +749,31 @@ const Runs = () => {
     recordDiagnostic,
   } = useBenchmarkContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const [statusFilter, setStatusFilter] = useState<'all' | RunStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [providerFilter, setProviderFilter] = useState<string>('all');
   const [showNewRunPanel, setShowNewRunPanel] = useState(false);
   const [executingRunIds, setExecutingRunIds] = useState<Set<string>>(new Set());
+  const [rerunData, setRerunData] = useState<{
+    questionIds: string[];
+    label: string;
+    filters: string[];
+  } | null>(null);
 
   // Ref to prevent race conditions in useEffect
   const startingRunsRef = useRef<Set<string>>(new Set());
+
+  // Check for rerun state from navigation
+  useEffect(() => {
+    const state = location.state as { rerun?: { questionIds: string[]; label: string; filters: string[] } } | null;
+    if (state?.rerun) {
+      setRerunData(state.rerun);
+      setShowNewRunPanel(true);
+      // Clear the state to prevent reopening on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const filteredRuns = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -634,17 +802,6 @@ const Runs = () => {
   const handleDeleteRun = (runId: string) => {
     const run = getRunById(runId);
     if (!run) {
-      return;
-    }
-
-    if (run.status === 'running') {
-      const confirmed = window.confirm(
-        'This run is still running. Deleting it will discard progress. Continue?'
-      );
-      if (!confirmed) {
-        return;
-      }
-    } else if (!window.confirm('Delete this run and all attempts?')) {
       return;
     }
 
@@ -729,20 +886,13 @@ const Runs = () => {
       return;
     }
 
-    const profile = getProfileById(run.profileId);
-    if (!profile) {
-      alert('Profile not found. The model profile may have been deleted.');
-      return;
-    }
-
-    const payload: LaunchRunPayload = {
-      profileIds: [run.profileId],  // Wrap in array for multi-profile support
-      label: `Rerun of ${run.label}`,
+    // Set rerun data and open the panel for profile selection
+    setRerunData({
       questionIds: run.questionIds,
+      label: `Rerun of ${run.label}`,
       filters: run.dataset.filters ?? [],
-    };
-
-    void handleLaunchRun(payload);
+    });
+    setShowNewRunPanel(true);
   };
 
   const handleLaunchRun = (payload: LaunchRunPayload): Promise<void> => {
@@ -830,8 +980,14 @@ const Runs = () => {
   const inlineUpdated = activeRun ? formatDateTime(activeRun.updatedAt) : undefined;
   const inlineElapsed = activeRun ? formatDuration(activeRun.startedAt, activeRun.completedAt) : '—';
 
-  const handleOpenNewRunPanel = () => setShowNewRunPanel(true);
-  const handleCloseNewRunPanel = () => setShowNewRunPanel(false);
+  const handleOpenNewRunPanel = () => {
+    setRerunData(null);
+    setShowNewRunPanel(true);
+  };
+  const handleCloseNewRunPanel = () => {
+    setShowNewRunPanel(false);
+    setRerunData(null);
+  };
 
   const handleResumeAll = () => {
     console.log('[RESUME ALL] Starting...');
@@ -1595,6 +1751,8 @@ const Runs = () => {
         isOpen={showNewRunPanel}
         onClose={handleCloseNewRunPanel}
         onLaunch={handleLaunchRun}
+        initialQuestionIds={rerunData?.questionIds}
+        initialLabel={rerunData?.label}
       />
     </div>
   );
