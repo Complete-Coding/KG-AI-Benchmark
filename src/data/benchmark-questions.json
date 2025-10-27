@@ -1,9 +1,10 @@
 {
-  "generatedAt": "2025-10-25T07:28:10.171Z",
-  "total": 50,
+  "generatedAt": "2025-10-26T14:32:45.325Z",
+  "total": 100,
   "stats": {
     "countsByType": {
-      "MCQ": 50
+      "MCQ": 96,
+      "NAT": 4
     }
   },
   "questions": [
@@ -17,7 +18,7 @@
         "subtopicId": "68da338e5e8ee4416b6fbb51"
       },
       "content": {
-        "questionText": "Consider a network with 6 routers R1 to R6 connected with links having weights as shown in the following diagram  Suppose the weights of all unused links in the previous question are changed to 2 and the distance vector algorithm is used again until all routing tables stabilize. How many links will now remain unused?",
+        "questionText": "Consider a network with 6 routers R1 to R6 connected with links having weights as shown in the following diagram ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3949-local-1760444139599.png) Suppose the weights of all unused links in the previous question are changed to 2 and the distance vector algorithm is used again until all routing tables stabilize. How many links will now remain unused?",
         "options": [
           {
             "id": 0,
@@ -63,7 +64,7 @@
         "subtopicId": "68da338e5e8ee4416b6fbb51"
       },
       "content": {
-        "questionText": "Consider a network with 6 routers R1 to R6 connected with links having weights as shown in the following diagram  All the routers use the distance vector based routing algorithm to update their routing tables. Each router starts with its routing table initialized to contain an entry for each neighbour with the weight of the respective connecting link. After all the routing tables stabilize, how many links in the network will never be used for carrying any data?",
+        "questionText": "Consider a network with 6 routers R1 to R6 connected with links having weights as shown in the following diagram ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3948-local-1760444139464.png) All the routers use the distance vector based routing algorithm to update their routing tables. Each router starts with its routing table initialized to contain an entry for each neighbour with the weight of the respective connecting link. After all the routing tables stabilize, how many links in the network will never be used for carrying any data?",
         "options": [
           {
             "id": 0,
@@ -201,7 +202,7 @@
         "subtopicId": "68da1f1c31f60703d60ce831"
       },
       "content": {
-        "questionText": "A computer system has an L1 cache, an L2 cache, and a main memory unit connected as shown below. The block size in L1 cache is 4 words. The block size in L2 cache is 16 words. The memory access times are 2 nanoseconds. 20 nanoseconds and 200 nanoseconds for L1 cache, L2 cache and main memory unit respectively.  When there is a miss in both L1 cache and L2 cache, first a block is transferred from main memory to L2 cache, and then a block is transferred from L2 cache to L1 cache. What is the total time taken for these transfers?",
+        "questionText": "A computer system has an L1 cache, an L2 cache, and a main memory unit connected as shown below. The block size in L1 cache is 4 words. The block size in L2 cache is 16 words. The memory access times are 2 nanoseconds. 20 nanoseconds and 200 nanoseconds for L1 cache, L2 cache and main memory unit respectively. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3943-local-1760444139335.png) When there is a miss in both L1 cache and L2 cache, first a block is transferred from main memory to L2 cache, and then a block is transferred from L2 cache to L1 cache. What is the total time taken for these transfers?",
         "options": [
           {
             "id": 0,
@@ -376,6 +377,52 @@
       }
     },
     {
+      "questionId": 3927,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e5a31f60703d60a80c3",
+        "subtopicId": "68da1fe631f60703d60f2b21"
+      },
+      "content": {
+        "questionText": "A 5-stage pipelined processor has Instruction Fetch (IF), Instruction Decode (ID), Operand Fetch (OF), Perform Operation (PO) and Write Operand (WO) stages. The IF, ID, OF and WO stages take 1 clock cycle each for any instruction. The PO stage takes 1 clock cycle for ADD and SUB instructions, 3 clock cycles for MUL instruction, and 6 clock cycles for DIV instruction respectively. Operand forwarding is used in the pipeline. What is the number of clock cycles needed to execute the following sequence of instructions? \\(\\begin{array} c{}  \\textbf {Instruction} &  \\textbf{Meaning of instruction}  \\\\  \\text{$I _0$: MUL $R _2$,$R _0$,$R _1$} & \\text{R}_2  \\gets \\text{R}_0*\\text{R}_1\\\\  \\text{$I _1$: DIV $R _5,R _3,R _4$} & \\text{R}_5 \\gets \\text{R}_3 ∕ \\text{R}_4\\\\   \\text{$I _2$: ADD $R _2,R _5,R _2$} & \\text{R}_2 \\gets \\text{R}_5 + \\text{R}_2 \\\\ I_3: \\text{SUB} \\:\\text{R}_5,\\text{R}_2,\\text{R}_6 & \\text{R}_5 \\gets \\text{R}_2 - \\text{R}_6  \\\\\\end{array}\\)",
+        "options": [
+          {
+            "id": 0,
+            "text": "13",
+            "feedback": "13 is too low. It ignores the long divide operation and the RAW dependence on its result: the divide produces R5 only after its 6-cycle PO, so the later ADD that needs R5 must delay its operand fetch until that result is available. Accounting for those required waits gives a larger total than 13."
+          },
+          {
+            "id": 1,
+            "text": "15",
+            "feedback": "15 is correct. With operand forwarding, results become available at the end of a producer's PO and can be forwarded into a consumer's OF in the next cycle. Scheduling yields:\nI0 (MUL): IF1, ID2, OF3, PO4–6, WO7\nI1 (DIV): IF2, ID3, OF4, PO5–10, WO11\nI2 (ADD) depends on R2 (from I0, ready after PO at cycle 6) and R5 (from I1, ready after PO at cycle 10), so its OF must be at cycle 11 → PO12 → WO13\nI3 (SUB) depends on R2 (from I2, ready after PO at cycle 12), so its OF is at cycle 13 → PO14 → WO15\nThe final write completes at cycle 15, so 15 clock cycles are needed."
+          },
+          {
+            "id": 2,
+            "text": "17",
+            "feedback": "17 is too high. It likely adds extra stalls beyond those required. Because operand forwarding allows a consumer to use a producer's result in the cycle after the producer's PO completes, fewer stall cycles are needed than would produce a total of 17. The minimal schedule completes in 15 cycles."
+          },
+          {
+            "id": 3,
+            "text": "19",
+            "feedback": "19 is much higher than necessary. This value probably double-counts write-back delays or inserts unnecessary bubbles. With operand forwarding the consumer can use a producer's result right after the producer's PO finishes, so the correct minimal schedule finishes in 15 cycles."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer: 15 clock cycles. Key idea:  IF, ID, OF and WO take 1 cycle each; PO takes 3 cycles for MUL, 6 cycles for DIV, and 1 cycle for ADD/SUB. Operand forwarding is available, so a producer's result becomes available at the end of its PO and can be forwarded to a consumer's OF in the next cycle. The consumer's OF must not occur earlier than the cycle after the producer's PO finishes. I0 (MUL R2 ← R0 * R1): IF at cycle 1, ID 2, OF 3, PO 4–6 (3 cycles), WO 7. I1 (DIV R5 ← R3 ∕ R4): IF 2, ID 3, OF 4, PO 5–10 (6 cycles), WO 11. I2 (ADD R2 ← R5 + R2) depends on R2 from I0 and R5 from I1. R2 from I0 is ready after I0's PO at end of cycle 6 (so usable in OF at cycle 7); R5 from I1 is ready only after I1's PO at end of cycle 10 (so usable in OF at cycle 11). Therefore I2's OF must be at cycle 11, with ID at 10 and IF at 9. Then I2's PO (ADD) is at 12 and WO at 13. I3 (SUB R5 ← R2 - R6) depends on R2 from I2. I2's PO finishes at cycle 12, so I3's OF can be at cycle 13 (ID 12, IF 11), then PO at 14 and WO at 15. Final completion: the last write (I3 WO) finishes at cycle 15, so the sequence requires 15 clock cycles.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
       "questionId": 3926,
       "type": "MCQ",
       "difficulty": "ADVANCED",
@@ -385,7 +432,7 @@
         "subtopicId": "68cbe7ed61903cd7d61be4b0"
       },
       "content": {
-        "questionText": "In the sequential circuit shown below, if the initial value of the output  \\(Q_1Q_0\\)  is 00, what are the next four values of  \\(Q_1Q_0\\) ?",
+        "questionText": "In the sequential circuit shown below, if the initial value of the output  \\(Q_1Q_0\\)  is 00, what are the next four values of  \\(Q_1Q_0\\) ? ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3926-local-1760444139095.png)",
         "options": [
           {
             "id": 0,
@@ -431,7 +478,7 @@
         "subtopicId": "68cbe64f61903cd7d61401b7"
       },
       "content": {
-        "questionText": "What is the Boolean expression for the output  \\(f\\)  of the combinational logic circuit of NOR gates given below?",
+        "questionText": "What is the Boolean expression for the output  \\(f\\)  of the combinational logic circuit of NOR gates given below? ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3925-external-1760444138975.png)",
         "options": [
           {
             "id": 0,
@@ -615,7 +662,7 @@
         "subtopicId": "68d39684d857e762193d2792"
       },
       "content": {
-        "questionText": "A relational schema for a train reservation database is given below Passenger (pid, pname, age) Re servation (pid, cass, tid)  What pids are returned by the following SQL query for the above instance of the tables? \n\nSLECT pid\n\nFROM Reservation ,\n\nWHERE class ‘AC’ AND\n\n    EXISTS (SELECT *\n\n           FROM Passenger\n\n           WHERE age > 65 AND\n\n           Passenger. pid = Reservation.pid)",
+        "questionText": "A relational schema for a train reservation database is given below Passenger (pid, pname, age) Re servation (pid, cass, tid) ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3913-local-1760444138328.png) What pids are returned by the following SQL query for the above instance of the tables? \n\nSLECT pid\n\nFROM Reservation ,\n\nWHERE class ‘AC’ AND\n\n    EXISTS (SELECT *\n\n           FROM Passenger\n\n           WHERE age > 65 AND\n\n           Passenger. pid = Reservation.pid)",
         "options": [
           {
             "id": 0,
@@ -799,7 +846,7 @@
         "subtopicId": "68cbe73661903cd7d617a2f9"
       },
       "content": {
-        "questionText": "The Boolean expression for the output  \\(f\\)  of the multiplexer shown below is",
+        "questionText": "The Boolean expression for the output  \\(f\\)  of the multiplexer shown below is ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3903-local-1760444138189.png)",
         "options": [
           {
             "id": 0,
@@ -877,6 +924,52 @@
         "caseSensitive": false
       },
       "solution": "Step 1: Determine the signed value of P from (F87B)16. MSB is 1, so the number is negative in two's complement. Invert F87B -> 0784; add 1 -> 0785. 0x0785 = 1925 decimal, so P = -1925. Step 2: Compute 8 * P. 8 * (-1925) = -15400. Convert magnitude 15400 to hex: 15400 = 0x3C28. Take two's complement to represent the negative value: invert 3C28 -> C3D7, add 1 -> C3D8. Answer: The 16-bit two's complement representation of 8 * P is (C3D8)16. Note: The result fits within the 16-bit signed range (-32768 to 32767), so there is no overflow.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3901,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e6831f60703d60a8393",
+        "subtopicId": "68da213f5e8ee4416b478b8c"
+      },
+      "content": {
+        "questionText": "A main memory unit with a capacity of 4 megabytes is built using 1M×1-bit DRAM chips. Each DRAM chip has 1K rows of cells with 1K cells in each row. The time taken for a single refresh operation is 100 nanoseconds. The time required to perform one refresh operation on all the cells in the memory unit is",
+        "options": [
+          {
+            "id": 0,
+            "text": "100 nanoseconds",
+            "feedback": "Incorrect. 100 nanoseconds is the time to refresh a single row (one refresh operation). To refresh the entire memory you must perform a refresh for every distinct row that needs refreshing, not just one."
+          },
+          {
+            "id": 1,
+            "text": "100×2^10  nanoseconds",
+            "feedback": "Correct. Each 1M×1-bit chip has 1K (= 1024 = 2^10) rows. The 4 MB memory requires 32 such chips, but corresponding rows across chips can be refreshed in parallel, so only 1024 refresh operations are needed. Total time = 1024 × 100 ns = 102,400 ns (which is 100 × 2^10 ns)."
+          },
+          {
+            "id": 2,
+            "text": "100×2^20  nanoseconds",
+            "feedback": "Incorrect. 100×2^20 ns (as implied by this text) would assume 2^20 refresh operations. But each chip has only 2^10 rows, so using 2^20 overcounts the number of required row refreshes."
+          },
+          {
+            "id": 3,
+            "text": "3200×2^20  nanoseconds",
+            "feedback": "Incorrect. The expression combines a large factor (3200×2^20 ns) that does not match the hardware counts given. The correct count of distinct row refreshes is 1024, not the huge value implied here—also corresponding rows across chips refresh in parallel so you do not multiply by the number of chips."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea: A refresh operation refreshes one row, and corresponding rows in all chips can be refreshed in parallel. Memory size in bits = 4 MB × 8 = 4 × 2^20 × 8 = 33,554,432 bits. Each chip stores 1M bits = 2^20 bits, so number of chips = 33,554,432 ÷ 2^20 = 32 chips. Each chip has 1K rows = 1024 = 2^10 rows. Since corresponding rows across the 32 chips can be refreshed simultaneously, total distinct refresh operations required = 1024. Total time = number of refreshes × time per refresh = 1024 × 100 ns = 102,400 ns = 100 × 2^10 ns (≈ 102.4 μs).",
       "metadata": {
         "status": "PUBLISHED"
       }
@@ -1075,7 +1168,7 @@
         "subtopicId": "68da338e5e8ee4416b6fbb51"
       },
       "content": {
-        "questionText": "Consider a network with five nodes, N1 to N5, as shown as below.  The network uses a Distance Vector Routing protocol. Once the routes have been stabilized, the distance vectors at different nodes are as follows. N1 : (0,1,7,8,4) N2 : (1,0,6,7,3) N3 : (7,6,0,2,6) N4 : (8,7,2,0,4) N5 : (4,3,6,4,0) Each distance vector is the distance of the best known path at that instance to nodes, N1 to N5, where the distance to itself is 0. Also, all links are symmetric and the cost is identical in both directions. In each round, all nodes exchange their distance vectors with their respective neighbors. Then all nodes update their distance vectors. In between two rounds, any change in cost of a link will cause the two incident nodes to change only that entry in their distance vectors. he cost of link N2−N3 reduces to 2 (in both directions). After the next round of updates, the link N1−N2 goes down. N2 will reflect this change immediately in its distance vector as cost, ∞. After the  NEXT ROUND  of update, what will be the cost to N1 in the distance vector of N3 ?",
+        "questionText": "Consider a network with five nodes, N1 to N5, as shown as below. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3882-local-1760444137797.png) The network uses a Distance Vector Routing protocol. Once the routes have been stabilized, the distance vectors at different nodes are as follows. N1 : (0,1,7,8,4) N2 : (1,0,6,7,3) N3 : (7,6,0,2,6) N4 : (8,7,2,0,4) N5 : (4,3,6,4,0) Each distance vector is the distance of the best known path at that instance to nodes, N1 to N5, where the distance to itself is 0. Also, all links are symmetric and the cost is identical in both directions. In each round, all nodes exchange their distance vectors with their respective neighbors. Then all nodes update their distance vectors. In between two rounds, any change in cost of a link will cause the two incident nodes to change only that entry in their distance vectors. he cost of link N2−N3 reduces to 2 (in both directions). After the next round of updates, the link N1−N2 goes down. N2 will reflect this change immediately in its distance vector as cost, ∞. After the  NEXT ROUND  of update, what will be the cost to N1 in the distance vector of N3 ?",
         "options": [
           {
             "id": 0,
@@ -1121,7 +1214,7 @@
         "subtopicId": "68cbe7ed61903cd7d61be4b0"
       },
       "content": {
-        "questionText": "Consider the following circuit involving three D-type flip-flops used in a certain type of counter configuration.  If all the flip-flops were reset to 0 at power on, what is the total number of distinct outputs (states) represented by  \\(PQR\\)  generated by the counter?",
+        "questionText": "Consider the following circuit involving three D-type flip-flops used in a certain type of counter configuration. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3880-local-1760444137546.png) If all the flip-flops were reset to 0 at power on, what is the total number of distinct outputs (states) represented by  \\(PQR\\)  generated by the counter?",
         "options": [
           {
             "id": 0,
@@ -1245,6 +1338,144 @@
         "caseSensitive": false
       },
       "solution": "Correct result: 5. Explanation: The two subqueries both include the column Bank_Manager, so NATURAL JOIN matches rows on Bank_Manager. Each matching pair becomes a row in the join result. Bank_Manager = Sunderajan: appears twice in the first subquery (Borrower = Ramesh, Mahesh) and twice in the second subquery (Loan_Amount = 10000.00, 7000.00), so 2 × 2 = 4 joined rows. Bank_Manager = Ramgopal: appears once in each subquery (Suresh and 5000.00), so 1 × 1 = 1 joined row. Total rows after the NATURAL JOIN = 4 + 1 = 5, so SELECT count(*) returns 5.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3873,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e525e8ee4416b3ef283",
+        "subtopicId": "68da1f785e8ee4416b43baca"
+      },
+      "content": {
+        "questionText": "An application loads 100 libraries at startup. Loading each library requires exactly one disk access. The seek time of the disk to a random location is given as 10 ms. Rotational speed of disk is 6000 rpm. If all 100 libraries are loaded from random locations on the disk, how long does it take to load all libraries? (The time to transfer data from the disk block once the head has been positioned at the start of the block may be neglected.)",
+        "options": [
+          {
+            "id": 0,
+            "text": "0.50 s",
+            "feedback": "Incorrect. This value (0.50 s) is too small because it ignores either the seek time or the average rotational latency. Each library access takes about 10 ms (seek) + 5 ms (average rotation) = 15 ms, so 100 accesses take about 1500 ms (1.5 s), not 500 ms."
+          },
+          {
+            "id": 1,
+            "text": "1.50 s",
+            "feedback": "Correct. Compute time per access: average seek = 10 ms, average rotational latency = half a rotation. At 6000 rpm = 100 revolutions/sec, one revolution = 10 ms, so average rotation = 5 ms. Per access ≈ 10 ms + 5 ms = 15 ms. For 100 libraries: 100 × 15 ms = 1500 ms = 1.50 s."
+          },
+          {
+            "id": 2,
+            "text": "1.25 s",
+            "feedback": "Incorrect. 1.25 s is lower than the correct 1.50 s. Getting 1.25 s would require assuming a smaller average latency per access (about 12.5 ms) instead of the correct ~15 ms (10 ms seek + 5 ms average rotation)."
+          },
+          {
+            "id": 3,
+            "text": "1.00 s",
+            "feedback": "Incorrect. 1.00 s underestimates the time because it implies an average of 10 ms per access (100 × 10 ms = 1.00 s), which counts only seek time and omits the average rotational latency of about 5 ms per access."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  each library load requires one seek plus average rotational latency; transfer time is neglected. Seek time per access = 10 ms. Rotational speed = 6000 rpm = 100 revolutions per second ⇒ one revolution = 1/100 s = 10 ms. Average rotational latency = half a revolution = 10 ms / 2 = 5 ms. Time per library ≈ 10 ms (seek) + 5 ms (avg rotation) = 15 ms. Total for 100 libraries = 100 × 15 ms = 1500 ms = 1.50 s. Answer: 1.50 s.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3872,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e3d31f60703d609dae9",
+        "subtopicId": "68da1ed431f60703d60c8bef"
+      },
+      "content": {
+        "questionText": "An 8KB direct-mapped write-back cache is organized as multiple blocks, each size of 32-bytes. The processor generates 32-bit addresses. The cache controller contains the tag information for each cache block comprising of the following. 1 valid bit 1 modified bit As many bits as the minimum needed to identify the memory block mapped in the cache. What is the total size of memory needed at the cache controller to store meta-data (tags) for the cache?",
+        "options": [
+          {
+            "id": 0,
+            "text": "4864 bits",
+            "feedback": "4864 bits = 256 × 19. This value counts only the 19 tag bits per cache line and omits the 1 valid bit and 1 modified bit per line. Remember to include both control bits for each block."
+          },
+          {
+            "id": 1,
+            "text": "6144 bits",
+            "feedback": "6144 bits = 256 × 24. This assumes 24 bits of metadata per line, which is larger than the correct 21 bits per line. Likely a miscalculation of tag bits or accidental inclusion of other fields. Recompute index and offset bits first, then tag = 32 - index - offset, and add 1 valid + 1 modified bit."
+          },
+          {
+            "id": 2,
+            "text": "6656 bits",
+            "feedback": "6656 bits = 256 × 26. This overestimates the per-line metadata (26 bits) — likely from using wrong index or offset sizes or adding unrelated bits. Re-evaluate: offset = log2(block size), index = log2(number of lines), tag = 32 - index - offset, then add valid and modified bits."
+          },
+          {
+            "id": 3,
+            "text": "5376 bits",
+            "feedback": "5376 bits is correct. Steps: 8 KB = 8192 bytes, blocks = 8192 / 32 = 256, offset = log2(32) = 5 bits, index = log2(256) = 8 bits, tag = 32 - 8 - 5 = 19 bits. Metadata per block = 19 (tag) + 1 (valid) + 1 (modified) = 21 bits. Total = 256 × 21 = 5376 bits."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Solution: Compute sizes: Cache size = 8 KB = 8192 bytes. Block size = 32 bytes. Number of blocks (lines) = 8192 / 32 = 256. Offset bits = log2(block size) = log2(32) = 5 bits. Index bits = log2(number of lines) = log2(256) = 8 bits. Tag bits = address bits - index bits - offset bits = 32 - 8 - 5 = 19 bits. Metadata per block = tag bits + valid bit + modified bit = 19 + 1 + 1 = 21 bits. Total metadata = number of blocks × metadata per block = 256 × 21 = 5376 bits. Answer:  5376 bits",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3870,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e5a31f60703d60a80c3",
+        "subtopicId": "68fb93efa28d697ac613a6ca"
+      },
+      "content": {
+        "questionText": "Consider an instruction pipeline with four stages (S1, S2, S3 and S4) each with combinational circuit only. The pipeline registers are required between each stage and at the end of the last stage. Delays for the stages and for the pipeline registers are as given in the figure. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3870-local-1760444136640.png) What is the approximate speed up of the pipeline in steady state under ideal conditions when compared to the corresponding non-pipeline implementation?",
+        "options": [
+          {
+            "id": 0,
+            "text": "4.0",
+            "feedback": "This value (4.0) is too large. The pipeline clock period is determined by the slowest stage plus the pipeline register delay (11 ns + 1 ns = 12 ns). The non-pipelined time is the sum of all stage delays plus one register delay (5 + 6 + 11 + 8 + 1 = 31 ns). The speedup is 31/12 ≈ 2.58, not 4.0."
+          },
+          {
+            "id": 1,
+            "text": "2.5",
+            "feedback": "Correct. Compute the non-pipelined time as the sum of all stage delays plus one register delay: 5 + 6 + 11 + 8 + 1 = 31 ns. The pipeline cycle time is the maximum stage delay plus the register delay: 11 + 1 = 12 ns. Speedup = 31/12 ≈ 2.58, which is approximately 2.5."
+          },
+          {
+            "id": 2,
+            "text": "1.1",
+            "feedback": "This value (1.1) is far too small. It would imply almost no benefit from pipelining. Using the correct times gives non-pipelined time 31 ns and pipelined cycle 12 ns, so speedup ≈ 2.58, not 1.1."
+          },
+          {
+            "id": 3,
+            "text": "3.0",
+            "feedback": "This value (3.0) overestimates the speedup. The correct calculation gives non-pipelined time 31 ns and pipeline cycle 12 ns, so speedup = 31/12 ≈ 2.58. The best approximate choice is 2.5, not 3.0."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Solution overview: Calculate the non-pipelined execution time and the pipelined cycle time, then take their ratio. Non-pipelined time per instruction: Sum of all stage delays = 5 ns + 6 ns + 11 ns + 8 ns = 30 ns. Add one pipeline register delay (output register) = 1 ns, so total = 30 ns + 1 ns = 31 ns. Pipelined cycle time (steady state): Clock period = maximum stage delay + pipeline register delay = 11 ns + 1 ns = 12 ns. Speedup under ideal steady-state conditions: Speedup = non-pipelined time / pipelined cycle time = 31 ns / 12 ns ≈ 2.583. Approximate answer ≈ 2.6, so the closest given choice is 2.5. Key point:  pipeline throughput is limited by the slowest stage plus register overhead; total non-pipelined delay is the sum of all stages (plus any single register overhead).",
       "metadata": {
         "status": "PUBLISHED"
       }
@@ -1388,47 +1619,93 @@
       }
     },
     {
-      "questionId": 3855,
+      "questionId": 3857,
       "type": "MCQ",
-      "difficulty": "INTERMEDIATE",
+      "difficulty": "EXPERT",
       "topology": {
-        "subjectId": "68ef5e1592de3c0ee0571f26",
-        "topicId": "68ef5edfb8e4ae034915b098",
-        "subtopicId": "68ef6232b8e4ae03491a0880"
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e525e8ee4416b3ef283",
+        "subtopicId": "68da1f6c31f60703d60e943d"
       },
       "content": {
-        "questionText": "Consider the languages  \\(L1, \\:L2 \\)  and  \\( L3\\)  as given below. \\(L1=\\{0^p 1^q \\mid p, q \\in N\\},\\\\ L2 = \\{0^p 1^q \\mid p, q \\in N \\:and \\:p=q\\} \\: and, \\\\ L3 = \\{0^p 1^q 0^r \\mid p, q, r \\in N\\: and \\: p=q=r\\}.\\) Which of the following statements is  NOT TRUE ?",
+        "questionText": "On a non-pipelined sequential processor, a program segment, which is the part of the interrupt service routine, is given to transfer 500 bytes from an I/O device to memory. \n\n        Initialize the address register\n\n        Initialize the count to 500\n\nLOOP:   Load a byte from device              \n\n        Store in memory at address given by address register\n\n        Increment the address register\n\n        Decrement the count\n\n        If count !=0 go to LOOP Assume that each statement in this program is equivalent to a machine instruction which takes one clock cycle to execute if it is a non-load/store instruction. The load-store instructions take two clock cycles to execute. The designer of the system also has an alternate approach of using the DMA controller to implement the same transfer. The DMA controller requires 20 clock cycles for initialization and other overheads. Each DMA transfer cycle takes two clock cycles to transfer one byte of data from the device to the memory. What is the approximate speed up when the DMA controller based design is used in a place of the interrupt driven program based input-output?",
         "options": [
           {
             "id": 0,
-            "text": "Push Down Automata (PDA) can be used to recognize  \\(L_1\\)  and  \\(L_2\\)",
-            "feedback": "This is true. A pushdown automaton can recognize L1 because every regular language can be recognized by a PDA (L1 is regular). A PDA also recognizes L2 = {0^p 1^p}, which is the standard example of a context-free language recognized by a PDA."
+            "text": "3.4",
+            "feedback": "Correct. Count the cycles: the interrupt-driven code has 2 one-time setup cycles (initialize address and count) plus 500 iterations of the loop. Each loop iteration costs 2 (load) + 2 (store) + 1 (increment) + 1 (decrement) + 1 (branch) = 7 cycles, so total = 2 + 500*7 = 3502 cycles. The DMA approach costs 20 setup cycles + 500*2 = 1020 cycles. Speedup = 3502 / 1020 ≈ 3.43, rounded to 3.4."
           },
           {
             "id": 1,
-            "text": "\\(L_1\\)  is a regular language",
-            "feedback": "This is true. L1 = {0^p 1^q | p,q ∈ N} is described by the regular expression 0*1*, so it is a regular language (and hence context-free as well)."
+            "text": "4.4",
+            "feedback": "Incorrect. 4.4 overestimates the speedup. Using the given timings yields 3502 cycles for the interrupt-driven method and 1020 cycles for DMA, which gives ≈3.43× speedup, not 4.4×. The discrepancy often comes from miscounting instruction cycles per loop or forgetting DMA setup cost."
           },
           {
             "id": 2,
-            "text": "All the three languages are context free",
-            "feedback": "This is NOT true. While L1 and L2 are context-free, L3 = {0^p 1^q 0^r | p=q=r} (which is {0^n 1^n 0^n}) is not context-free. A standard pumping-lemma or closure-argument shows that no context-free grammar can enforce equality of three separate block counts, so L3 is not context-free."
+            "text": "5.1",
+            "feedback": "Incorrect. 5.1 is too large. The correct cycle totals are 3502 for the interrupt-driven transfer and 1020 for DMA, so the speedup is about 3.43×. A value like 5.1 would result from undercounting the interrupt-driven cycles or ignoring DMA initialization overhead."
           },
           {
             "id": 3,
-            "text": "Turing machines can be used to recognize all the languages",
-            "feedback": "This is true. A Turing machine can recognize (and decide) all three languages: it can simulate a finite automaton or a PDA, and in particular can decide membership for L1, L2 and L3 by straightforward algorithms."
+            "text": "6.7",
+            "feedback": "Incorrect. 6.7 substantially overstates the speedup. Recomputing: interrupt-driven = 2 + 500*(2+2+1+1+1) = 3502 cycles; DMA = 20 + 500*2 = 1020 cycles; speedup ≈ 3502/1020 ≈ 3.43×. 6.7 would come from a large miscalculation of per-byte costs."
           }
         ]
       },
       "answer": {
-        "correctOption": 2,
+        "correctOption": 0,
         "correctOptions": [],
         "range": null,
         "acceptedAnswers": [],
         "caseSensitive": false
       },
-      "solution": "Correct answer: The statement \"All the three languages are context free\" is not true. L1:  L1 = 0*1*  is regular (e.g., regex 0*1*), so it is context-free and recognizable by a PDA. L2:  L2 = {0^n1^n}  is a standard context-free language (grammar S → 0S1 | ε) and is recognized by a PDA. L3:  L3 = {0^n1^n0^n}  is not context-free. By the pumping lemma for CFLs (or standard closure arguments), any decomposition of s = 0^n1^n0^n with the required constraints leads to a pumped string that breaks the three-way equality, so no CFG can generate L3. Therefore the given statement is false because L3 is not context-free; the other statements (about PDA recognition, L1 being regular, and Turing machines recognizing all languages) are true.",
+      "solution": "Key insight:  compute total cycles for the interrupt-driven method and for DMA, then take the ratio. Interrupt-driven program: One-time setup = 2 cycles (initialize address, initialize count). Per byte loop = 2 (load) + 2 (store) + 1 (increment) + 1 (decrement) + 1 (branch) = 7 cycles. Total = 2 + 500 × 7 = 3502 cycles. DMA-based transfer: One-time DMA overhead = 20 cycles; per byte transfer = 2 cycles. Total = 20 + 500 × 2 = 1020 cycles. Speedup = (interrupt-driven cycles) / (DMA cycles) = 3502 / 1020 ≈ 3.43 ≈ 3.4.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3850,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e605e8ee4416b3eff0b",
+        "subtopicId": "68da20d25e8ee4416b467dd0"
+      },
+      "content": {
+        "questionText": "Consider a hypothetical processor with an instruction of type LW  R1, 20(R2), which during execution reads a 32-bit word from memory and stores it in a 32-bit register R1. The effective address of the memory location is obtained by the addition of a constant 20 and the contents of register R2. Which of the following best reflects the addressing mode implemented by this instruction for the operand in memory?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Immediate addressing",
+            "feedback": "Immediate addressing places the operand value directly inside the instruction itself (an immediate constant used as the data). In this instruction the instruction provides an offset that is added to a register to form a memory address, so the operand is not an immediate data value embedded in the instruction."
+          },
+          {
+            "id": 1,
+            "text": "Register addressing",
+            "feedback": "Register addressing uses a register directly as the operand (the data is in a register). Here the instruction loads a word from memory whose address is computed from a register and an offset, so the operand comes from memory rather than directly from a register."
+          },
+          {
+            "id": 2,
+            "text": "Register Indirect Scaled Addressing",
+            "feedback": "Register indirect scaled addressing typically involves adding a base register and an index register multiplied by a scale factor (for example base + index*scale). The given instruction adds a fixed numeric offset to a single register with no scaling or separate index register, so it is not a scaled-index form."
+          },
+          {
+            "id": 3,
+            "text": "Base Indexed Addressing",
+            "feedback": "This instruction computes an effective memory address by adding a fixed numeric offset (20) to the contents of register R2 and then accesses memory at that address. That addressing pattern is commonly called base-plus-displacement (base + offset) or base addressing, and is the correct description here. The name used in the question (base indexed addressing) is being used to describe this base-plus-offset form."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea: The instruction computes the memory address by adding a constant offset to the contents of a register and then accesses memory at that address. Reasoning: The effective address is formed as contents of R2 + 20, so address calculation uses a register (R2) plus a fixed displacement (20). This is the classic base-plus-displacement (base + offset) addressing mode, often called base addressing or displacement addressing; the question labels it as base indexed addressing. Other common addressing modes do not match: immediate addressing embeds the data in the instruction (not a memory access), register addressing uses a register as the data source, and scaled-indexed forms involve an index register multiplied by a scale factor. Conclusion:  The instruction implements base-plus-displacement addressing (described in the question as base indexed addressing).",
       "metadata": {
         "status": "PUBLISHED"
       }
@@ -1443,7 +1720,7 @@
         "subtopicId": "68d2505cb905a26b8edc46da"
       },
       "content": {
-        "questionText": "K4 and Q3 are graphs with the following structures.  Which one of the following statements is  TRUE  in relation to these graphs?",
+        "questionText": "K4 and Q3 are graphs with the following structures. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3846-local-1760444135473.png) Which one of the following statements is  TRUE  in relation to these graphs?",
         "options": [
           {
             "id": 0,
@@ -1618,6 +1895,52 @@
       }
     },
     {
+      "questionId": 3840,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e525e8ee4416b3ef283",
+        "subtopicId": "68da1f665e8ee4416b439b69"
+      },
+      "content": {
+        "questionText": "A computer handles several interrupt sources of which of the following are relevant for this question. Interrupt from CPU temperature sensor (raises interrupt if CPU temperature is too high) Interrupt from Mouse (raises Interrupt if the mouse is moved or a button is pressed) Interrupt from Keyboard (raises Interrupt if a key is pressed or released) Interrupt from Hard Disk (raises Interrupt when a disk read is completed) Which one of these will be handled at the  HIGHEST  priority?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Interrupt from Hard Disk",
+            "feedback": "Incorrect. An interrupt from the hard disk signals that an I/O operation completed, which is important for program progress and performance but is not usually an emergency. Disk I/O can be buffered or retried and is typically handled at a lower priority than interrupts that protect hardware or require immediate action."
+          },
+          {
+            "id": 1,
+            "text": "Interrupt from Mouse",
+            "feedback": "Incorrect. Mouse interrupts notify the system of user input and are latency-sensitive for responsiveness, but they are not safety-critical. Mouse events can be queued or handled with lower priority compared to interrupts that prevent hardware damage."
+          },
+          {
+            "id": 2,
+            "text": "Interrupt from Keyboard",
+            "feedback": "Incorrect. Keyboard interrupts are also user-input events that are time-sensitive for interactivity but are not critical to system integrity. They are typically given lower priority than interrupts that indicate a potentially damaging condition."
+          },
+          {
+            "id": 3,
+            "text": "Interrupt from CPU temperature sensor",
+            "feedback": "Correct. An interrupt from the CPU temperature sensor indicates a potential overheating condition that can damage hardware. Such safety-critical interrupts are handled at the highest priority so the system can take immediate action (e.g., increase cooling, throttle CPU, or shut down) to prevent damage."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  interrupts are prioritized by how urgently they require immediate action to protect the system or maintain correct operation. CPU temperature sensor interrupt: Highest priority because it signals a potential overheating condition that can immediately damage hardware. The system must respond right away (increase cooling, throttle, or shut down). Hard disk interrupt: Important for I/O completion and performance, but not typically an emergency. These can be scheduled or buffered and handled at lower priority than safety-critical events. Keyboard and mouse interrupts: User-input events that require low latency for responsiveness but are not safety-critical. They are generally assigned lower priority than interrupts that prevent hardware damage. Conclusion: The interrupt from the CPU temperature sensor is handled at the highest priority because it requires immediate action to protect the hardware.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
       "questionId": 3833,
       "type": "MCQ",
       "difficulty": "BEGINNER",
@@ -1710,6 +2033,98 @@
       }
     },
     {
+      "questionId": 3819,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e3d31f60703d609dae9",
+        "subtopicId": "68da1ee15e8ee4416b40ec05"
+      },
+      "content": {
+        "questionText": "A computer has a 256 KByte, 4-way set associative, write back data cache with block size of 32 Bytes. The processor sends 32 bit addresses to the cache controller. Each cache tag directory entry contains, in addition to address tag, 2 valid bits, 1 modified bit and 1 replacement bit. The size of the cache tag directory is",
+        "options": [
+          {
+            "id": 0,
+            "text": "160 Kbits",
+            "feedback": "This is correct. Calculation: 256 KB = 262144 bytes; with 32 B blocks there are 8192 blocks. With 4-way associativity there are 2048 sets (index = 11 bits) and block offset = 5 bits, so tag = 32 - 11 - 5 = 16 bits. Each tag entry has 16 tag bits + 2 valid + 1 modified + 1 replacement = 20 bits. Total = 8192 × 20 = 163840 bits = 160 Kbits."
+          },
+          {
+            "id": 1,
+            "text": "136 Kbits",
+            "feedback": "136 Kbits is incorrect. Using the correct breakdown (8192 blocks, 16 tag bits per entry, plus 4 status bits) gives 20 bits per block and a total of 8192 × 20 = 163840 bits = 160 Kbits, so 136 Kbits understates the required tag storage."
+          },
+          {
+            "id": 2,
+            "text": "40 Kbits",
+            "feedback": "40 Kbits is incorrect. The tag directory must account for every block (8192 blocks) and about 20 bits per block (16 tag bits + 4 status bits), yielding 163840 bits (160 Kbits), so 40 Kbits is far too small."
+          },
+          {
+            "id": 3,
+            "text": "32 Kbits",
+            "feedback": "32 Kbits is incorrect. The correct calculation results in 163840 bits (160 Kbits) for the tag directory. 32 Kbits does not cover the required tag and status bits for all 8192 blocks."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Final answer: 160 Kbits Compute number of blocks: 256 KByte = 256 × 1024 = 262144 bytes. With 32 B blocks, number of blocks = 262144 / 32 = 8192. Determine sets and index bits: 4-way set associative → number of sets = 8192 / 4 = 2048. Index bits = log2(2048) = 11 bits. Block offset bits: block size 32 B → offset = log2(32) = 5 bits. Tag bits per entry: 32-bit address − (index bits + offset bits) = 32 − (11 + 5) = 16 bits. Bits per tag directory entry: tag bits + status bits = 16 + (2 valid + 1 modified + 1 replacement) = 16 + 4 = 20 bits. Total tag directory size: number of blocks × bits per entry = 8192 × 20 = 163840 bits = 160 × 1024 bits = 160 Kbits. Therefore, the size of the cache tag directory is 163840 bits, which is 160 Kbits.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3818,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e3d31f60703d609dae9",
+        "subtopicId": "68da1ee15e8ee4416b40ec05"
+      },
+      "content": {
+        "questionText": "A computer has a 256 KByte, 4-way set associative, write back data cache with block size of 32 Bytes. The processor sends 32 bit addresses to the cache controller. Each cache tag directory entry contains, in addition to address tag, 2 valid bits, 1 modified bit and 1 replacement bit. The number of bits in the tag field of an address is",
+        "options": [
+          {
+            "id": 0,
+            "text": "11",
+            "feedback": "Incorrect. The value 11 equals the number of index bits (from the number of sets), not the number of tag bits. With a 32-bit address you must subtract both the block offset and the index to get the tag size."
+          },
+          {
+            "id": 1,
+            "text": "14",
+            "feedback": "Incorrect. The correct tag bit count is 16. This choice (14) does not match the calculation: tag = 32 - block offset (5) - index (11) = 16."
+          },
+          {
+            "id": 2,
+            "text": "16",
+            "feedback": "Correct. Compute block offset = log2(32) = 5 bits. Total blocks = 256 KB / 32 B = 8192 blocks. With 4-way associativity, sets = 8192 / 4 = 2048, so index = log2(2048) = 11 bits. Tag = 32 - 11 - 5 = 16 bits."
+          },
+          {
+            "id": 3,
+            "text": "27",
+            "feedback": "Incorrect. The value 27 would be the tag size for a fully associative cache (no index bits): 32 - block offset (5) = 27. Because this cache is 4-way set associative, there are index bits (11), so the tag is smaller (16)."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  split the 32-bit address into tag, index (set), and block offset. Block offset = log2(block size) = log2(32) = 5 bits. Number of blocks = 256 KB / 32 B = 262144 / 32 = 8192 blocks. Number of sets = blocks / associativity = 8192 / 4 = 2048 sets, so index = log2(2048) = 11 bits. Tag bits = 32 (address bits) - index (11) - offset (5) = 16 bits. Note: The additional bits stored per tag entry (the two valid bits, modified bit, and replacement bit) are metadata stored alongside the tag; they do not change the number of bits in the address tag field. Answer: 16 bits.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
       "questionId": 3815,
       "type": "MCQ",
       "difficulty": "INTERMEDIATE",
@@ -1719,7 +2134,7 @@
         "subtopicId": "68d39684d857e762193d2792"
       },
       "content": {
-        "questionText": "Consider the following relations A, B and C:  How many tuples does the result of the following SQL query contain? \n\nSELECT A.Id \n\nFROM A \n\nWHERE A.Age > ALL (SELECT B.Age \n\n                    FROM B \n\n                    WHERE B.Name = ‘Arun’)",
+        "questionText": "Consider the following relations A, B and C: ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3815-local-1760444134768.png) How many tuples does the result of the following SQL query contain? \n\nSELECT A.Id \n\nFROM A \n\nWHERE A.Age > ALL (SELECT B.Age \n\n                    FROM B \n\n                    WHERE B.Name = ‘Arun’)",
         "options": [
           {
             "id": 0,
@@ -1765,7 +2180,7 @@
         "subtopicId": "68d39572d857e762193a9a67"
       },
       "content": {
-        "questionText": "Consider the following relations A, B and C:  How many tuples does the result of the following relational algebra expression contain? Assume that the schema of  \\(A \\cup B\\)  is the same as that of  \\(A\\) . \\((A\\cup B)\\bowtie _{A.Id > 40 \\vee C.Id < 15} C\\)",
+        "questionText": "Consider the following relations A, B and C: ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3814-local-1760444134635.png) How many tuples does the result of the following relational algebra expression contain? Assume that the schema of  \\(A \\cup B\\)  is the same as that of  \\(A\\) . \\((A\\cup B)\\bowtie _{A.Id > 40 \\vee C.Id < 15} C\\)",
         "options": [
           {
             "id": 0,
@@ -2041,7 +2456,7 @@
         "subtopicId": "68cbe6cb61903cd7d6156d81"
       },
       "content": {
-        "questionText": "What is the minimal form of the Karnaugh map shown below? Assume that X denotes a don’t care term.",
+        "questionText": "What is the minimal form of the Karnaugh map shown below? Assume that X denotes a don’t care term. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3794-local-1760444133132.png)",
         "options": [
           {
             "id": 0,
@@ -2087,7 +2502,7 @@
         "subtopicId": "68d3974e6dbf3983bc9153ec"
       },
       "content": {
-        "questionText": "Consider the following transactions with data items P and Q initialized to zero: T 1  :read (P);  \n\n     read (Q);  \n\n     if P = 0 then Q := Q + 1 ;  \n\n     write (Q).  \n\nT 2  : read (Q);  \n\n     read (P);  \n\n     if Q = 0 then P := P + 1 ;  \n\n     write (P). Any non-serial interleaving of T 1  and T 2  for concurrent execution leads to",
+        "questionText": "Consider the following transactions with data items P and Q initialized to zero: T 1  :read (P); \n\n     read (Q); \n\n     if P = 0 then Q := Q + 1 ; \n\n     write (Q). \n\nT 2  : read (Q); \n\n     read (P); \n\n     if Q = 0 then P := P + 1 ; \n\n     write (P). Any non-serial interleaving of T 1  and T 2  for concurrent execution leads to",
         "options": [
           {
             "id": 0,
@@ -2216,6 +2631,52 @@
       }
     },
     {
+      "questionId": 3784,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e5a31f60703d60a80c3",
+        "subtopicId": "68da1fe631f60703d60f2b21"
+      },
+      "content": {
+        "questionText": "Register renaming is done in pipelined processors",
+        "options": [
+          {
+            "id": 0,
+            "text": "as an alternative to register allocation at compile time",
+            "feedback": "Incorrect. Register allocation at compile time is a compiler optimization that assigns program variables to architectural registers. Register renaming is a hardware, runtime technique used to remove false dependencies between instructions; it does not replace or serve as an alternative to the compiler's register allocation."
+          },
+          {
+            "id": 1,
+            "text": "for efficient access to function parameters and local variables",
+            "feedback": "Incorrect. Efficient access to function parameters and local variables is managed by the calling convention, stack frames, and the compiler's decisions about which values to keep in registers. Register renaming is transparent to the ABI and does not serve to organize function parameters or local storage."
+          },
+          {
+            "id": 2,
+            "text": "to handle certain kinds of hazards",
+            "feedback": "Correct. Register renaming is used to handle certain kinds of hazards: specifically it removes false dependencies such as write-after-write (WAW) and write-after-read (WAR) by mapping an architectural register name to different physical registers so instructions can execute without unnecessary stalls."
+          },
+          {
+            "id": 3,
+            "text": "as part of address translation",
+            "feedback": "Incorrect. Address translation (virtual-to-physical address mapping) is performed by the memory management unit and the TLB. Register renaming operates on register names and physical registers and is unrelated to virtual memory/address translation."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  Register renaming removes false data dependencies (WAR and WAW) by mapping architectural registers to distinct physical registers at runtime. When an instruction will write to an architectural register, the hardware allocates a new physical register and updates a Register Alias Table (RAT) so subsequent instructions use the new physical location. Because destinations get fresh physical registers, write-after-write and write-after-read hazards that exist only because two instructions name the same architectural register are eliminated. This hardware mechanism enables more parallelism and out-of-order execution with fewer stalls; it is not a compile-time register allocation strategy nor related to address translation or stack/frame layout.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
       "questionId": 3783,
       "type": "MCQ",
       "difficulty": "ADVANCED",
@@ -2303,6 +2764,1780 @@
         "caseSensitive": false
       },
       "solution": "Key idea:  use Euler's formula for connected planar graphs. Step 1: Apply Euler's formula v - e + f = 2. With v = 10 and e = 15 we get f = 2 - 10 + 15 = 7 total faces. Step 2: The number of bounded faces equals total faces minus the unbounded (outer) face: 7 - 1 = 6. Therefore the number of bounded faces in any planar embedding of the connected graph is 6.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3779,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f386dbf3983bc828e43",
+        "subtopicId": "68d39677d857e762193d2250"
+      },
+      "content": {
+        "questionText": "Which of the following statements are TRUE about an SQL query? P : An SQL query can contain a HAVING clause even if it does not have a GROUP BY clause Q: An SQL query can contain a HAVING clause only if it has a GROUP BY clause R : All attributes used in the GROUP BY clause must appear in the SELECT clause S : Not all attributes used in the GROUP BY clause need to appear in the SELECT clause",
+        "options": [
+          {
+            "id": 0,
+            "text": "P and R",
+            "feedback": "This option asserts: P ('An SQL query can contain a HAVING clause even if it does not have a GROUP BY clause') and R ('All attributes used in the GROUP BY clause must appear in the SELECT clause'). P is true: HAVING can be used without GROUP BY and will apply to the whole result as a single group when used with aggregates. R is false: attributes listed in GROUP BY do not have to appear in the SELECT list. Because one statement is true and the other false, this option is incorrect."
+          },
+          {
+            "id": 1,
+            "text": "P and S",
+            "feedback": "This option asserts: P ('An SQL query can contain a HAVING clause even if it does not have a GROUP BY clause') and S ('Not all attributes used in the GROUP BY clause need to appear in the SELECT clause'). Both statements are correct: HAVING can be used without GROUP BY (it then filters the single implicit group produced by the whole result), and GROUP BY columns do not have to be selected. Therefore this option is correct. Note: some SQL dialects may have subtle differences, but these are the standard semantics."
+          },
+          {
+            "id": 2,
+            "text": "Q and R",
+            "feedback": "This option asserts: Q ('An SQL query can contain a HAVING clause only if it has a GROUP BY clause') and R ('All attributes used in the GROUP BY clause must appear in the SELECT clause'). Both parts of this combined statement are incorrect. Q is false because HAVING may be used without GROUP BY (it then filters the single overall group). R is false because GROUP BY attributes do not have to appear in SELECT. Therefore this option is incorrect."
+          },
+          {
+            "id": 3,
+            "text": "Q and S",
+            "feedback": "This option asserts: Q ('An SQL query can contain a HAVING clause only if it has a GROUP BY clause') and S ('Not all attributes used in the GROUP BY clause need to appear in the SELECT clause'). Q is false (HAVING can be used without GROUP BY), while S is true (GROUP BY attributes need not be in SELECT). Because one statement is false and the other true, this option is incorrect."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  the HAVING clause can be used without GROUP BY, and GROUP BY attributes do not all have to appear in the SELECT list. HAVING without GROUP BY: HAVING filters groups created by GROUP BY. If GROUP BY is omitted, SQL treats the entire result as a single group, so HAVING can still be used with aggregate expressions to filter that single-group result. (Behavior can vary slightly across SQL dialects, but this is the standard interpretation.) GROUP BY vs SELECT: It is not required that every attribute listed in GROUP BY also appear in the SELECT list. The rule is that any non-aggregated column in SELECT must appear in GROUP BY; however, you may group on columns and return only aggregates in SELECT. Conclusion: The true statements are the one saying HAVING can be used without GROUP BY and the one saying not all GROUP BY attributes need to appear in SELECT. The statements claiming HAVING is only allowed with GROUP BY and that all GROUP BY attributes must appear in SELECT are false.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3777,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24eab1c69bbb6f52867db",
+        "subtopicId": "68d25155b905a26b8edec702"
+      },
+      "content": {
+        "questionText": "What is the correct translation of the following statement into mathematical logic? “Some real numbers are rational”",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(\\exists x (\\text{real}(x) \\lor \\text{rational}(x))\\)",
+            "feedback": "This formula says \"There exists an x that is real or rational.\" It only requires a single x to have at least one of the properties (real OR rational). It does not require that the same x is both real and rational, so it does not capture the meaning \"some real numbers are rational.\""
+          },
+          {
+            "id": 1,
+            "text": "\\(\\forall x (\\text{real}(x) \\to \\text{rational}(x))\\)",
+            "feedback": "This formula says \"Every real number is rational.\" That is much stronger than \"some real numbers are rational\" (which asserts existence of at least one). Therefore this formula is incorrect."
+          },
+          {
+            "id": 2,
+            "text": "\\(\\exists x (\\text{real}(x) \\wedge \\text{rational}(x))\\)",
+            "feedback": "Correct. This formula says \"There exists an x such that x is real AND x is rational,\" which matches the English statement \"Some real numbers are rational.\" Note: if the domain is already all real numbers, this simplifies to \"There exists an x that is rational.\""
+          },
+          {
+            "id": 3,
+            "text": "\\(\\exists x (\\text{rational}(x) \\to \\text{real}(x))\\)",
+            "feedback": "This formula places an implication inside an existential: for a given x, \"rational(x) → real(x)\" is true whenever x is not rational, so many x can satisfy it without expressing that some x is both real and rational. It does not express the intended meaning."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Correct translation:  There exists at least one x that is both real and rational. Symbolically: ∃x (real(x) ∧ rational(x)). Reasoning: The formula ∃x (real(x) ∨ rational(x)) says there exists an x that is real or rational. It does not require the same x to be both real and rational, so it does not express \"some real numbers are rational.\" The formula ∀x (real(x) → rational(x)) says every real number is rational. That is a universal (all) claim and is stronger than the intended existential (some) claim. The formula ∃x (real(x) ∧ rational(x)) correctly asserts the existence of an x that has both properties, matching the English statement. The formula ∃x (rational(x) → real(x)) is true for many x simply because the implication is true when x is not rational; it therefore does not capture that some x are both real and rational. Note: If the domain of discourse is already all real numbers, the predicate real(x) is true for every x and the correct translation can be simplified to: ∃x rational(x).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3774,
+      "type": "MCQ",
+      "difficulty": "BEGINNER",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da23455e8ee4416b4d422b",
+        "subtopicId": "68da35335e8ee4416b715676"
+      },
+      "content": {
+        "questionText": "The protocol data unit (PDU) for the application layer in the Internet stack is",
+        "options": [
+          {
+            "id": 0,
+            "text": "Segment",
+            "feedback": "Incorrect — 'Segment' is the transport-layer PDU (commonly used to refer to TCP segments). The application layer operates on complete messages, which are handed down to the transport layer and may be split into segments or datagrams there."
+          },
+          {
+            "id": 1,
+            "text": "Datagram",
+            "feedback": "Incorrect — 'Datagram' commonly refers to an IP datagram at the network layer, and is also used to describe UDP packets at the transport layer. It is not the name of the application-layer PDU."
+          },
+          {
+            "id": 2,
+            "text": "Message",
+            "feedback": "Correct — the application-layer PDU is called a message (or simply data). Applications exchange messages; these are passed to lower layers for transport and encapsulation."
+          },
+          {
+            "id": 3,
+            "text": "Frame",
+            "feedback": "Incorrect — 'Frame' is the data link (link-layer) PDU used to transmit data over a physical link. It is not the application-layer PDU."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  the application layer exchanges whole messages between programs; that unit is the application-layer PDU. Application layer → Message (the correct PDU for this question) Transport layer → Segment for TCP (or datagram for UDP) Network layer → Packet or IP datagram Data link layer → Frame Therefore, the correct answer is Message because the application layer deals with complete messages exchanged by applications.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3771,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e345e8ee4416b3e560c",
+        "subtopicId": "68da1e9b5e8ee4416b403b5d"
+      },
+      "content": {
+        "questionText": "The decimal value 0.5 in IEEE single precision floating point representation has",
+        "options": [
+          {
+            "id": 0,
+            "text": "fraction bits of 000…000 and exponent value of 0",
+            "feedback": "Incorrect. 0.5 = 1.0 × 2^−1, so the exponent value should be −1, not 0. Fraction bits of all zeros with exponent 0 would represent 1.0, not 0.5."
+          },
+          {
+            "id": 1,
+            "text": "fraction bits of 000…000 and exponent value of −1",
+            "feedback": "Correct. 0.5 = 1.0 × 2^−1, so the normalized mantissa is 1.0 (fraction bits all zero) and the exponent is −1. In single precision the biased exponent is 126 (binary 01111110), sign bit is 0, giving the 32-bit pattern 0 01111110 000...000 (hex 3F000000)."
+          },
+          {
+            "id": 2,
+            "text": "fraction bits of 100…000 and exponent value of 0",
+            "feedback": "Incorrect. A mantissa with a leading fraction bit of 1 (i.e., mantissa 1.1...) and exponent 0 would represent 1.5, not 0.5. The correct mantissa for 0.5 is 1.0 (fraction bits all zeros) with exponent −1."
+          },
+          {
+            "id": 3,
+            "text": "no exact representation",
+            "feedback": "Incorrect. 0.5 is exactly representable in binary because it equals 2^−1, so it has an exact IEEE 754 single-precision representation."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  0.5 = 1.0 × 2^−1, so the normalized mantissa is 1.0 and the fraction bits are all zeros. Normalized form: 1.0 × 2^−1. Fraction (mantissa) bits: all zeros (000...000). Unbiased exponent: −1. Biased exponent (single precision): −1 + 127 = 126 → binary 01111110. Sign bit: 0. Final 32-bit pattern: 0 01111110 000...000 (hex 3F000000).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3770,
+      "type": "MCQ",
+      "difficulty": "BEGINNER",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbde9361903cd7d6eddb74",
+        "subtopicId": "68ee1dea63a6aa4cca700f8f"
+      },
+      "content": {
+        "questionText": "The truth table \\({\\begin{array}{|c|c|c|}\\hline\n\n\n\n\\textbf{X}&    \\textbf{Y}&  \\textbf{(X,Y)} \\\\\\hline\n\n\n\n0&    0&   0 \\\\ \\hline   \n\n\n\n0&     1&0\\\\     \\hline\n\n\n\n1&   0&  1     \\\\\\hline\n\n\n\n1&    1& 1     \\\\\\hline\n\n\n\n\\end{array}}\\) represents the Boolean function",
+        "options": [
+          {
+            "id": 0,
+            "text": "X",
+            "feedback": "Correct. The output is 1 exactly when X = 1 and 0 when X = 0, regardless of the value of Y. That matches the truth table rows (1,0) → 1 and (1,1) → 1 and both rows with X = 0 give 0, so the function simplifies to X."
+          },
+          {
+            "id": 1,
+            "text": "X + Y",
+            "feedback": "Incorrect. X + Y (logical OR) would produce 1 for the input (0,1), but the truth table gives 0 for (0,1). Therefore the function is not X + Y."
+          },
+          {
+            "id": 2,
+            "text": "X  \\(\\oplus\\)  Y",
+            "feedback": "Incorrect. X ⊕ Y (exclusive OR) is 1 when exactly one input is 1, so it would be 1 for (0,1) and (1,0). The truth table has 0 for (0,1), so it does not match XOR."
+          },
+          {
+            "id": 3,
+            "text": "Y",
+            "feedback": "Incorrect. If the function were Y, the output would be 1 for (0,1) but the truth table gives 0 for (0,1), and it would be 0 for (1,0) while the table gives 1 for (1,0). Thus the function is not Y."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  the function's output depends only on X. When X = 0 the output is 0, and when X = 1 the output is 1, regardless of Y. If X = 0: rows (0,0) and (0,1) both produce 0. If X = 1: rows (1,0) and (1,1) both produce 1. Therefore the Boolean function simplifies to f(X, Y) = X.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3754,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f106dbf3983bc827734",
+        "subtopicId": "68d39339d857e7621935b278"
+      },
+      "content": {
+        "questionText": "Relation  \\(R\\)  has eight attributes  \\(ABCDEFGH\\) . Fields of  \\(R\\)  contain only atomic values. \\(F={CH→G, A→BC, B→CFH, E→A, F→EG}\\)  is a set of functional dependencies (FDs) so that  \\(F^+\\)  is exactly the set of FDs that hold for  \\(R\\) . The relation R is",
+        "options": [
+          {
+            "id": 0,
+            "text": "in 1NF, but not in 2NF.",
+            "feedback": "Correct. D does not appear on the right side of any FD, so every candidate key must include D. For example, {B,D}+ → B→CFH adds C,F,H; F→EG adds E,G; E→A adds A; A→BC adds B,C, hence {B,D}+ yields all attributes and {B,D} is a candidate key. Similarly {A,D}, {E,D}, and {F,D} are candidate keys. Prime attributes are A, B, E, F, D; non-prime attributes are C, G, H. Because A→BC, C (a non-prime attribute) depends on A, which is a proper subset of the candidate key {A,D}; this is a partial dependency that violates 2NF. Therefore R is in 1NF but not in 2NF."
+          },
+          {
+            "id": 1,
+            "text": "in 2NF, but not in 3NF.",
+            "feedback": "Incorrect. The relation is not even in 2NF: A→BC means C is determined by A, and A is a proper subset of candidate key {A,D} while C is non-prime; that is a partial dependency violating 2NF. So the statement 'in 2NF but not in 3NF' is false."
+          },
+          {
+            "id": 2,
+            "text": "in 3NF, but not in BCNF.",
+            "feedback": "Incorrect. The relation violates 2NF due to a partial dependency (A→C with A part of key {A,D} and C non-prime), so it cannot be in 3NF. The claim 'in 3NF but not in BCNF' is therefore false."
+          },
+          {
+            "id": 3,
+            "text": "in BCNF.",
+            "feedback": "Incorrect. BCNF requires every determinant to be a superkey; A→BC violates BCNF because A is not a superkey (it does not determine D). More basically, the relation already violates 2NF (A→C), so it cannot be in BCNF."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer: R is in 1NF but not in 2NF. 1NF: Satisfied because every field contains only atomic values. Find candidate keys: D does not appear on the right side of any functional dependency, so every candidate key must include D. Closure of B,D: Start with {B,D}. B → C,F,H adds C,F,H. F → E,G adds E,G. E → A adds A. A → B,C adds B,C. Closure yields all attributes A,B,C,D,E,F,G,H, so {B,D} is a candidate key. Closure of A,D: A → B,C adds B,C. B → C,F,H adds F,H. F → E,G adds E,G. All attributes are obtained, so {A,D} is a candidate key. Similarly, {E,D} and {F,D} are candidate keys because E → A and F → E,G let them derive all attributes when combined with D. Prime and non-prime attributes: Attributes that appear in some candidate key are prime: A, B, E, F, D. Non-prime attributes are C, G, H. Check 2NF: There is a functional dependency A → B,C. Attribute C is non-prime and is functionally dependent on A, which is a proper subset of the candidate key {A,D}. This is a partial dependency, so the relation violates 2NF. Conclusion: Since 1NF holds but 2NF is violated, the relation is in 1NF but not in 2NF. Consequently it is not in 3NF or BCNF.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3753,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f05d857e762192d7376",
+        "subtopicId": "68d392efd857e76219344a0b"
+      },
+      "content": {
+        "questionText": "Relation  \\(R\\)  has eight attributes  \\(ABCDEFGH\\) . Fields of  \\(R\\)  contain only atomic values. \\(F={CH→G, A→BC, B→CFH, E→A, F→EG}\\)  is a set of functional dependencies (FDs) so that  \\(F^+\\)  is exactly the set of FDs that hold for  \\(R\\) . How many candidate keys does the relation  \\(R\\)  have?",
+        "options": [
+          {
+            "id": 0,
+            "text": "3",
+            "feedback": "Incorrect — there are 4 candidate keys, not 3. Attribute D never appears on the right-hand side of any functional dependency, so every key must include D. The attributes A, B, E, and F each by themselves determine all other attributes except D, so combining each of them with D gives four distinct candidate keys: AD, BD, ED, and FD."
+          },
+          {
+            "id": 1,
+            "text": "4",
+            "feedback": "Correct — there are four candidate keys. D must be part of every key because D does not appear on any right-hand side. Each of A, B, E, and F individually determines all remaining attributes (except D), so AD, BD, ED, and FD are the minimal keys. Hence the count is 4."
+          },
+          {
+            "id": 2,
+            "text": "5",
+            "feedback": "Incorrect — there are 4 candidate keys, not 5. Only the combinations with D and one of A, B, E, or F are needed. No other minimal combination produces all attributes, so the correct count is 4 (AD, BD, ED, FD)."
+          },
+          {
+            "id": 3,
+            "text": "6",
+            "feedback": "Incorrect — there are 4 candidate keys, not 6. Because D never appears on the right-hand side, every key must include D. Exactly four attributes (A, B, E, F) independently determine the other attributes, giving four minimal keys when paired with D: AD, BD, ED, FD."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  D must be in every candidate key because D does not appear on the right-hand side of any functional dependency. Compute closures (without D) to find which single attributes determine all others: A+ = {A, B, C, F, H, E, G}  (A → BC; B → CFH; F → EG; E → A) B+ = {B, C, F, H, E, A, G}  (B → CFH; F → EG; E → A; A → BC) E+ = {E, A, B, C, F, H, G}  (E → A; A → BC; B → CFH; F → EG) F+ = {F, E, G, A, B, C, H}  (F → EG; E → A; A → BC; B → CFH) Each of A, B, E, and F individually determines all attributes except D, so when combined with D they give minimal keys: AD, BD, ED, and FD. Therefore the relation has 4 candidate keys.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3746,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24eab1c69bbb6f52867db",
+        "subtopicId": "68d25155b905a26b8edec702"
+      },
+      "content": {
+        "questionText": "Which one of the following is NOT logically equivalent to  \\(¬∃x (∀ y (α)∧∀z(β ))\\) ?",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(∀ x (∃ z(¬β )→∀ y (α))\\)",
+            "feedback": "Rewrite the formula: (∃z ¬β → ∀y α) is equivalent to (∀z β ∨ ∀y α). The original formula is equivalent to ∀x (∃y ¬α ∨ ∃z ¬β). These two are not the same. Counterexample: take a domain with one element and make α true for every y and β true for every z; then the original formula is false but this candidate is true. Therefore this candidate is not equivalent."
+          },
+          {
+            "id": 1,
+            "text": "\\(∀x (∀ z(β )→∃ y (¬α))\\)",
+            "feedback": "Start from ¬∃x (∀y α ∧ ∀z β) and rewrite: this is equivalent to ∀x (∃y ¬α ∨ ∃z ¬β). The candidate (∀z β → ∃y ¬α) is equivalent to (¬∀z β ∨ ∃y ¬α) which simplifies to (∃z ¬β ∨ ∃y ¬α). This matches the derived form (order of disjuncts does not matter), so this candidate is equivalent to the original formula."
+          },
+          {
+            "id": 2,
+            "text": "\\(∀x (∀ y (α)→∃z(¬β )) \\)",
+            "feedback": "Using the equivalence ¬∃x P ≡ ∀x ¬P and De Morgan, the original becomes ∀x (∃y ¬α ∨ ∃z ¬β). The candidate (∀y α → ∃z ¬β) is equivalent to (¬∀y α ∨ ∃z ¬β) which is (∃y ¬α ∨ ∃z ¬β), the same as the derived formula. Hence this candidate is equivalent."
+          },
+          {
+            "id": 3,
+            "text": "\\( ∀x (∃ y (¬α)→∃z(¬β ))\\)",
+            "feedback": "Rewrite the candidate: (∃y ¬α → ∃z ¬β) is equivalent to (¬∃y ¬α ∨ ∃z ¬β), i.e. (∀y α ∨ ∃z ¬β). The derived correct form of the original is ∀x (∃y ¬α ∨ ∃z ¬β). These differ. Counterexample: for some x let α be false for some y (so ∃y ¬α is true) while β holds for all z (so ∃z ¬β is false). The original is true for that x, but this candidate is false. Therefore this candidate is not equivalent."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Derivation of the given formula:  ¬∃x (∀y α ∧ ∀z β) Apply ¬∃x P ≡ ∀x ¬P: ∀x ¬(∀y α ∧ ∀z β). Use De Morgan: ∀x (¬∀y α ∨ ¬∀z β). Convert ¬∀ to ∃¬: ∀x (∃y ¬α ∨ ∃z ¬β). Compare each candidate formula to the derived form ∀x (∃y ¬α ∨ ∃z ¬β): Candidate: ∀x (∃z ¬β → ∀y α). Rewrite: (∃z ¬β → ∀y α) ≡ (¬∃z ¬β ∨ ∀y α) ≡ (∀z β ∨ ∀y α). Verdict: Not equivalent. Example: if for some x both α holds for all y and β holds for all z, then the derived form is false for that x but the candidate is true. Candidate: ∀x (∀z β → ∃y ¬α). Rewrite: (∀z β → ∃y ¬α) ≡ (¬∀z β ∨ ∃y ¬α) ≡ (∃z ¬β ∨ ∃y ¬α). Verdict: Equivalent. This matches ∀x (∃y ¬α ∨ ∃z ¬β) up to the order of disjuncts. Candidate: ∀x (∀y α → ∃z ¬β). Rewrite: (∀y α → ∃z ¬β) ≡ (¬∀y α ∨ ∃z ¬β) ≡ (∃y ¬α ∨ ∃z ¬β). Verdict: Equivalent. This matches the derived form exactly. Candidate: ∀x (∃y ¬α → ∃z ¬β). Rewrite: (∃y ¬α → ∃z ¬β) ≡ (¬∃y ¬α ∨ ∃z ¬β) ≡ (∀y α ∨ ∃z ¬β). Verdict: Not equivalent. Example: for some x let α be false for some y (so ∃y ¬α is true) while β holds for all z (so ∃z ¬β is false). The derived form is true for that x but this candidate is false. Conclusion: The second and third candidate formulas are equivalent to the original formula after standard transformations. The first and fourth candidate formulas are not equivalent; they fail in simple counterexamples as shown. Therefore the answer key that identifies only the first candidate as not equivalent is incomplete.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3745,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e6831f60703d60a8393",
+        "subtopicId": "68da213f5e8ee4416b478b8c"
+      },
+      "content": {
+        "questionText": "A RAM chip has a capacity of 1024 words of 8 bits each (1K × 8). The number of 2 × 4 decoders with enable line needed to construct a 16K × 16 RAM from 1K × 8 RAM is",
+        "options": [
+          {
+            "id": 0,
+            "text": "4",
+            "feedback": "Incorrect. Four 2×4 decoders alone cannot implement the needed 4-to-16 selection with enables. You need one 2×4 decoder to generate four enable signals and then four 2×4 decoders (one per enable) to produce the 16 chip-select lines, so four by themselves are not enough."
+          },
+          {
+            "id": 1,
+            "text": "5",
+            "feedback": "Correct. To build 16K×16 from 1K×8 chips you need 32 chips (16K/1K = 16 groups of words, and 2 chips per group for 16-bit width → 16×2 = 32). The high 4 address bits must select one of 16 groups, so a 4-to-16 decoder is required. A 4-to-16 can be built from 2×4 decoders with enable by using one 2×4 decoder on the top two address bits to produce four enables, and four 2×4 decoders (enabled by those outputs) for the lower two address bits — total 1 + 4 = 5 decoders."
+          },
+          {
+            "id": 2,
+            "text": "6",
+            "feedback": "Incorrect. Six 2×4 decoders would work but is more than required. The minimal arrangement uses one 2×4 decoder to create four enable lines and four enabled 2×4 decoders to produce the 16 outputs, for a total of 5 decoders. Using six adds an unnecessary decoder."
+          },
+          {
+            "id": 3,
+            "text": "7",
+            "feedback": "Incorrect. Seven 2×4 decoders is also more than necessary. The 4-to-16 decoding can be implemented with 5 decoders (one for the high-order address bits to generate enables and four enabled decoders for the low-order bits). Seven is not the minimal count."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  compute how many chips are needed and then how many 2×4 decoders (with enable) are needed to select among chip groups. Step 1: Determine total chips needed. A 16-bit word requires two 8-bit chips in parallel. For 16K words, number of 1K×8 chips = 16K/1K × 2 = 16 × 2 = 32. Step 2: Determine decoding required. The 1K chips use the lower 10 address bits; the upper 4 address bits must select one of 16 chip groups (each group contains the two chips that form the 16-bit word). So a 4-to-16 decoder is needed to generate 16 chip-select signals. Step 3: Build the 4-to-16 from 2×4 decoders with enable. Use one 2×4 decoder on the top two address bits to produce four enable outputs. For each enable, use one 2×4 decoder on the lower two address bits (enabled by that top output) to produce four outputs. That requires 1 + 4 = 5 decoders. Conclusion: 5 decoders are required.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3744,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e5a31f60703d60a80c3",
+        "subtopicId": "68da1fb85e8ee4416b43e20d"
+      },
+      "content": {
+        "questionText": "Consider an instruction pipeline with five stages without any branch prediction: Fetch Instruction (FI), Decode Instruction (DI), Fetch Operand (FO), Execute Instruction (EI) and Write Operand (WO). The stage delays for FI, DI, FO, EI and WO are 5 ns, 7 ns, 10 ns, 8 ns and 6 ns, respectively. There are intermediate storage buffers after each stage and the delay of each buffer is 1 ns. A program consisting of 12 instructions I 1 , I 2 , I 3 , …, I1 2  is executed in this pipelined processor. Instruction I 4  is the only branch instruction and its branch target is I 9 . If the branch is taken during the execution of this program, the time (in ns) needed to complete the program is",
+        "options": [
+          {
+            "id": 0,
+            "text": "132",
+            "feedback": "This value (132 ns) comes from counting only the instructions actually executed after the branch (8 useful instructions) and using cycle time = max(stage)+buffer = 10+1 = 11 ns: cycles = 8 + 5 - 1 = 12 cycles → 12×11 = 132 ns. It is incorrect because it ignores the three wrong-path instructions (I5, I6, I7) that are fetched before the branch outcome is known; those fetched instructions consume pipeline cycles and increase the total completion time."
+          },
+          {
+            "id": 1,
+            "text": "165",
+            "feedback": "Correct. The pipeline clock period is max(stage delay)+buffer = 10+1 = 11 ns. The branch at I4 is resolved in EI (3 cycles after FI), so I5, I6 and I7 are fetched speculatively and flushed. Fetches occur at cycles: I1..I4 at 1–4, I5..I7 (flushed) at 5–7, then branch target I9..I12 at 8–11. The last fetch is at cycle 11 and the final write completes 4 cycles later at cycle 15. Total time = 15×11 ns = 165 ns."
+          },
+          {
+            "id": 2,
+            "text": "176",
+            "feedback": "This value (176 ns) is what you get if you assume no branch is taken (all 12 instructions execute): cycle time = 11 ns, cycles = 12 + 5 - 1 = 16 → 16×11 = 176 ns. It is incorrect here because the branch at I4 is taken, so execution does not proceed through I5–I8; instead the target I9 is fetched after the branch is resolved, yielding a different schedule."
+          },
+          {
+            "id": 3,
+            "text": "328",
+            "feedback": "This value (328 ns) is far too large. It corresponds to a mistaken doubling or extra penalty that is not supported by the pipeline timing and the given branch behavior. The correct approach is to compute the clock period (11 ns) and simulate fetches up to the branch resolution — which leads to 165 ns, not 328 ns."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  the pipeline clock period is max(stage delay) plus the buffer delay. Compute the clock period: max stage delay = 10 ns (Fetch Operand) plus buffer delay 1 ns → cycle time = 11 ns. Branch timing: I4 is fetched at cycle 4 and its outcome is known in the Execute stage (EI), which occurs 3 cycles after FI for that instruction. So the branch is resolved at cycle 7, meaning I5, I6 and I7 get fetched speculatively (cycles 5–7) and must be flushed when the branch is taken. Fetch sequence by cycle: I1–I4 at cycles 1–4, I5–I7 (flushed) at 5–7, then branch target I9–I12 at 8–11. The last fetch is at cycle 11. Completion: the final instruction completes 4 cycles after its fetch (WO), so final completion is at cycle 15. Total time = 15 cycles × 11 ns = 165 ns.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3736,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da227d5e8ee4416b4bd49f",
+        "subtopicId": "68da2e055e8ee4416b6575d3"
+      },
+      "content": {
+        "questionText": "In an IPv4 datagram, the M bit is 0, the value of HLEN is 10, the value of total length is 400 and the fragment offset value is 300. The position of the datagram, the sequence numbers of the first and the last bytes of the payload, respectively are",
+        "options": [
+          {
+            "id": 0,
+            "text": "Last fragment, 2400 and 2789",
+            "feedback": "Incorrect — it correctly calls this the last fragment (M = 0) and gets the start byte 2400 from 300×8, but the last byte is wrong. Header = 10×4 = 40 bytes, so payload = 400 − 40 = 360 bytes. Last byte = 2400 + 360 − 1 = 2759, not 2789."
+          },
+          {
+            "id": 1,
+            "text": "First fragment, 2400 and 2759",
+            "feedback": "Incorrect — the byte range 2400–2759 is correct for this fragment, but calling it the first fragment is wrong. The fragment offset is 300 (nonzero), so this cannot be the first fragment. The first fragment would have fragment offset 0."
+          },
+          {
+            "id": 2,
+            "text": "Last fragment, 2400 and 2759",
+            "feedback": "Correct — M = 0 means this is the last fragment. Header length = 10×4 = 40 bytes, so payload length = 400 − 40 = 360 bytes. Fragment offset 300 × 8 = 2400 gives the first payload byte; last payload byte = 2400 + 360 − 1 = 2759."
+          },
+          {
+            "id": 3,
+            "text": "Middle fragment, 300 and 689",
+            "feedback": "Incorrect — this treats the fragment offset as 300 bytes instead of 300×8 = 2400 bytes, and it misidentifies the fragment position. With payload = 360 bytes, the correct byte range is 2400–2759, and M = 0 indicates the last fragment rather than a middle fragment."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key facts:  use them step by step. M = 0 → this is the last fragment. HLEN = 10 → header length = 10 × 4 = 40 bytes. Total length = 400 → payload in this fragment = 400 − 40 = 360 bytes. Fragment offset = 300 (in 8-byte units) → start byte = 300 × 8 = 2400. Last payload byte = 2400 + 360 − 1 = 2759. Conclusion: This is the last fragment, and the first and last payload byte sequence numbers are 2400 and 2759.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3735,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da225a5e8ee4416b4ba87d",
+        "subtopicId": "68da2be531f60703d62e732a"
+      },
+      "content": {
+        "questionText": "Determine the maximum length of the cable (in km) for transmitting data at a rate of 500 Mbps in an Ethernet LAN with frames of size 10,000 bits. Assume the signal speed in the cable to be 2,00,000 km/s.",
+        "options": [
+          {
+            "id": 0,
+            "text": "1",
+            "feedback": "Incorrect. Compute the frame transmission time: 10,000 bits / 500×10^6 bits/s = 2×10^-5 s (20 μs). The maximum one-way propagation time must be half the transmission time (10 μs). At 200,000 km/s a 1 km cable gives a one-way time of 5 μs, which is safe but not the maximum. The largest allowable length is 2 km, so 1 km is too small to be the maximum."
+          },
+          {
+            "id": 1,
+            "text": "2",
+            "feedback": "Correct. Transmission time = 10,000 / (500×10^6) = 2×10^-5 s (20 μs). For collision detection the round-trip propagation must be ≤ transmission time, so one-way time ≤ 10 μs. Max distance = speed × one-way time = 200,000 km/s × 10×10^-6 s = 2 km."
+          },
+          {
+            "id": 2,
+            "text": "2.5",
+            "feedback": "Incorrect. If the cable were 2.5 km long, one-way propagation time = 2.5 / 200,000 = 12.5 μs, so round-trip = 25 μs which exceeds the 20 μs transmission time. A collision occurring at the far end might not be detected before the frame finishes transmitting, so 2.5 km is too long."
+          },
+          {
+            "id": 3,
+            "text": "5",
+            "feedback": "Incorrect. A 5 km cable gives one-way propagation time = 5 / 200,000 = 25 μs and round-trip = 50 μs, far exceeding the 20 μs transmission time. That length would not guarantee collision detection within the frame transmission."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  ensure a collision at the far end can propagate back before the frame transmission ends. Compute transmission time: t_tx = frame size / data rate = 10,000 bits / (500×10^6 bits/s) = 2×10^-5 s = 20 μs. Require round-trip propagation time ≤ t_tx, so maximum one-way propagation time = t_tx/2 = 10 μs. Convert time to distance: max length = speed × one-way time = 200,000 km/s × 10×10^-6 s = 2 km. Answer: 2 km.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3734,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f406dbf3983bc82b027",
+        "subtopicId": "68d396d76dbf3983bc8f4059"
+      },
+      "content": {
+        "questionText": "Consider the following relational schema. Students( rollno: integer , sname: string) \n\nCourses( courseno: intege r, cname: string) \n\nRegistration( rollno: integer, courseno: integer , percent: real) Which of the following queries are equivalent to this query in English? \n\n“Find the distinct names of all students who score more than 90% in the course numbered 107” \n\n (I) SELECT DISTINCT S.sname \n\n FROM Students as S, Registration as R \n\n WHERE R.rollno=S.rollno AND R.courseno=107 AND R.percent >90 \n\n(II) ∏sname(σcourseno=107 ∧ percent>90 (Registration ⋈ Students)) \n\n (III) {T | ∃S∈Students, ∃R∈Registration ( S.rollno=R.rollno ∧ \n\n R.courseno=107 ∧ R.percent>90 ∧T.sname=S.sname)} \n\n (IV) {<S N > | ∃S R ∃R P  ( <S R , S N >∈Students ∧ <S R , 107, R P >∈Registration ∧ R P >90)}",
+        "options": [
+          {
+            "id": 0,
+            "text": "I, II, III and IV",
+            "feedback": "Correct. Each representation returns the distinct student names who have a Registration tuple with courseno = 107 and percent > 90. The SQL query explicitly uses DISTINCT and a join on rollno with the two filter conditions. The relational-algebra expression projects sname after selecting and joining the same relations and conditions (projection is set-valued so duplicates are removed). The tuple relational calculus uses existential quantifiers to require a matching Students tuple and Registration tuple with the same conditions, producing the set of names. The domain relational calculus likewise expresses the same existence conditions over domain variables and returns the set of names."
+          },
+          {
+            "id": 1,
+            "text": "I, II and III only",
+            "feedback": "Incorrect. The three listed forms (the SQL query, the relational-algebra expression, and the tuple relational calculus) are all equivalent to the English query, but the domain relational-calculus expression is also equivalent. Omitting the domain relational-calculus form is wrong because it expresses the same existence/join and filter conditions and returns the same set of names."
+          },
+          {
+            "id": 2,
+            "text": "I, II and IV only",
+            "feedback": "Incorrect. The SQL query, the relational-algebra expression, and the domain relational-calculus expression are all correct equivalents, but the tuple relational-calculus expression is also equivalent. The tuple calculus form uses existential quantifiers over Students and Registration tuples with the same join/filter predicates and therefore yields the same set of names."
+          },
+          {
+            "id": 3,
+            "text": "II, III and IV only",
+            "feedback": "Incorrect. The relational-algebra, tuple relational-calculus, and domain relational-calculus forms are equivalent, but the SQL query is also an equivalent formulation. The SQL version with DISTINCT and the join and filter conditions returns the same set of student names, so excluding it is incorrect."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  All four expressions return the set of student names for students who have a Registration record with courseno = 107 and percent > 90. Duplicate names are eliminated by DISTINCT or by the set semantics of projection/relational calculus. SQL (I): SELECT DISTINCT sname ... joins Students and Registration on rollno and filters courseno = 107 and percent > 90; DISTINCT removes duplicate names. Relational algebra (II): project sname after selecting and joining the same relations with the same conditions; projection over a relation is set-valued, so duplicates are not retained. Tuple relational calculus (III): asserts existence of a Students tuple and a Registration tuple with equal rollno and with courseno = 107 and percent > 90; the comprehension returns the set of matching sname values. Domain relational calculus (IV): uses domain variables to state the same existence/join and filter conditions and therefore returns the same set of student names. Therefore all four forms are equivalent to the English query; the correct choice is the one that includes every listed formulation.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3726,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24eab1c69bbb6f52867db",
+        "subtopicId": "68d25155b905a26b8edec702"
+      },
+      "content": {
+        "questionText": "What is the logical translation of the following statement? “None of my friends are perfect.”",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(∃x (F (x)∧ ¬P(x)) \\)",
+            "feedback": "This says there exists at least one friend who is not perfect. That is weaker than the original statement — the original says no friend is perfect (every friend is not perfect). This option does not capture that every friend is imperfect, so it is incorrect."
+          },
+          {
+            "id": 1,
+            "text": "\\(∃ x (¬ F (x)∧ P(x))\n\n\\)",
+            "feedback": "This says there exists someone who is perfect and is not a friend. That doesn't express anything about whether any of your friends are perfect, so it does not match the original statement."
+          },
+          {
+            "id": 2,
+            "text": "\\(∃x (¬F (x)∧¬P(x))\\)",
+            "feedback": "This says there exists someone who is neither a friend nor perfect. That is irrelevant to the status of your friends' perfection, so it does not express 'none of my friends are perfect.'"
+          },
+          {
+            "id": 3,
+            "text": "\\(¬∃ x (F (x)∧ P(x))\\)",
+            "feedback": "Correct. This asserts that there does not exist any x who is both your friend and perfect — i.e., there is no friend who is perfect. It is logically equivalent to ∀x (F(x) → ¬P(x))."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Correct logical form:  ¬∃x (F(x) ∧ P(x)) — there is no x who is both a friend and perfect. Equivalent universal form: ∀x (F(x) → ¬P(x)). For every x, if x is my friend then x is not perfect. Why they are equivalent: ¬∃x (F(x) ∧ P(x)) is equivalent to ∀x ¬(F(x) ∧ P(x)), and ¬(F(x) ∧ P(x)) is equivalent to (F(x) → ¬P(x)).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3725,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e8eb905a26b8ed9c0f3",
+        "subtopicId": "68ee03fd63a6aa4cca38983e"
+      },
+      "content": {
+        "questionText": "The line graph  \\(L(G)\\)  of a simple graph  \\(G\\)  is defined as follows: • There is exactly one vertex  \\(v(e)\\)  in  \\(L(G)\\)  for each edge  \\(e\\)  in  \\(G\\) . • For any two edges  \\(e\\)  and  \\(e'\\)  in  \\(G\\) ,  \\(L(G)\\)  has an edge between  \\(v(e)\\)  and  \\(v(e')\\) , if and only if  \\(e\\)  and  \\(e'\\)  are incident with the same vertex in  \\(G\\) . Which of the following statements is/are TRUE? (P) The line graph of a cycle is a cycle. (Q) The line graph of a clique is a clique. (R) The line graph of a planar graph is planar. (S) The line graph of a tree is a tree.",
+        "options": [
+          {
+            "id": 0,
+            "text": "P only",
+            "feedback": "Correct. The statement that the line graph of a cycle is a cycle is true: if G is a cycle C_n, each edge is adjacent to exactly two other edges, so the vertices of L(G) form a cycle of length n. The other statements are false in general: the line graph of a clique need not be a clique for n≥4; a planar graph can have a nonplanar line graph (for example, the star with 5 leaves is planar but its line graph is K5, which is nonplanar); and trees that have a vertex of degree ≥3 produce triangles in their line graphs, so are not trees in general."
+          },
+          {
+            "id": 1,
+            "text": "P and R only",
+            "feedback": "Incorrect. While the statement about cycles is true, the statement about line graphs preserving planarity is not always true. A counterexample is the star graph with five leaves (a tree, hence planar); its line graph is K5, which is nonplanar. So the choice that asserts both the cycle statement and planarity preservation is wrong because planarity is not preserved in general."
+          },
+          {
+            "id": 2,
+            "text": "R only",
+            "feedback": "Incorrect. The statement that the line graph of a planar graph is always planar is false. For example, the star with five leaves is planar but its line graph is K5, which is nonplanar. Also note that the statement about cycles being preserved is true, so claiming only planarity is true is wrong."
+          },
+          {
+            "id": 3,
+            "text": "P, Q and S only",
+            "feedback": "Incorrect. The statement that the line graph of a clique is always a clique is false in general: for K4 there exist pairs of edges that are disjoint, so their corresponding vertices in the line graph are not adjacent, hence L(K4) is not complete. The statement that the line graph of a tree is always a tree is false: if a tree has a vertex of degree 3 or more, the incident edges form a triangle in the line graph, so L(G) contains a cycle and is not a tree. The only true statement among P, Q, R, S is that cycles map to cycles."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer:  Only the statement that the line graph of a cycle is a cycle is true. P (The line graph of a cycle is a cycle):  True. If G is a cycle Cn, each edge of Cn is incident with exactly two other edges (its neighbours along the cycle). In L(G) each corresponding vertex therefore has degree 2, and the adjacency order is the same cyclic order, so L(G) is a cycle of length n. Q (The line graph of a clique is a clique):  False in general. For small cliques like K2 and K3 the line graph is trivial or K3 respectively, but for K4 there exist two edges that are disjoint (they do not share a vertex), so their corresponding vertices in the line graph are not adjacent. Thus L(K4) is not complete. R (The line graph of a planar graph is planar):  False. A simple counterexample is the star graph with five leaves (the tree K1,5), which is planar. Its line graph is K5 (because all five edges are pairwise incident at the center), and K5 is nonplanar. Therefore planarity need not be preserved by the line graph operation. S (The line graph of a tree is a tree):  False in general. If a tree has a vertex of degree d≥3, the d edges incident at that vertex form a clique Kd in the line graph; for d=3 this already gives a triangle, so the line graph contains a cycle and is not a tree. Only trees that are paths have line graphs that are trees (a path on n vertices gives a path on n−1 vertices). Final conclusion:  Only the statement about cycles is always true, so the correct answer is the choice that states only P is true.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3724,
+      "type": "MCQ",
+      "difficulty": "BEGINNER",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e8eb905a26b8ed9c0f3",
+        "subtopicId": "68d25026b905a26b8edbbe08"
+      },
+      "content": {
+        "questionText": "Which of the following statements is/are  TRUE  for undirected graphs? P: Number of odd degree vertices is even. Q: Sum of degrees of all vertices is even.",
+        "options": [
+          {
+            "id": 0,
+            "text": "P only",
+            "feedback": "Incorrect. The statement 'Number of odd degree vertices is even' is true, but the statement 'Sum of degrees of all vertices is even' is also always true for undirected graphs. So the choice that says only the first statement is true is wrong. Brief reason: every edge contributes 2 to the total degree, making the total even; a parity argument then gives an even number of odd-degree vertices."
+          },
+          {
+            "id": 1,
+            "text": "Q only",
+            "feedback": "Incorrect. The sum of degrees of all vertices is always even (true), but the number of odd-degree vertices is also necessarily even — so the choice that says only the second statement is true is wrong. Brief reason: the handshaking lemma gives sum of degrees = 2 × number of edges (even); parity then implies an even count of odd-degree vertices."
+          },
+          {
+            "id": 2,
+            "text": "Both P and Q",
+            "feedback": "Correct. Both statements are true. Reason: each edge contributes 1 to the degree of two vertices, so the sum of all vertex degrees equals twice the number of edges and is therefore even. Since even-degree vertices contribute even numbers to that sum, the parity of the total comes from the odd-degree vertices; because the total is even, there must be an even number of odd-degree vertices."
+          },
+          {
+            "id": 3,
+            "text": "Neither P nor Q",
+            "feedback": "Incorrect. Neither statement is false — both are true for every undirected graph. The correct rejection of 'neither' follows from the handshaking lemma (sum of degrees = 2×edges) and the parity argument that forces an even number of odd-degree vertices."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  use the handshaking lemma and a parity argument. Sum of degrees = 2 × number of edges, because each edge increases the degree of two vertices by 1. Therefore the sum of degrees is even; this proves the statement that the sum of degrees of all vertices is even. Even-degree vertices contribute even numbers to the total, so the parity of the total sum is determined by how many vertices have odd degree. Since the total is even, there must be an even number of odd-degree vertices. Conclusion: Both statements are true for every undirected graph.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3723,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e8eb905a26b8ed9c0f3",
+        "subtopicId": "68d25016b905a26b8edbbb51"
+      },
+      "content": {
+        "questionText": "Consider an undirected random graph of eight vertices. The probability that there is an edge between a pair of vertices is 1/2. What is the expected number of unordered cycles of length three?",
+        "options": [
+          {
+            "id": 0,
+            "text": "1/8",
+            "feedback": "1/8 is the probability that a specific set of three vertices forms a triangle (each of the three possible edges appears independently with probability 1/2, so (1/2)^3 = 1/8). It is not the expected number of triangles in the whole graph. To get the expected number, multiply this probability by the number of different 3-vertex subsets."
+          },
+          {
+            "id": 1,
+            "text": "1",
+            "feedback": "1 is too small. The expected number counts contributions from every unordered triple of vertices. There are C(8,3) = 56 triples, and each becomes a triangle with probability 1/8, so the expected total is 56 * 1/8 = 7."
+          },
+          {
+            "id": 2,
+            "text": "7",
+            "feedback": "Correct. There are C(8,3) = 56 unordered triples of vertices, and for any given triple the three edges all appear with probability (1/2)^3 = 1/8. So the expected number of triangles is 56 * 1/8 = 7."
+          },
+          {
+            "id": 3,
+            "text": "8",
+            "feedback": "8 is not correct. To compute the expectation, count all unordered triples (56) and multiply by the probability that all three edges appear (1/8), giving 56 * 1/8 = 7. The value 8 does not arise from this calculation."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  count all unordered triples of vertices and multiply by the probability that all three edges in a triple are present. Number of unordered triples of vertices: C(8,3) = 56. Probability a given triple forms a triangle: (1/2)^3 = 1/8, since the three edges must each be present independently. Expected number of unordered 3-cycles = 56 * 1/8 = 7. Answer: 7",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3720,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbde9361903cd7d6eddb74",
+        "subtopicId": "68cbe64361903cd7d613eedc"
+      },
+      "content": {
+        "questionText": "Which one of the following expressions does NOT represent exclusive NOR of  \\(x\\)  and  \\(y\\) ?",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(xy + x′ y′\\)",
+            "feedback": "This is the standard sum-of-products form of exclusive NOR (equivalence). xy + x′y′ outputs 1 exactly when x and y are equal, so it represents exclusive NOR."
+          },
+          {
+            "id": 1,
+            "text": "\\(x\\oplus y′\\)",
+            "feedback": "Use the XOR definition: x ⊕ y′ = (x ∧ y) ∨ (x′ ∧ y′), which simplifies to xy + x′y′. That matches the XNOR expression, so this expression also represents exclusive NOR."
+          },
+          {
+            "id": 2,
+            "text": "\\(x′\\oplus y\\)",
+            "feedback": "Similarly, x′ ⊕ y = (x′ ∧ y′) ∨ (x ∧ y), which simplifies to xy + x′y′. Thus this expression is equivalent to the XNOR (equivalence) of x and y."
+          },
+          {
+            "id": 3,
+            "text": "\\(x′\\oplus y′\\)",
+            "feedback": "x′ ⊕ y′ equals x ⊕ y (complementing both inputs leaves XOR unchanged). Since XOR is the complement of XNOR (it is 1 when x and y differ), x′ ⊕ y′ represents XOR, not XNOR. Therefore this expression does NOT represent exclusive NOR."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  exclusive NOR (XNOR) is true when x and y are equal; a standard form is  xy + x′y′ . Check the expression that does NOT match XNOR: For x′ ⊕ y′, complementing both inputs gives x′ ⊕ y′ = x ⊕ y (property of XOR). XOR (x ⊕ y) is 1 when x and y differ, while XNOR is 1 when x and y are equal, so x′ ⊕ y′ represents XOR, not XNOR. Conclusion: x′ ⊕ y′ does NOT represent exclusive NOR; the other expressions (xy + x′y′, x ⊕ y′, x′ ⊕ y) are equivalent to XNOR.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3719,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e3d31f60703d609dae9",
+        "subtopicId": "68da1ee15e8ee4416b40ec05"
+      },
+      "content": {
+        "questionText": "In a  \\(k\\) -way set associative cache, the cache is divided into  \\(v\\)  sets, each of which consists of  \\(k\\)  lines. The lines of a set are placed in sequence one after another. The lines in set  \\(s\\)  are sequenced before the lines in set  \\((s+1)\\) . The main memory blocks are numbered 0 onwards. The main memory block numbered  \\(j\\)  must be mapped to any one of the cache lines from",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\((j \\ mod \\ v) * k \\ to \\ (j \\ mod \\ v) * k + (k-1)\\)",
+            "feedback": "Correct. Compute the set index s = j mod v. Because each set holds k lines placed sequentially, the lines for set s occupy indices from s*k to s*k + (k-1). Substituting s = j mod v gives (j mod v) * k to (j mod v) * k + (k-1)."
+          },
+          {
+            "id": 1,
+            "text": "\\((j \\ mod \\ v) \\ to \\ (j \\ mod \\ v) + (k-1)\\)",
+            "feedback": "Incorrect. This uses (j mod v) to (j mod v) + (k-1) which treats line indices as equal to the set number and then adds up to k-1. It misses scaling by k to account for the k lines per set, so it gives wrong absolute line indices."
+          },
+          {
+            "id": 2,
+            "text": "\\((j \\ mod \\ k) \\ to \\ (j \\ mod \\ k) + (v-1)\\)",
+            "feedback": "Incorrect. This uses j mod k instead of j mod v and produces a range of length v. The set index must be j mod v, and the number of lines per set is k, so both the modulus and the range length are wrong."
+          },
+          {
+            "id": 3,
+            "text": "\\((j \\ mod \\ k) * v \\ to \\ (j \\ mod \\ k) * v + (v-1) \\)",
+            "feedback": "Incorrect. This uses j mod k and then multiplies by v to get a starting index and produces a range of length v. The correct mapping uses j mod v for the set index and a range of length k, so this swaps the roles of v and k."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  a memory block j maps to set s = j mod v, and that set's k lines are placed sequentially. Step 1: Find the set index s = j mod v. Step 2: The k lines of set s occupy consecutive cache line indices from s*k to s*k + (k-1). Conclusion: Substituting s = j mod v gives the mapping (j mod v) * k to (j mod v) * k + (k-1).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3713,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da227d5e8ee4416b4bd49f",
+        "subtopicId": "68da2d4c5e8ee4416b645599"
+      },
+      "content": {
+        "questionText": "Assume that source S and destination D are connected through two intermediate routers labeled R. Determine how many times each packet has to visit the network layer and the data link layer during a transmission from S to D. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3713-local-1760444131972.png)",
+        "options": [
+          {
+            "id": 0,
+            "text": "Network layer – 4 times and Data link layer – 4 times",
+            "feedback": "Incorrect. The network layer count (4) is correct — the packet is processed at S, each of the two routers, and D. The data link layer count (4) is too low because it counts links rather than the data-link processing at both ends of each link. There are 3 physical links (S–R, R–R, R–D), and each link involves a sender and a receiver at the data link layer, for 3 × 2 = 6 data link visits."
+          },
+          {
+            "id": 1,
+            "text": "Network layer – 4 times and Data link layer – 3 times",
+            "feedback": "Incorrect. The network layer visit count (4) is correct, but the data link layer count (3) is wrong. Counting one per link ignores that each link requires data-link work at both ends (encapsulation by the sender and decapsulation by the receiver). With 3 links, the data link layer is visited 3 × 2 = 6 times."
+          },
+          {
+            "id": 2,
+            "text": "Network layer – 4 times and Data link layer – 6 times",
+            "feedback": "Correct. The packet is processed by the network layer at S, at each of the two routers, and at D (4 times). For the data link layer there are three physical links (S–first router, between the two routers, last router–D), and each link requires data-link processing at both the sender and receiver, so 3 × 2 = 6 visits."
+          },
+          {
+            "id": 3,
+            "text": "Network layer – 2 times and Data link layer – 6 times",
+            "feedback": "Incorrect. The data link layer count (6) is correct, but the network layer count (2) is too low. The network layer is involved at every host/router that handles the packet: at the source, at each of the two routers, and at the destination — totaling 4 times."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  count network-layer processing at each host/router and count data-link processing at both ends of every link. Network layer: The packet is handled by the network layer at S, at the first router, at the second router, and at D → 4 times. Data link layer: There are three links (S–first router, first router–second router, second router–D). Each link requires data-link work by the sender and the receiver, so 3 links × 2 ends = 6 visits. Answer: Network layer – 4 times; Data link layer – 6 times.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3712,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da235731f60703d61759a6",
+        "subtopicId": "68ee57eb9a98568408998bf6"
+      },
+      "content": {
+        "questionText": "Using public key cryptography,  \\(X\\)  adds a digital signature  \\(σ\\)  to message  \\(M\\) , encrypts  \\(\\langle M, \\sigma \\rangle\\)  , and sends it to  \\(Y\\) , where it is decrypted. Which one of the following sequences of keys is used for the operations?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Encryption:  \\(X’s\\)  private key followed by  \\(Y’s\\)  private key; Decryption:  \\(X’s\\)  public key followed by  \\(Y’s\\)  public key",
+            "feedback": "Incorrect. This option says to encrypt with X’s private then Y’s private and decrypt with X’s public then Y’s public. Using Y’s private to encrypt would not provide confidentiality (anyone with Y’s public could decrypt), and the decryption order is wrong. The sender’s private key is used for signing (not for making ciphertext that only the recipient can read), and the recipient must use their private key to decrypt."
+          },
+          {
+            "id": 1,
+            "text": "Encryption:  \\(X’s\\)  private key followed by  \\(Y’s\\)  public key; Decryption:  \\(X’s\\)  public key followed by  \\(Y’s\\)  private key",
+            "feedback": "Partially right but ultimately incorrect. It correctly lists signing with X’s private followed by encrypting with Y’s public for the send operation, but it gives the wrong decryption order. The receiver must first decrypt with Y’s private to recover (M, σ) and only then verify the signature with X’s public. Listing X’s public before Y’s private reverses the needed order."
+          },
+          {
+            "id": 2,
+            "text": "Encryption:  \\(X’s\\)  public key followed by  \\(Y’s\\)  private key; Decryption:  \\(Y’s\\)  public key followed by X’s private key",
+            "feedback": "Incorrect. This option suggests encrypting with X’s public and Y’s private, and decrypting with Y’s public then X’s private. Signing requires X’s private (not X’s public), and encryption for confidentiality must use Y’s public (not Y’s private). The decryption order given is also wrong."
+          },
+          {
+            "id": 3,
+            "text": "Encryption:  \\(X’s\\)  private key followed by  \\(Y’s\\)  public key; Decryption:  \\(Y’s\\)  private key followed by  \\(X’s\\)  public key",
+            "feedback": "Correct. The sender signs the message using X’s private key, then encrypts the signed message using Y’s public key. The receiver first decrypts with Y’s private key to recover (M, σ), then verifies the signature using X’s public key. This provides authenticity (signature from X) and confidentiality (only Y can decrypt)."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  sign with the sender's private key and encrypt with the recipient's public key so the message is both authentic and confidential. Step 1: Sender X creates a signature σ = Sign_{X_private}(M) using X’s private key (this gives authenticity). Step 2: X encrypts the pair ⟨M, σ⟩ with Y’s public key: C = Enc_{Y_public}(⟨M, σ⟩) (this gives confidentiality). Step 3: Receiver Y decrypts C with Y’s private key to recover ⟨M, σ⟩: ⟨M, σ⟩ = Dec_{Y_private}(C). Step 4: Y verifies the signature σ using X’s public key: Verify_{X_public}(M, σ). If verification succeeds, Y knows the message came from X and was not altered. Why this order matters: encryption and decryption must be done in the reverse order, and signature verification must happen after decryption so the verifier uses the sender's public key on the recovered message-and-signature. This sequence ensures both authenticity (signature by X) and confidentiality (only Y can decrypt).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3711,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da23455e8ee4416b4d422b",
+        "subtopicId": "68ee57959a9856840898aa0f"
+      },
+      "content": {
+        "questionText": "The transport layer protocols used for real time multimedia, file transfer, DNS and email, respectively are",
+        "options": [
+          {
+            "id": 0,
+            "text": "TCP, UDP, UDP and TCP",
+            "feedback": "Incorrect. This pairs real-time multimedia with TCP, but real-time multimedia applications (like VoIP or live video) usually use UDP to minimize latency and tolerate some packet loss. It also lists file transfer as UDP, but file transfer protocols (for example FTP) use TCP for reliable, ordered delivery."
+          },
+          {
+            "id": 1,
+            "text": "UDP, TCP, TCP and UDP",
+            "feedback": "Incorrect. This lists DNS as TCP and email as UDP. In practice, DNS queries typically use UDP (TCP is used only for zone transfers or when responses are large), while email protocols such as SMTP, IMAP and POP3 rely on TCP for reliable, connection-oriented delivery."
+          },
+          {
+            "id": 2,
+            "text": "UDP, TCP, UDP and TCP",
+            "feedback": "Correct. Real-time multimedia commonly uses UDP for low latency and tolerance of some packet loss; file transfer uses TCP for reliable, ordered delivery; DNS typically uses UDP for queries and responses (falling back to TCP in some cases); and email protocols (SMTP/IMAP/POP3) use TCP."
+          },
+          {
+            "id": 3,
+            "text": "TCP, UDP, TCP and UDP",
+            "feedback": "Incorrect. This pairs real-time multimedia with TCP and email with UDP. Real-time multimedia generally uses UDP for lower latency, while email uses TCP for reliable delivery. File transfer and DNS are also not mapped correctly here."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer:  UDP, TCP, UDP and TCP Real-time multimedia: UDP — chosen for low latency and reduced overhead; occasional packet loss is acceptable for voice/video. File transfer: TCP — provides reliable, ordered delivery and retransmission, which are important for transferring files intact. DNS: UDP — most DNS queries and responses fit in a single UDP datagram for efficiency; TCP is used for zone transfers or when responses are too large. Email: TCP — protocols like SMTP, IMAP and POP3 need reliable, connection-oriented communication provided by TCP.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3710,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da23455e8ee4416b4d422b",
+        "subtopicId": "68ee57959a9856840898aa0f"
+      },
+      "content": {
+        "questionText": "Match the problem domains in  GROUP I  with the solution technologies in  GROUP II .                          GROUP I                                                                               GROUP II   \t\t\t    (P) Service oriented computing                                    (1) Interoperability   \t\t\t    (Q) Heterogeneous communicating systems              (2) BPMN   \t\t\t    (R) Information representation                                     (3) Publish-find-bind   \t\t\t    (S) Process description                                                (4) XML",
+        "options": [
+          {
+            "id": 0,
+            "text": "P-1, Q-2, R-3, S-4",
+            "feedback": "Incorrect. Service oriented computing is best matched to the publish-find-bind pattern (how services are published, discovered, and bound), not general interoperability. Heterogeneous communicating systems should map to interoperability (to enable different systems to communicate), not to BPMN (which models processes). Information representation should map to XML, not to publish-find-bind. Process description should map to BPMN, not XML. The correct mappings are: Service oriented computing → Publish-find-bind; Heterogeneous communicating systems → Interoperability; Information representation → XML; Process description → BPMN."
+          },
+          {
+            "id": 1,
+            "text": "P-3, Q-4, R-2, S-1",
+            "feedback": "Partially correct. It correctly pairs service oriented computing with publish-find-bind. The other pairings are incorrect: heterogeneous communicating systems should pair with interoperability (not XML); information representation should pair with XML (not BPMN); and process description should pair with BPMN (not interoperability)."
+          },
+          {
+            "id": 2,
+            "text": "P-3, Q-1, R-4, S-2",
+            "feedback": "Correct. Service oriented computing matches publish-find-bind because SOA relies on publishing services, finding them and binding to them. Heterogeneous communicating systems match interoperability because different systems need standards or bridges to communicate. Information representation matches XML because XML is a standard format for structured data interchange. Process description matches BPMN because BPMN is a notation for modeling business processes."
+          },
+          {
+            "id": 3,
+            "text": "P-4, Q-3, R-2, S-1",
+            "feedback": "Incorrect. Service oriented computing is paired here with XML, but XML is for information representation, not the publish-find-bind service pattern. Heterogeneous communicating systems are paired with publish-find-bind, but publish-find-bind specifically addresses service discovery rather than general interoperability between heterogeneous systems. Information representation is paired with BPMN here, but BPMN is for process modeling; XML is the right technology for information representation. Process description is paired with interoperability, but BPMN is the appropriate technology for process description."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  match each problem domain with the technology that directly addresses its concerns. Service oriented computing matches publish-find-bind — SOA uses a pattern of publishing services to a registry, finding them, and binding to them at runtime. Heterogeneous communicating systems match interoperability — different platforms and protocols need interoperability solutions (standards, adapters, middleware) to communicate. Information representation matches XML — XML is a common structured format used to represent and exchange data. Process description matches BPMN — BPMN is a notation for modeling and describing business processes and workflows. Therefore the correct mapping is: Service oriented computing → Publish-find-bind; Heterogeneous communicating systems → Interoperability; Information representation → XML; Process description → BPMN.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3704,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbe52d61903cd7d610466e",
+        "subtopicId": "68d231691c69bbb6f5dbdb80"
+      },
+      "content": {
+        "questionText": "In the following truth table, V = 1 if and only if the input is valid. ![image](https://kgaitemp.blob.core.windows.net/question-images/q-3704-local-1760444131856.png) What function does the truth table represent?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Priority encoder",
+            "feedback": "Correct. This truth table defines a priority encoder: X0 and X1 form a two-bit binary code identifying which input line is asserted, and V=1 indicates a valid input. The don't-care entries show priority behavior (higher-numbered inputs override lower ones): D3 → X0X1 = 1 1; if D3=0 and D2=1 → 1 0; if D3=D2=0 and D1=1 → 0 1; if only D0=1 → 0 0."
+          },
+          {
+            "id": 1,
+            "text": "Decoder",
+            "feedback": "Incorrect. A decoder performs the opposite transformation: it takes a binary code and activates exactly one output (one-hot). The table here compresses multiple one-hot inputs into a smaller binary code, so it is an encoder, not a decoder."
+          },
+          {
+            "id": 2,
+            "text": "Multiplexer",
+            "feedback": "Incorrect. A multiplexer selects and forwards data from one of several inputs to a single output based on select signals. This table instead produces a binary code indicating which input is active, not forwarding input data, so it is not a multiplexer."
+          },
+          {
+            "id": 3,
+            "text": "Demultiplexer",
+            "feedback": "Incorrect. A demultiplexer takes a single input and routes it to one of many outputs based on select lines. The circuit in this table compresses multiple input lines into a binary index and asserts a valid flag, which is encoder behavior rather than demultiplexing."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Correct. This truth table defines a priority encoder: X0 and X1 form a two-bit binary code identifying which input line is asserted, and V=1 indicates a valid input. The don't-care entries show priority behavior (higher-numbered inputs override lower ones): D3 → X0X1 = 1 1; if D3=0 and D2=1 → 1 0; if D3=D2=0 and D1=1 → 0 1; if only D0=1 → 0 0.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3703,
+      "type": "MCQ",
+      "difficulty": "BEGINNER",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbe54861903cd7d6106896",
+        "subtopicId": "68cbe8ad61903cd7d61f8f95"
+      },
+      "content": {
+        "questionText": "The smallest integer that can be represented by an 8-bit number in 2’s complement form is",
+        "options": [
+          {
+            "id": 0,
+            "text": "-256",
+            "feedback": "-256 is incorrect. With 8 bits in two's complement you can represent values only down to -128. A value of -256 would require more than 8 bits (specifically 9 bits to represent that magnitude)."
+          },
+          {
+            "id": 1,
+            "text": "-128",
+            "feedback": "-128 is correct. For an n-bit two's complement number the range is -2^(n-1) to 2^(n-1)-1. With n = 8 that gives -2^7 = -128 as the smallest representable integer (and 2^7 - 1 = 127 as the largest). The bit pattern 10000000 represents -128."
+          },
+          {
+            "id": 2,
+            "text": "-127",
+            "feedback": "-127 is incorrect as the smallest value. While -127 is representable in 8-bit two's complement, it is not the minimum; -128 is smaller and is the true minimum representable value."
+          },
+          {
+            "id": 3,
+            "text": "0",
+            "feedback": "0 is incorrect. Zero is representable in 8-bit two's complement, but it is not the smallest value. The smallest value is -128 for 8-bit two's complement."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  for an n-bit two's complement number the representable range is  -2^(n-1) to 2^(n-1)-1. Set n = 8: the smallest value is -2^7 = -128. The largest value is 2^7 - 1 = 127 (for context). Therefore the smallest integer representable by an 8-bit two's complement number is -128.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3700,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e9c1c69bbb6f5286721",
+        "subtopicId": "68ee04bfb37e7ed7f47fa3d3"
+      },
+      "content": {
+        "questionText": "A binary operation  \\(\\oplus\\)  on a set of integers is defined as  \\(x \\oplus y = x^{2}+y^{2}\\)  . Which one of the following statements is TRUE about  \\(\\oplus\\) ?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Commutative but not associative",
+            "feedback": "This statement is correct. The operation x ⊕ y = x^2 + y^2 is commutative because x^2 + y^2 = y^2 + x^2 for all integers x and y. It is not associative because (x ⊕ y) ⊕ z = (x^2 + y^2)^2 + z^2 is generally different from x ⊕ (y ⊕ z) = x^2 + (y^2 + z^2)^2. For example, with x=1, y=2, z=3: (1 ⊕ 2) ⊕ 3 = 34 but 1 ⊕ (2 ⊕ 3) = 170, so associativity fails."
+          },
+          {
+            "id": 1,
+            "text": "Both commutative and associative",
+            "feedback": "This statement is incorrect. While the operation is commutative (x^2 + y^2 = y^2 + x^2), it is not associative. A counterexample: x=1, y=2, z=3 gives (1 ⊕ 2) ⊕ 3 = 34 but 1 ⊕ (2 ⊕ 3) = 170, so the associative law does not hold."
+          },
+          {
+            "id": 2,
+            "text": "Associative but not commutative",
+            "feedback": "This statement is incorrect. The operation is commutative, so the claim that it is not commutative is false. Also, it is not associative. For instance with x=1, y=2, z=3: (1 ⊕ 2) ⊕ 3 = 34 while 1 ⊕ (2 ⊕ 3) = 170, showing associativity fails."
+          },
+          {
+            "id": 3,
+            "text": "Neither commutative nor associative",
+            "feedback": "This statement is incorrect. The operation is commutative because addition of squares is symmetric (x^2 + y^2 = y^2 + x^2). However, it is not associative: for x=1, y=2, z=3 we get (1 ⊕ 2) ⊕ 3 = 34 but 1 ⊕ (2 ⊕ 3) = 170, so associativity fails."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  check commutativity and associativity for the operation x ⊕ y = x² + y². Commutativity: x ⊕ y = x² + y² = y² + x² = y ⊕ x, so the operation is commutative for all integers x and y. Associativity: Compute (x ⊕ y) ⊕ z = (x² + y²)² + z² and x ⊕ (y ⊕ z) = x² + (y² + z²)². These expressions are not equal in general. Example: x = 1, y = 2, z = 3 gives (1 ⊕ 2) ⊕ 3 = (1+4)² + 9 = 25 + 9 = 34, while 1 ⊕ (2 ⊕ 3) = 1 + (4+9)² = 1 + 169 = 170. Since 34 ≠ 170, associativity fails. Conclusion:  the operation is commutative but not associative, so the correct statement is: \"Commutative but not associative.\"",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3689,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbde9361903cd7d6eddb74",
+        "subtopicId": "68cbe63561903cd7d613c176"
+      },
+      "content": {
+        "questionText": "Let ⊕ denote the exclusive OR (XOR) operation. Let '1' and '0' denote the binary constants. Consider the following Boolean expression for  \\(F\\)  over two variables  \\(P\\)  and  \\(Q\\) : \\(F(P,Q)=\\left( \\left(1 \\oplus P \\right) \\oplus \\left( P \\oplus Q \\right )\\right ) \\oplus \\left(\\left(P \\oplus Q\\right) \\oplus \\left(Q \\oplus 0\\right)\\right)\\) The equivalent expression for  \\(F\\)  is",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(P+Q\\)",
+            "feedback": "Incorrect. The expression simplifies to 1 ⊕ P ⊕ Q (see solution). That is not the same as P ∨ Q. For example, if P=0 and Q=0 then F = 1 but P ∨ Q = 0."
+          },
+          {
+            "id": 1,
+            "text": "\\(\\overline{P+Q}\\)",
+            "feedback": "Incorrect. The simplified form is 1 ⊕ P ⊕ Q, which equals ¬(P ⊕ Q), not ¬(P ∨ Q). For instance, if P=1 and Q=0 then F = 0 but ¬(P ∨ Q) = 0 — this example shows they differ in other cases (compare truth tables)."
+          },
+          {
+            "id": 2,
+            "text": "\\(P \\oplus Q\\)",
+            "feedback": "Incorrect. The expression evaluates to the negation of P ⊕ Q, not P ⊕ Q itself. For example, with P=0 and Q=0 we get F = 1 while P ⊕ Q = 0."
+          },
+          {
+            "id": 3,
+            "text": "\\(\\overline {P \\oplus Q}\\)",
+            "feedback": "Correct. Using XOR properties (associative, commutative, x ⊕ x = 0, x ⊕ 0 = x, 1 ⊕ x = ¬x) the given expression simplifies to 1 ⊕ P ⊕ Q, which equals ¬(P ⊕ Q)."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  use XOR associativity/commutativity and identities x ⊕ x = 0, x ⊕ 0 = x, 1 ⊕ x = ¬x. Expand and group all XOR terms: (1 ⊕ P) ⊕ (P ⊕ Q) = 1 ⊕ P ⊕ P ⊕ Q (P ⊕ Q) ⊕ (Q ⊕ 0) = P ⊕ Q ⊕ Q ⊕ 0 Combine the two results: 1 ⊕ P ⊕ P ⊕ Q ⊕ P ⊕ Q ⊕ Q ⊕ 0 Cancel pairs (x ⊕ x = 0) and simplify constants: this reduces to 1 ⊕ P ⊕ Q Use 1 ⊕ (P ⊕ Q) = ¬(P ⊕ Q). Therefore F(P,Q) = ¬(P ⊕ Q).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3688,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f386dbf3983bc828e43",
+        "subtopicId": "68f32aa9256e4534be259fc1"
+      },
+      "content": {
+        "questionText": "Consider the following relational schema: employee (empId,empName,empDept)  customer (custId,custName,salesRepId,rating)  salesRepId  is a foreign key referring to  empId  of the employee relation. Assume that each employee makes a sale to at least one customer. What does the following query return? \n\nSELECT empName   FROM employee E   \n\nWHERE NOT EXISTS (SELECT custId \n\n    FROM customer C \n\n    WHERE C.salesRepId = E.empId                       \n\n    AND C.rating <> 'GOOD');",
+        "options": [
+          {
+            "id": 0,
+            "text": "Names of all the employees with at least one of their customers having a ‘GOOD’ rating.",
+            "feedback": "Incorrect. The query ensures there does not exist any customer of the employee whose rating is different from 'GOOD'. That is stronger than merely having at least one customer rated 'GOOD' — an employee who has one 'GOOD' customer but another non-'GOOD' customer would be excluded by the query."
+          },
+          {
+            "id": 1,
+            "text": "Names of all the employees with at most one of their customers having a 'GOOD' rating.",
+            "feedback": "Incorrect. The query does not count how many customers are 'GOOD'. It requires that there are zero customers with rating not equal to 'GOOD'. This is not the same as 'at most one GOOD' — it allows any number of customers as long as all of them are 'GOOD'."
+          },
+          {
+            "id": 2,
+            "text": "Names of all the employees with none of their customers having a 'GOOD' rating.",
+            "feedback": "Incorrect. This is the opposite of what the query does. The WHERE NOT EXISTS(...) with condition rating <> 'GOOD' guarantees there are no customers with a rating other than 'GOOD', so employees returned will have customers with only 'GOOD' ratings, not none."
+          },
+          {
+            "id": 3,
+            "text": "Names of all the employees with all their customers having a 'GOOD' rating.",
+            "feedback": "Correct. The subquery looks for any customer of the employee whose rating is not 'GOOD'. WHERE NOT EXISTS means there are no such customers. Given the assumption that each employee has at least one customer, this implies every customer of the employee has rating 'GOOD'."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer:  Names of all employees whose every customer has rating 'GOOD'. Key idea: The WHERE NOT EXISTS(...) clause checks that there is no customer for the employee with rating <> 'GOOD'. Therefore, every customer of that employee must have rating = 'GOOD'. Because the question states each employee has at least one customer, 'no customer with rating <> \"GOOD\"' implies 'all customers are \"GOOD\"'.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3687,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24eab1c69bbb6f52867db",
+        "subtopicId": "68d25155b905a26b8edec702"
+      },
+      "content": {
+        "questionText": "The CORRECT formula for the sentence, \"not all Rainy days are Cold\" is",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(\\forall d (\\text{Rainy}(d) \\wedge \\text{~Cold}(d))\\)",
+            "feedback": "This formula says every day is both Rainy and not Cold (for all d, Rainy(d) and ¬Cold(d)). That is far stronger than the intended sentence; it asserts every single day is rainy and not cold, so it is incorrect."
+          },
+          {
+            "id": 1,
+            "text": "\\(\\forall d ( \\text{~Rainy}(d) \\to \\text{Cold}(d))\\)",
+            "feedback": "This formula says that for every day, if the day is not Rainy then it is Cold (for all d, ¬Rainy(d) → Cold(d)). This is equivalent to saying every day is Rainy or Cold, which does not express that some Rainy day is not Cold. It does not capture the intended meaning."
+          },
+          {
+            "id": 2,
+            "text": "\\(\\exists d(\\text{~Rainy}(d) \\to \\text{Cold}(d))\\)",
+            "feedback": "This formula says there exists a day for which 'if not Rainy then Cold' holds. Because an implication is true when its antecedent is false, this does not require the existence of a Rainy day that is not Cold. It fails to express 'not all Rainy days are Cold'."
+          },
+          {
+            "id": 3,
+            "text": "\\(\\exists d(\\text{Rainy}(d) \\wedge \\text{~Cold}(d))\\)",
+            "feedback": "This formula says there exists a day that is Rainy and not Cold (∃d (Rainy(d) ∧ ¬Cold(d))). That directly matches 'not all Rainy days are Cold' because it asserts at least one rainy day is not cold."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  \"Not all Rainy days are Cold\" means there is at least one day that is Rainy and not Cold. Start from the universal statement: \"All Rainy days are Cold\" is expressed as ∀d (Rainy(d) → Cold(d)). Negate it: \"Not all Rainy days are Cold\" is ¬∀d (Rainy(d) → Cold(d)), which is equivalent to ∃d ¬(Rainy(d) → Cold(d)). Use the equivalence ¬(P → Q) ≡ P ∧ ¬Q to get ∃d (Rainy(d) ∧ ¬Cold(d)). Therefore the correct formalization is:  ∃d (Rainy(d) ∧ ¬Cold(d)). Why the other given formulas are incorrect: ∀d (Rainy(d) ∧ ¬Cold(d)) incorrectly claims every day is rainy and not cold, which is much stronger than \"not all\". ∀d (¬Rainy(d) → Cold(d)) says for every day, if it is not rainy then it is cold (equivalently every day is Rainy or Cold). This does not assert existence of a rainy day that is not cold. ∃d (¬Rainy(d) → Cold(d)) only asserts there is some day where the implication holds; because implications can be true when the antecedent is false, this does not require a rainy day that is not cold. Final answer:  ∃d (Rainy(d) ∧ ¬Cold(d)).",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3686,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e8eb905a26b8ed9c0f3",
+        "subtopicId": "68d25076b905a26b8edc80f3"
+      },
+      "content": {
+        "questionText": "Let  \\(\\delta\\)  denote the minimum degree of a vertex in a graph. For all planar graphs on  \\(n\\)  vertices with  \\(\\delta \\geq 3\\) , which one of the following is  TRUE ?",
+        "options": [
+          {
+            "id": 0,
+            "text": "In any planar embedding, the number of faces is at least  \\(\\frac{n}{2}+2\\)",
+            "feedback": "Correct. By the handshake lemma, the sum of degrees is at least 3n so 2m ≥ 3n and hence m ≥ 3n/2. Euler's formula for a connected planar graph gives f = m − n + 2, and for multiple components f = m − n + 1 + c ≥ m − n + 2. Combining these yields f ≥ 3n/2 − n + 2 = n/2 + 2, so every planar embedding has at least n/2 + 2 faces."
+          },
+          {
+            "id": 1,
+            "text": "In any planar embedding, the number of faces is less than  \\(\\frac{n}{2}+2\\)",
+            "feedback": "Incorrect. The claim that the number of faces is less than n/2 + 2 contradicts the inequality derived from degrees and Euler's formula. Since 2m ≥ 3n implies m ≥ 3n/2 and f = m − n + 2, we get f ≥ n/2 + 2. For example, K4 has n = 4 and f = 4 = n/2 + 2, so faces are not less than n/2 + 2."
+          },
+          {
+            "id": 2,
+            "text": "There is a planar embedding in which the number of faces is less than  \\(\\frac{n}{2}+2\\)",
+            "feedback": "Incorrect. Saying there exists an embedding with fewer than n/2 + 2 faces is false because f is determined by m and n via Euler's formula, and m ≥ 3n/2 forces f ≥ n/2 + 2 for any planar embedding. Thus no embedding can have fewer faces than n/2 + 2 (K4 gives equality)."
+          },
+          {
+            "id": 3,
+            "text": "There is a planar embedding in which the number of faces is at most  \\(\\frac {n}{\\delta+1}\\)",
+            "feedback": "Incorrect. The bound f ≤ n/(δ+1) is too small. With δ ≥ 3 we have n/(δ+1) ≤ n/4, while the earlier bound gives f ≥ n/2 + 2, so the claimed upper bound cannot hold in general. A 3-regular planar graph (for example K4) contradicts this inequality."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  combine the handshake lemma with Euler's formula. Step 1: Sum of degrees ≥ 3n, so 2m ≥ 3n and therefore m ≥ 3n/2. Step 2: Euler's formula for a planar drawing with c components is n − m + f = 1 + c. In particular (for at least one component) f = m − n + 2, and in general f = m − n + 1 + c ≥ m − n + 2. Step 3: Combine the two inequalities: f ≥ 3n/2 − n + 2 = n/2 + 2. Thus every planar embedding has at least n/2 + 2 faces. Remark: Equality occurs when every vertex has degree 3 and the graph is connected (for example K4), so the bound is tight in such cases.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3685,
+      "type": "MCQ",
+      "difficulty": "BEGINNER",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e8eb905a26b8ed9c0f3",
+        "subtopicId": "68d25091b905a26b8edca5c0"
+      },
+      "content": {
+        "questionText": "If  \\(G\\)  is the forest with  \\(n\\)  vertices and  \\(k\\)  connected components, how many edges does  \\(G\\)  have?",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(\\left\\lfloor\\frac {n}{k}\\right\\rfloor\\)",
+            "feedback": "Incorrect. \\(\\left\\lfloor\\frac{n}{k}\\right\\rfloor\\) is (roughly) the number of vertices per component rounded down, not the total number of edges. The number of edges in a forest is found by summing (vertices − 1) over all components, which leads to a different expression."
+          },
+          {
+            "id": 1,
+            "text": "\\(\\left\\lceil \\frac{n}{k} \\right\\rceil\\)",
+            "feedback": "Incorrect. \\(\\left\\lceil\\frac{n}{k}\\right\\rceil\\) gives the vertices per component rounded up, not the total number of edges. The correct count uses the fact that each tree with m vertices has m−1 edges, so sum of (vertices − 1) across components equals n − k."
+          },
+          {
+            "id": 2,
+            "text": "\\(n-k\\)",
+            "feedback": "Correct. Each connected component is a tree; a tree with m vertices has m − 1 edges. If the component vertex counts add to n and there are k components, summing (m − 1) over components gives n − k total edges."
+          },
+          {
+            "id": 3,
+            "text": "\\(n-k+1\\)",
+            "feedback": "Incorrect. \\(n-k+1\\) is off by one. Using the tree fact (a tree with m vertices has m − 1 edges), summing over k components yields n − k, so adding 1 gives an extra unused edge."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  a forest is a disjoint union of trees, and a tree with m vertices has m − 1 edges. Let the k connected components have vertex counts v1, v2, …, vk with v1 + v2 + … + vk = n. Each component is a tree, so component i has vi − 1 edges. Summing gives total edges = (v1 − 1) + … + (vk − 1) = n − k. Therefore the forest has n − k edges. Example: if n = 7 and k = 3, edges = 7 − 3 = 4.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3684,
+      "type": "NAT",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e9c1c69bbb6f5286721",
+        "subtopicId": "68ee04bfb37e7ed7f47fa3d3"
+      },
+      "content": {
+        "questionText": "There are two elements  \\(x,y\\)  in a group ( \\(G\\) ,∗) such that every element in the group can be written as a product of some number of x's and  \\(y\\) 's in some order. It is known that \\(x*x=y*y=x*y*x*y=y*x*y*x=e\\) ​where  \\(e\\)   is the identity element. The maximum number of elements in such a group is ____. ​",
+        "options": []
+      },
+      "answer": {
+        "correctOption": null,
+        "correctOptions": [],
+        "range": {
+          "min": 4,
+          "max": 4,
+          "precision": 2
+        },
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  use the given relations to show x and y are involutions that commute, so the group generated by them has at most four elements. From x*x = e and y*y = e we get x^{-1} = x and y^{-1} = y (x and y are involutions). The relation x*y*x*y = e means (xy)^2 = e, so (xy)^{-1} = xy. But (xy)^{-1} = y^{-1}x^{-1} = yx, hence xy = yx. Thus x and y commute. A group generated by two commuting involutions consists of {e, x, y, xy} because every product of x's and y's reduces to one of these four elements. Some of these could coincide in special cases (for example if x = e or x = y), but the maximum possible number of distinct elements is 4. Therefore the maximum number of elements in such a group is 4.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3683,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68d24e621c69bbb6f527dabb",
+        "topicId": "68d24e84b905a26b8ed9c07b",
+        "subtopicId": "68ee02d063a6aa4cca3632eb"
+      },
+      "content": {
+        "questionText": "Consider the set of all functions  \\(f:\\{0,1, \\dots,2014\\} \\to \\{0,1,\\dots, 2014\\}\\)  such that  \\(f\\left(f\\left(i\\right)\\right)=i\\) , for all   \\(0 \\leq i \\leq 2014\\) . Consider the following statements: \\(P\\) . For each such function it must be the case that for every  \\(i,f(i) = i\\) . \\(Q\\) . For each such function it must be the case that for some  \\(i,f(i)=i\\) . \\(R\\) . Each function must be onto. Which one of the following is CORRECT?",
+        "options": [
+          {
+            "id": 0,
+            "text": "\\(P,Q\\)  and  \\(R\\)  are true",
+            "feedback": "Incorrect. The claim that every i must satisfy f(i)=i is false. For example, define f(0)=1, f(1)=0, and f(i)=i for all other i; this satisfies f(f(i))=i but not every element is fixed. The other two statements (there exists some fixed point, and f is onto) are true; see the solution for brief proofs."
+          },
+          {
+            "id": 1,
+            "text": "Only  \\(Q\\)  and  \\(R\\)  are true",
+            "feedback": "Correct. Each function satisfying f(f(i))=i is injective (if f(a)=f(b) then apply f to get a=b), and an injective map on the finite set {0,...,2014} is onto, so the onto statement is true. Also elements split into 1-cycles (fixed points) and 2-cycles; because there are 2015 (an odd number) elements, at least one 1-cycle must exist, so there is some i with f(i)=i. Not every element must be fixed (see counterexample in the solution)."
+          },
+          {
+            "id": 2,
+            "text": "Only  \\(P\\)  and  \\(Q\\)  are true",
+            "feedback": "Incorrect. The universal fixed-point claim (that every i satisfies f(i)=i) is false — the swap example f(0)=1, f(1)=0, others fixed, satisfies f(f(i))=i but not every element is fixed. The existence of some fixed point is true, so the option is wrong because it asserts that every element must be fixed."
+          },
+          {
+            "id": 3,
+            "text": "Only  \\(R\\)  is true",
+            "feedback": "Incorrect. It is true that each such function is onto (because f(f(i))=i implies injectivity and hence bijectivity on a finite set), but it is also true that there must exist at least one fixed point: elements fall into 1-cycles and 2-cycles, and with 2015 (odd) elements there must be at least one 1-cycle. So the statement that only onto holds is incomplete."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 1,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Answer: Only the statements that there exists some i with f(i)=i and that f is onto are true; the claim that every element must be fixed is false. Why f is onto: If f(a)=f(b) then applying f gives a=f(f(a))=f(f(b))=b, so f is injective. An injective map from a finite set to itself is bijective, hence onto. Why there exists a fixed point: The condition f(f(i))=i means every element belongs to either a 1-cycle (f(i)=i) or a 2-cycle (a pair swapped). The domain has 2015 elements, an odd number, so it cannot be partitioned entirely into 2-cycles (which use an even number of elements). Therefore at least one 1-cycle (fixed point) must exist. Why not every element must be fixed: There are involutions with 2-cycles. For example, define f(0)=1, f(1)=0, and f(i)=i for all other i. This satisfies f(f(i))=i but not every element is fixed, so the universal fixed-point claim is false.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3679,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68cbde4f61903cd7d6ed67c5",
+        "topicId": "68cbe53661903cd7d61055d2",
+        "subtopicId": "68cbe7ed61903cd7d61be4b0"
+      },
+      "content": {
+        "questionText": "![image](https://kgaitemp.blob.core.windows.net/question-images/q-3679-external-1760444131727.png) The above synchronous sequential circuit built using JK flip-flops is initialized with  \\(Q_2Q_1Q_0 = 000\\) . The state sequence for this circuit for the next 3 clock cycles is",
+        "options": [
+          {
+            "id": 0,
+            "text": "001, 010, 011",
+            "feedback": "Incorrect. This sequence would require the least significant flip-flop (Q0) to become 1 on the first clock, but with the given wiring Q2 is driven to 1 first while Q0 remains 0. The circuit does not produce 001 as the first next state from 000."
+          },
+          {
+            "id": 1,
+            "text": "111, 110, 101",
+            "feedback": "Incorrect. The sequence shown is a decreasing pattern starting from 111; it does not match the circuit behavior from the initial 000. From 000 the circuit moves toward setting bits from MSB to LSB, not toward 111 then down."
+          },
+          {
+            "id": 2,
+            "text": "100, 110, 111",
+            "feedback": "Correct. With the shown feedback connections the inputs evaluate so that Q2 is set first (000 -> 100), then Q1 is set (100 -> 110), then Q0 is set (110 -> 111)."
+          },
+          {
+            "id": 3,
+            "text": "100, 011, 001",
+            "feedback": "Incorrect. While the first state 100 matches the actual first next state, the following states 011 and 001 do not follow from the circuit wiring. After 100 the circuit produces 110, not 011."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 2,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  determine each flip-flop's J and K from the feedback, then apply the JK excitation rules (J=K=0: no change; J=1,K=0: set; J=0,K=1: reset; J=K=1: toggle). From the wiring we get: J2 = Q0', K2 = Q0 J1 = Q2, K1 = Q2' J0 = Q1, K0 = Q1' Now compute the three next states starting from 000: From 000: Q0=0 so J2=1,K2=0 => Q2 is set (becomes 1). Q2=0 so J1=0,K1=1 => Q1 stays 0. Q1=0 so J0=0,K0=1 => Q0 stays 0. Result: 100. From 100: Q0=0 so J2=1,K2=0 => Q2 remains 1. Q2=1 so J1=1,K1=0 => Q1 is set (becomes 1). Q1=0 so J0=0,K0=1 => Q0 stays 0. Result: 110. From 110: Q0=0 so J2=1,K2=0 => Q2 remains 1. Q2=1 so J1=1,K1=0 => Q1 remains 1. Q1=1 so J0=1,K0=0 => Q0 is set (becomes 1). Result: 111. Therefore the next three states are 100, 110, 111.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3678,
+      "type": "NAT",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e3d31f60703d609dae9",
+        "subtopicId": "68da1f0731f60703d60ce0d1"
+      },
+      "content": {
+        "questionText": "The memory access time is 1 nanosecond for a read operation with a hit in cache, 5 nanoseconds for a read operation with a miss in cache, 2 nanoseconds for a write operation with a hit in cache and 10 nanoseconds for a write operation with a miss in cache. Execution of a sequence of instructions involves 100 instruction fetch operations, 60 memory operand read operations and 40 memory operand write operations. The cache hit-ratio is 0.9. The average memory access time (in nanoseconds) in executing the sequence of instructions is __________.",
+        "options": []
+      },
+      "answer": {
+        "correctOption": null,
+        "correctOptions": [],
+        "range": {
+          "min": 1.68,
+          "max": 1.68,
+          "unit": "nanoseconds",
+          "precision": 2
+        },
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  compute the average time for reads and writes, multiply by their counts, sum, and divide by total accesses. Average time for a read (instruction fetch and memory read): 0.9×1 ns + 0.1×5 ns = 1.4 ns. Average time for a write: 0.9×2 ns + 0.1×10 ns = 2.8 ns. Total accesses: 100 instruction fetches + 60 memory reads + 40 memory writes = 200 accesses. Total time = 100×1.4 + 60×1.4 + 40×2.8 = 160×1.4 + 40×2.8 = 224 + 112 = 336 ns. Average memory access time = 336 ns ÷ 200 accesses = 1.68 ns.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3677,
+      "type": "NAT",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da1e1f5e8ee4416b3e5266",
+        "topicId": "68da1e5a31f60703d60a80c3",
+        "subtopicId": "68da1fb85e8ee4416b43e20d"
+      },
+      "content": {
+        "questionText": "An instruction pipeline has five stages, namely, instruction fetch (IF), instruction decode and register fetch (ID/RF), instruction execution (EX), memory access (MEM), and register writeback (WB) with stage latencies 1 ns, 2.2 ns, 2 ns, 1 ns, and 0.75 ns, respectively (ns stands for nanoseconds). To gain in terms of frequency, the designers have decided to split the ID/RF stage into three stages (ID, RF1, RF2) each of latency 2.2/3 ns. Also, the EX stage is split into two stages (EX1, EX2) each of latency 1 ns. The new design has a total of eight pipeline stages. A program has 20% branch instructions which execute in the EX stage and produce the next instruction pointer at the end of the EX stage in the old design and at the end of the EX2 stage in the new design. The IF stage stalls after fetching a branch instruction until the next instruction pointer is computed. All instructions other than the branch instruction have an average CPI of one in both the designs. The execution times of this program on the old and the new design are  \\(P\\)  and  \\(Q\\)  nanoseconds, respectively. The value of  \\(P/Q\\)  is __________.",
+        "options": []
+      },
+      "answer": {
+        "correctOption": null,
+        "correctOptions": [],
+        "range": {
+          "min": 1.5,
+          "max": 1.5,
+          "precision": 2
+        },
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key steps and calculations: Clock period of the old design = maximum stage latency = 2.2 ns. Clock period of the new design = maximum stage latency after splitting = 1 ns (many stages have latency ≤ 1 ns, the largest is 1 ns). Branch resolution position in the old design: at the end of the EX stage (third stage). Since IF is stage 1, the IF stage must be stalled for the two intermediate cycles (ID/RF and EX) after fetching a branch. So branch penalty in cycles (old) = 2 cycles. Branch resolution position in the new design: at the end of EX2 (sixth stage). Counting from IF (stage 1), the IF stage must be stalled for five cycles (ID, RF1, RF2, EX1, EX2) after fetching a branch. So branch penalty in cycles (new) = 5 cycles. Average CPI (old) = 1 + branch_fraction × penalty_old = 1 + 0.2 × 2 = 1.4. Average CPI (new) = 1 + 0.2 × 5 = 2.0. Ratio of total execution times P/Q = (CPI_old × clock_old) / (CPI_new × clock_new) = (1.4 × 2.2) / (2.0 × 1) = 3.08 / 2 = 1.54 ≈ 1.5. Final answer: P/Q ≈ 1.54, which rounds to 1.5.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3664,
+      "type": "MCQ",
+      "difficulty": "INTERMEDIATE",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f2f6dbf3983bc828bf0",
+        "subtopicId": "68d39572d857e762193a9a67"
+      },
+      "content": {
+        "questionText": "Consider the relational schema given below, where  eId  of the relation  dependent  is a foreign key referring to  empId  of the relation  employee . Assume that every employee has at least one associated dependent in the dependent relation. employee (empId, empName, empAge)  dependent(depId, eId, depName, depAge) Consider the following relational algebra query: \\(\\Pi_{empId}\\:(employee) - \\Pi_{empId}\\:(employee \\bowtie_{(empId=eID) \\wedge (empAge \\leq depAge)} dependent)\\) The above query evaluates to the set of  empIds  of employees whose age is greater than that of",
+        "options": [
+          {
+            "id": 0,
+            "text": "some dependent.",
+            "feedback": "Incorrect. The query does not pick employees who are older than just some dependent. The expression removes employees who have at least one dependent with depAge ≥ empAge, so the remaining employees must have empAge > depAge for every dependent they have, not merely for some dependent."
+          },
+          {
+            "id": 1,
+            "text": "all dependents.",
+            "feedback": "Incorrect. This option suggests the employee is older than all dependents in the whole database, which is not what the query checks. The query works per employee: it returns empIds of employees who are older than all of their own dependents."
+          },
+          {
+            "id": 2,
+            "text": "some of his/her dependents.",
+            "feedback": "Incorrect. Saying \"some of his/her dependents\" means there exists at least one dependent younger than the employee. The query yields a stronger condition: for every dependent of the employee, the employee's age is greater than the dependent's age."
+          },
+          {
+            "id": 3,
+            "text": "all of his/her dependents.",
+            "feedback": "Correct. The query returns empIds of employees who are older than all of their dependents. The joined relation finds employee-dependent pairs where empAge ≤ depAge (a dependent at least as old as the employee); projecting empId from that gives employees who have some dependent not younger than them. Subtracting those empIds from all empIds leaves employees for whom no dependent has age ≥ empAge, i.e., empAge > depAge for every dependent."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 3,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  the query keeps employees for whom no dependent is as old as or older than the employee. employee ⋈_{(empId = eID) ∧ (empAge ≤ depAge)} dependent produces employee–dependent pairs where the dependent is at least as old as the employee. Π_empId of that join gives empIds of employees who have at least one dependent with depAge ≥ empAge. Subtracting those empIds from Π_empId(employee) yields employees who do not have any dependent with depAge ≥ empAge. Given every employee has at least one dependent, this means the employee's age is greater than the age of each of their dependents. Therefore, the query returns the empIds of employees who are older than all of their dependents.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3663,
+      "type": "MCQ",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68d38ec66dbf3983bc810cd9",
+        "topicId": "68d38f496dbf3983bc82b251",
+        "subtopicId": "68d397236dbf3983bc8fc5ea"
+      },
+      "content": {
+        "questionText": "Consider the transactions  T1, T2 , and  T3  and the schedules  S1  and  S2  given below T1: r1(X); r1(Z); w1(X); w1(Z)  T2: r2(Y); r2(Z); w2(Z) T3: r3(Y); r3(X); w3(Y) S1: r1(X); r3(Y); r3(X); r2(Y); r2(Z); w3(Y); w2(Z); r1(Z); w1(X); w1(Z)  S2: r1(X); r3(Y); r2(Y); r3(X); r1(Z); r2(Z); w3(Y); w1(X); w2(Z); w1(Z) Which one of the following statements about the schedules is TRUE?",
+        "options": [
+          {
+            "id": 0,
+            "text": "Only S1 is conflict-serializable.",
+            "feedback": "Correct. For S1 the precedence (conflict) graph is acyclic. Conflicts give edges: T3 -> T1 (T3 reads X before T1 writes X), T2 -> T3 (T2 reads Y before T3 writes Y), and T2 -> T1 (T2 writes Z before T1 reads/writes Z). These edges form a DAG with topological order T2, T3, T1, so S1 is conflict-serializable."
+          },
+          {
+            "id": 1,
+            "text": "Only S2 is conflict-serializable.",
+            "feedback": "Incorrect. S2 is not conflict-serializable because its precedence graph contains a cycle. Conflicting operations produce edges including T1 -> T2 (T1 reads Z before T2 later writes Z) and T2 -> T1 (T2 writes Z before T1 writes Z), plus T2 -> T3 and T3 -> T1; these produce a cycle (for example T1 -> T2 -> T3 -> T1), so S2 is not conflict-serializable."
+          },
+          {
+            "id": 2,
+            "text": "Both S1 and S2 are conflict-serializable.",
+            "feedback": "Incorrect. While S1 is conflict-serializable, S2 is not. S2's precedence graph has a cycle (edges include T1 -> T2 and T2 -> T1 plus T2 -> T3 and T3 -> T1), so S2 cannot be serialized by a conflict-preserving order."
+          },
+          {
+            "id": 3,
+            "text": "Neither S1 nor S2 is conflict-serializable.",
+            "feedback": "Incorrect. S1 is conflict-serializable (its precedence graph is acyclic and yields the serial order T2, T3, T1). The statement that neither schedule is conflict-serializable is wrong because S1 is serializable."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  build the precedence graph (edge Ti -> Tj when Ti has an operation that conflicts with a later operation of Tj on the same data item). If the graph is acyclic the schedule is conflict-serializable. For S1 the conflict edges are: T3 -> T1 (T3 reads X before T1 writes X), T2 -> T3 (T2 reads Y before T3 writes Y), T2 -> T1 (T2 writes Z before T1 reads/writes Z). These edges are acyclic, giving the serial order T2, T3, T1. Therefore S1 is conflict-serializable. For S2 the conflict edges include: T3 -> T1 (T3 reads X before T1 writes X), T2 -> T3 (T2 reads Y before T3 writes Y), T1 -> T2 (T1 reads Z before T2 later writes Z) and T2 -> T1 (T2 writes Z before T1 writes Z). These edges create a cycle (e.g. T1 -> T2 -> T3 -> T1), so S2 is not conflict-serializable. Conclusion:  only S1 is conflict-serializable.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3662,
+      "type": "MCQ",
+      "difficulty": "EXPERT",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da227d5e8ee4416b4bd49f",
+        "subtopicId": "68da2e055e8ee4416b6575d3"
+      },
+      "content": {
+        "questionText": "An IP router with a Maximum Transmission Unit (MTU) of 1500 bytes has received an IP packet of size 4404 bytes with an IP header of length 20 bytes. The values of the relevant fields in the header of the third IP fragment generated by the router for this packet are",
+        "options": [
+          {
+            "id": 0,
+            "text": "MF bit: 0, Datagram Length: 1444; Offset: 370",
+            "feedback": "Correct. Total payload = 4404 − 20 = 4384 bytes. Usable data per fragment = 1500 − 20 = 1480 bytes (must be a multiple of 8, and 1480/8 = 185). Two full fragments carry 1480 each (2 × 1480 = 2960). Remaining data = 4384 − 2960 = 1424 bytes, so datagram length = 1424 + 20 = 1444. Offset = (2960)/8 = 370. MF = 0 because this is the last fragment."
+          },
+          {
+            "id": 1,
+            "text": "MF bit: 1, Datagram Length: 1424; Offset: 185",
+            "feedback": "Incorrect. The offset 185 is the offset for the second fragment (185 × 8 = 1480 bytes), and a fragment at that offset should carry a full 1480-byte data payload (datagram length 1500), not 1424. If a fragment carries 1424 bytes of data it would be the last fragment and should have offset 370 and MF = 0, not MF = 1."
+          },
+          {
+            "id": 2,
+            "text": "MF bit: 1, Datagram Length: 1500; Offset: 370",
+            "feedback": "Incorrect. Offset 370 corresponds to the third (last) fragment, which carries the remaining 1424 bytes of data; therefore datagram length should be 1424 + 20 = 1444 and MF should be 0. A datagram length of 1500 at offset 370 would imply more data than actually remains."
+          },
+          {
+            "id": 3,
+            "text": "MF bit: 0, Datagram Length: 1424; Offset: 2960",
+            "feedback": "Incorrect. The offset field is measured in 8-byte units; giving offset as 2960 treats it as bytes, not 8-byte blocks. The correct offset (in 8-byte units) for the third fragment is 2960/8 = 370. Also the third fragment's datagram length should be 1424 + 20 = 1444, not 1424."
+          }
+        ]
+      },
+      "answer": {
+        "correctOption": 0,
+        "correctOptions": [],
+        "range": null,
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key insight:  fragments must carry data in multiples of 8 bytes; the IP header is 20 bytes, and MTU includes the header. Total data payload = 4404 − 20 = 4384 bytes. Maximum data per fragment = 1500 − 20 = 1480 bytes (1480 is divisible by 8; 1480/8 = 185). Two full fragments carry 1480 bytes each: 2 × 1480 = 2960 bytes. Remaining data for the third fragment = 4384 − 2960 = 1424 bytes; datagram length = 1424 + 20 = 1444 bytes. Offset for the third fragment (in 8-byte units) = 2960/8 = 370. MF = 0 because it is the last fragment. Therefore the third fragment's header fields are: MF = 0, Datagram Length = 1444, Offset = 370.",
+      "metadata": {
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "questionId": 3661,
+      "type": "NAT",
+      "difficulty": "ADVANCED",
+      "topology": {
+        "subjectId": "68da217e31f60703d61408e4",
+        "topicId": "68da227d5e8ee4416b4bd49f",
+        "subtopicId": "68ee55642f14c61fb08fbd71"
+      },
+      "content": {
+        "questionText": "Every host in an IPv4 network has a 1-second resolution real-time clock with battery backup. Each host needs to generate up to 1000 unique identifiers per second. Assume that each host has a globally unique IPv4 address. Design a 50-bit globally unique ID for this purpose. After what period (in seconds) will the identifiers generated by a host wrap around?",
+        "options": []
+      },
+      "answer": {
+        "correctOption": null,
+        "correctOptions": [],
+        "range": {
+          "min": 256,
+          "max": 256,
+          "unit": "seconds",
+          "precision": 2
+        },
+        "acceptedAnswers": [],
+        "caseSensitive": false
+      },
+      "solution": "Key idea:  allocate bits to the IPv4 address, a per‑second sequence large enough for 1000 IDs/s, and put the rest into a seconds counter. IPv4 address: 32 bits (each host is globally identified). Per‑second sequence: 10 bits, since 2^10 = 1024 ≥ 1000 identifiers required per second. Remaining bits for seconds counter: 50 − 32 − 10 = 8 bits. Wrap‑around period: 2^8 = 256 seconds (about 4 minutes 16 seconds). Conclusion: With this 50‑bit layout, identifiers generated by a single host will wrap around after 256 seconds.",
       "metadata": {
         "status": "PUBLISHED"
       }

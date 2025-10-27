@@ -245,7 +245,7 @@ const expectedAnswerText = (question: BenchmarkQuestion, options = question.opti
     const normalizedOptions = normalizeOptions(options);
     const singleAnswer = question.answer;
     const option = normalizedOptions.find((item) => item.order === singleAnswer.correctOption);
-    return option ? `${option.letter}) ${option.text}` : `${singleAnswer.correctOption}`;
+    return option ? option.letter : `${singleAnswer.correctOption}`;
   }
 
   if (question.answer.kind === 'multiple') {
@@ -254,8 +254,8 @@ const expectedAnswerText = (question: BenchmarkQuestion, options = question.opti
     const expectedSet = new Set(multipleAnswer.correctOptions);
     const selected = normalized.filter((item) => expectedSet.has(item.order));
     return selected.length > 0
-      ? selected.map((item) => `${item.letter}) ${item.text}`).join(', ')
-      : multipleAnswer.correctOptions.join(', ');
+      ? selected.map((item) => item.letter).join(',')
+      : multipleAnswer.correctOptions.join(',');
   }
 
   if (question.answer.kind === 'numeric') {

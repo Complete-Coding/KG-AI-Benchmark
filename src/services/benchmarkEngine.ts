@@ -49,15 +49,27 @@ const formatImageSummariesBlock = (imageSummaries?: ImageSummary[]): string[] =>
   return [header, ...lines];
 };
 
+const stripMarkdownImages = (text: string): string => {
+  // Remove markdown image syntax: ![alt](url)
+  return text.replace(/!\[([^\]]*)\]\([^)]+\)/g, '').trim();
+};
+
 const buildSimpleQuestionContext = (
   question: BenchmarkQuestion,
   imageSummaries?: ImageSummary[]
 ) => {
   const lines: string[] = [];
-  lines.push(`Question (${question.type}): ${question.prompt}`);
+  // Strip markdown images from prompt if we have image summaries
+  const promptText = imageSummaries && imageSummaries.length > 0
+    ? stripMarkdownImages(question.prompt)
+    : question.prompt;
+  lines.push(`Question (${question.type}): ${promptText}`);
 
   if (question.instructions) {
-    lines.push(`Instructions: ${question.instructions}`);
+    const instructionsText = imageSummaries && imageSummaries.length > 0
+      ? stripMarkdownImages(question.instructions)
+      : question.instructions;
+    lines.push(`Instructions: ${instructionsText}`);
   }
 
   if (question.options.length > 0) {
@@ -65,7 +77,10 @@ const buildSimpleQuestionContext = (
     lines.push('Options:');
     question.options.forEach((option, index) => {
       const label = String.fromCharCode(65 + index);
-      lines.push(`${label}. ${option.text}`);
+      const optionText = imageSummaries && imageSummaries.length > 0
+        ? stripMarkdownImages(option.text)
+        : option.text;
+      lines.push(`${label}. ${optionText}`);
     });
   }
 
@@ -84,10 +99,17 @@ const buildSimpleQuestionContext = (
  */
 const buildQuestionContext = (question: BenchmarkQuestion, imageSummaries?: ImageSummary[]) => {
   const lines: string[] = [];
-  lines.push(`Question (${question.type}): ${question.prompt}`);
+  // Strip markdown images from prompt if we have image summaries
+  const promptText = imageSummaries && imageSummaries.length > 0
+    ? stripMarkdownImages(question.prompt)
+    : question.prompt;
+  lines.push(`Question (${question.type}): ${promptText}`);
 
   if (question.instructions) {
-    lines.push(`Instructions: ${question.instructions}`);
+    const instructionsText = imageSummaries && imageSummaries.length > 0
+      ? stripMarkdownImages(question.instructions)
+      : question.instructions;
+    lines.push(`Instructions: ${instructionsText}`);
   }
 
   if (question.options.length > 0) {
@@ -95,7 +117,10 @@ const buildQuestionContext = (question: BenchmarkQuestion, imageSummaries?: Imag
     lines.push('Options:');
     question.options.forEach((option, index) => {
       const label = String.fromCharCode(65 + index);
-      lines.push(`${label}. ${option.text}`);
+      const optionText = imageSummaries && imageSummaries.length > 0
+        ? stripMarkdownImages(option.text)
+        : option.text;
+      lines.push(`${label}. ${optionText}`);
     });
   }
 
@@ -121,23 +146,7 @@ const buildQuestionContext = (question: BenchmarkQuestion, imageSummaries?: Imag
   return lines.join('\n');
 };
 
-const stringifyPreviousOutputs = (steps: BenchmarkAttemptStepResult[]) => {
-  if (steps.length === 0) {
-    return '[]';
-  }
-
-  const summary = steps.map((step) => ({
-    id: step.id,
-    label: step.label,
-    responseText: step.responseText,
-    evaluation: step.evaluation,
-    topologyStage: step.topologyStage,
-    topologyPrediction: step.topologyPrediction,
-    modelResponse: step.modelResponse,
-  }));
-
-  return JSON.stringify(summary, null, 2);
-};
+// Removed - we now pass only essential context inline instead of dumping all previous outputs
 
 const applyTemplateReplacements = (template: string, replacements: Record<string, string>) => {
   return Object.entries(replacements).reduce(
@@ -155,7 +164,6 @@ const buildStepPrompt = (
 ) => {
   const simpleContext = buildSimpleQuestionContext(question, imageSummaries);
   const questionReference = '\n---\nQUESTION FOR REFERENCE:\n' + simpleContext;
-  const previousOutputs = stringifyPreviousOutputs(previousSteps);
   const fullQuestionContext = buildQuestionContext(question, imageSummaries);
 
   const subjectCatalog = questionTopology
@@ -174,11 +182,17 @@ const buildStepPrompt = (
       .reverse()
       .find((step) => step.id === 'topology-topic')?.topologyPrediction;
 
+  const getSubtopicPrediction = () =>
+    previousSteps
+      .slice()
+      .reverse()
+      .find((step) => step.id === 'topology-subtopic')?.topologyPrediction;
+
   if (stepId === 'topology-subject') {
     const replacements: Record<string, string> = {
       '{{subjectCatalog}}': subjectCatalog,
       '{{questionContext}}': questionReference,
-      '{{previousStepOutputs}}': previousOutputs,
+      '{{previousStepOutputs}}': '', // Not needed for first step
     };
 
     return applyTemplateReplacements(stepTemplate, replacements).trim();
@@ -210,7 +224,7 @@ const buildStepPrompt = (
       '{{topicCatalog}}': topicCatalog || 'No topics were found for the predicted subject.',
       '{{topicGuidance}}': topicGuidance,
       '{{questionContext}}': questionReference,
-      '{{previousStepOutputs}}': previousOutputs,
+      '{{previousStepOutputs}}': '', // Only essential context is in selectedSubject
     };
 
     return applyTemplateReplacements(stepTemplate, replacements).trim();
@@ -264,16 +278,34 @@ const buildStepPrompt = (
       '{{subtopicCatalog}}': subtopicCatalog,
       '{{subtopicGuidance}}': subtopicGuidance,
       '{{questionContext}}': questionReference,
-      '{{previousStepOutputs}}': previousOutputs,
+      '{{previousStepOutputs}}': '', // Only essential context is in selectedSubject and selectedTopic
     };
 
     return applyTemplateReplacements(stepTemplate, replacements).trim();
   }
 
-  // For answer step and others: Question context with answer format FIRST, then instructions
+  // For answer step and others: Build simple topology context
+  const subjectPrediction = getSubjectPrediction();
+  const topicPrediction = getTopicPrediction();
+  const subtopicPrediction = getSubtopicPrediction();
+
+  const subjectId = subjectPrediction?.subjectId;
+  const topicId = topicPrediction?.topicId;
+  const subtopicId = subtopicPrediction?.subtopicId;
+
+  const subject = questionTopology.find((item) => item.id === (subjectId ?? ''));
+  const topic = subject?.topics.find((item) => item.id === (topicId ?? ''));
+  const subtopic = topic?.subtopics.find((item) => item.id === (subtopicId ?? ''));
+
+  const topologyContext = [
+    subjectId ? `Subject: ${subject?.name ?? subjectId}` : null,
+    topicId ? `Topic: ${topic?.name ?? topicId}` : null,
+    subtopicId ? `Subtopic: ${subtopic?.name ?? subtopicId}` : null,
+  ].filter(Boolean).join('\n');
+
   const fullContext = fullQuestionContext;
   const replacements: Record<string, string> = {
-    '{{previousStepOutputs}}': previousOutputs,
+    '{{previousStepOutputs}}': topologyContext || '', // Only show subject/topic/subtopic names
     '{{questionContext}}': questionReference,
   };
   const renderedInstructions = applyTemplateReplacements(stepTemplate, replacements);
@@ -640,8 +672,24 @@ export const executeBenchmarkRun = async ({
             subjectIssues.push(`Low confidence (${stageResult.confidence.toFixed(2)})`);
           }
 
+          // Create evaluation for subject step
+          const expectedSubjectId = question.metadata?.topology?.subjectId;
+          const expectedSubject = expectedSubjectId
+            ? questionTopology.find((s) => s.id === expectedSubjectId)
+            : undefined;
+          const receivedSubject = subjectInfo;
+
+          const subjectEval: BenchmarkAttemptEvaluation = {
+            expected: expectedSubject?.name || expectedSubjectId || 'Unknown',
+            received: receivedSubject?.name || stageResult.id || 'Unknown',
+            passed: expectedSubjectId === stageResult.id,
+            score: expectedSubjectId === stageResult.id ? 1 : 0,
+            notes: subjectIssues.length > 0 ? subjectIssues.join('; ') : undefined,
+          };
+
           stepResult.topologyStage = stageResult;
           stepResult.topologyPrediction = { ...topologyPrediction };
+          stepResult.evaluation = subjectEval;
           if (subjectIssues.length > 0) {
             stepResult.notes = subjectIssues.join('; ');
           }
@@ -681,8 +729,28 @@ export const executeBenchmarkRun = async ({
             topicIssues.push(`Low confidence (${stageResult.confidence.toFixed(2)})`);
           }
 
+          // Create evaluation for topic step
+          const expectedTopicId = question.metadata?.topology?.topicId;
+          const expectedSubjectId = question.metadata?.topology?.subjectId;
+          const expectedSubject = expectedSubjectId
+            ? questionTopology.find((s) => s.id === expectedSubjectId)
+            : undefined;
+          const expectedTopic = expectedTopicId
+            ? expectedSubject?.topics.find((t) => t.id === expectedTopicId)
+            : undefined;
+          const receivedTopic = topicInfo;
+
+          const topicEval: BenchmarkAttemptEvaluation = {
+            expected: expectedTopic?.name || expectedTopicId || 'Unknown',
+            received: receivedTopic?.name || stageResult.id || 'Unknown',
+            passed: expectedTopicId === stageResult.id,
+            score: expectedTopicId === stageResult.id ? 1 : 0,
+            notes: topicIssues.length > 0 ? topicIssues.join('; ') : undefined,
+          };
+
           stepResult.topologyStage = stageResult;
           stepResult.topologyPrediction = { ...topologyPrediction };
+          stepResult.evaluation = topicEval;
           if (topicIssues.length > 0) {
             stepResult.notes = topicIssues.join('; ');
           }
@@ -737,9 +805,30 @@ export const executeBenchmarkRun = async ({
           const topologyEval = evaluateTopologyPrediction(question, topologyPrediction);
           topologyEvaluation = topologyEval;
 
+          // Create evaluation for subtopic step (just subtopic, not full topology)
+          const expectedSubtopicId = question.metadata?.topology?.subtopicId;
+          const expectedSubject = question.metadata?.topology?.subjectId
+            ? questionTopology.find((s) => s.id === question.metadata.topology.subjectId)
+            : undefined;
+          const expectedTopic = question.metadata?.topology?.topicId
+            ? expectedSubject?.topics.find((t) => t.id === question.metadata.topology.topicId)
+            : undefined;
+          const expectedSubtopic = expectedSubtopicId
+            ? expectedTopic?.subtopics.find((st) => st.id === expectedSubtopicId)
+            : undefined;
+          const receivedSubtopic = subtopicInfo;
+
+          const subtopicEval: BenchmarkAttemptEvaluation = {
+            expected: expectedSubtopic?.name || expectedSubtopicId || 'Unknown',
+            received: receivedSubtopic?.name || stageResult.id || 'Unknown',
+            passed: expectedSubtopicId === stageResult.id,
+            score: expectedSubtopicId === stageResult.id ? 1 : 0,
+            notes: subtopicIssues.length > 0 ? subtopicIssues.join('; ') : undefined,
+          };
+
           stepResult.topologyStage = stageResult;
           stepResult.topologyPrediction = { ...topologyPrediction };
-          stepResult.evaluation = topologyEval;
+          stepResult.evaluation = subtopicEval; // Use subtopic-specific evaluation
           if (subtopicIssues.length > 0) {
             stepResult.notes = subtopicIssues.join('; ');
           }

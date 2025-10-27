@@ -9,6 +9,8 @@ import {
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
 import { formatTopologyIds } from '@/utils/topologyLookup';
+import JsonView from 'react18-json-view';
+import 'react18-json-view/src/style.css';
 
 const runStatusLabels: Record<RunStatus, string> = {
   draft: 'Draft',
@@ -119,6 +121,40 @@ const formatLatency = (latencyMs?: number) => {
   return `${Math.round(latencyMs)} ms`;
 };
 
+// Helper component to display JSON with collapsible structure or plain text fallback
+const JsonOrText = ({ text, className = '' }: { text: string; className?: string }) => {
+  // Check if we're in dark mode
+  const isDarkMode = document.documentElement.classList.contains('dark');
+
+  try {
+    const parsed = JSON.parse(text);
+    return (
+      <div className={`text-xs ${className}`}>
+        <JsonView
+          src={parsed}
+          theme={isDarkMode ? 'a11y' : 'default'}
+          dark={isDarkMode}
+          collapsed={1}
+          displayDataTypes={false}
+          displaySize={false}
+          enableClipboard={false}
+          style={{
+            fontSize: '0.75rem',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          }}
+        />
+      </div>
+    );
+  } catch {
+    // Not valid JSON, display as plain text
+    return (
+      <pre className={`text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto ${className}`}>
+        {text}
+      </pre>
+    );
+  }
+};
+
 interface QuestionItem {
   id: string;
   label: string;
@@ -137,6 +173,7 @@ const RunDetail = () => {
   const {
     loading,
     getRunById,
+    getProfileById,
     deleteRun,
     activeRun,
     runQueue,
@@ -144,6 +181,7 @@ const RunDetail = () => {
     dequeueRun,
   } = useBenchmarkContext();
   const run = runId ? getRunById(runId) : undefined;
+  const profile = run ? getProfileById(run.profileId) : undefined;
   const isActiveRun = Boolean(run && activeRun && activeRun.runId === run.id);
   const [elapsedMs, setElapsedMs] = useState(() =>
     computeElapsedMs(run?.startedAt, run?.completedAt ?? activeRun?.completedAt)
@@ -277,6 +315,20 @@ const RunDetail = () => {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>(() =>
     questionItems[0]?.id
   );
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+  const [expandedImageSection, setExpandedImageSection] = useState(false);
+
+  const toggleStepExpansion = (stepKey: string) => {
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepKey)) {
+        next.delete(stepKey);
+      } else {
+        next.add(stepKey);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!questionItems.length) {
@@ -438,9 +490,29 @@ const selectedDefinition = useMemo(() => {
                 </span>
               ) : null}
             </div>
-            <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-              Profile {run.profileName} · {run.profileModelId}
-            </p>
+            <div className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+              <div className="font-semibold mb-1">Profile: {run.profileName}</div>
+              {profile && profile.bindings && profile.bindings.length > 0 ? (
+                <div className="flex flex-col gap-1 text-sm">
+                  {profile.bindings.map((binding) => (
+                    <div key={binding.id} className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-slate-700">
+                        {binding.capability === 'text-to-text' ? 'Text' : 'Vision'}
+                      </span>
+                      <span className="text-slate-700 dark:text-slate-300">
+                        {binding.name}
+                      </span>
+                      <span className="text-slate-500 dark:text-slate-400">·</span>
+                      <span className="text-slate-600 dark:text-slate-400">
+                        {binding.modelId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm">{run.profileModelId}</div>
+              )}
+            </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Started {formatDateTime(run.startedAt)} · Last update {lastUpdated}
             </p>
@@ -702,405 +774,263 @@ const selectedDefinition = useMemo(() => {
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {selectedItem.type} · Latency {formatLatency(selectedItem.latencyMs)}
+                      {selectedItem.type} · Total latency: {formatLatency(selectedItem.latencyMs)}
                     </p>
                   </header>
 
-                  <section className="flex flex-col gap-3 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-                    <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      Prompt
-                    </h5>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                      {selectedItem.prompt || 'Prompt unavailable.'}
-                    </p>
-                  </section>
-
                   {selectedItem.attempt ? (
                     <>
-                      <section
-                        className={`rounded-xl border p-4 flex flex-col gap-3 ${
-                          selectedItem.attempt.evaluation.passed
-                            ? 'border-success-200 bg-success-50 dark:border-success-800/60 dark:bg-success-900/20'
-                            : 'border-danger-200 bg-danger-50 dark:border-danger-800/60 dark:bg-danger-900/20'
-                        }`}
-                      >
-                        <div className="flex flex-col gap-1">
-                          <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            {selectedItem.attempt.evaluation.passed
-                              ? 'Model answered correctly'
-                              : 'Model answer failed evaluation'}
-                          </h5>
-                          {selectedItem.attempt.evaluation.notes ? (
-                            <p className="text-sm text-slate-700 dark:text-slate-300">
-                              {selectedItem.attempt.evaluation.notes}
-                            </p>
-                          ) : null}
-                          {selectedItem.attempt.error ? (
-                            <p className="text-sm text-danger-700 dark:text-danger-400">
-                              Error: {selectedItem.attempt.error}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Expected
-                            </span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {selectedItem.attempt.evaluation.expected || '—'}
-                            </span>
-                          </div>
-                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Received
-                            </span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {selectedItem.attempt.evaluation.received || '—'}
-                            </span>
-                          </div>
-                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Confidence
-                            </span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {selectedItem.attempt.evaluation.metrics?.confidence != null
-                                ? `${(selectedItem.attempt.evaluation.metrics.confidence * 100).toFixed(0)}%`
-                                : '—'}
-                            </span>
-                          </div>
-                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Tokens
-                            </span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {selectedItem.attempt.totalTokens
-                                ? `${selectedItem.attempt.totalTokens} (prompt ${
-                                    selectedItem.attempt.promptTokens ?? 0
-                                  }, completion ${selectedItem.attempt.completionTokens ?? 0})`
-                                : '—'}
-                            </span>
-                          </div>
-                          <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1 sm:col-span-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Binding (text reasoning)
-                            </span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                              {attemptRequestMetadata?.bindingName ?? 'Unknown binding'}
-                              {attemptRequestMetadata?.bindingId
-                                ? ` · ${attemptRequestMetadata.bindingId}`
-                                : ''}
-                            </span>
-                            {selectedImageSummaries.length > 0 ? (
-                              <span className="text-xs text-slate-500 dark:text-slate-400">
-                                {selectedImageSummaries.length} image{' '}
-                                {selectedImageSummaries.length === 1 ? 'summary' : 'summaries'} generated via{' '}
-                                {selectedImageSummaries[0]?.bindingName ?? 'vision binding'}.
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-500 dark:text-slate-400">
-                                No vision preprocessing for this question.
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </section>
-
+                      {/* Image Processing Section */}
                       {selectedImageSummaries.length > 0 ? (
-                        <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-4">
-                          <header className="flex flex-col gap-1">
-                            <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                              Image preprocessing
-                            </h5>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              OCR summaries generated by {selectedImageSummaries[0]?.bindingName ?? 'vision binding'}.
-                            </p>
-                          </header>
-                          <ul className="flex flex-col gap-3">
-                            {selectedImageSummaries.map((summary, index) => (
-                              <li
-                                key={summary.id}
-                                className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-900/30 flex flex-col gap-2"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                    <span>Image {index + 1}</span>
-                                    <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                      {summary.image.source}
-                                      {typeof summary.image.optionIndex === 'number'
-                                        ? ` · option ${summary.image.optionIndex + 1}`
-                                        : ''}
-                                    </span>
-                                  </div>
-                                  <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${imageSummaryStatusClasses[summary.status]}`}
-                                  >
-                                    {summary.status}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                                  {summary.text}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                                  <span>
-                                    Vision binding: {summary.bindingName} · Confidence:{' '}
-                                    {summary.confidence != null
-                                      ? `${Math.round(summary.confidence * 100)}%`
-                                      : '—'}
-                                  </span>
-                                  <a
-                                    href={summary.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="underline hover:text-accent-600 dark:hover:text-accent-400"
-                                  >
-                                    Open image
-                                  </a>
-                                </div>
-                                {summary.raw ? (
-                                  <details className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-xs text-slate-600 dark:text-slate-300">
-                                    <summary className="cursor-pointer font-semibold text-slate-700 dark:text-slate-200">
-                                      View raw response
-                                    </summary>
-                                    <pre className="mt-2 whitespace-pre-wrap overflow-x-auto">
-{JSON.stringify(summary.raw, null, 2)}
-                                    </pre>
-                                  </details>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      ) : null}
-
-                      {selectedItem.attempt.topologyEvaluation ? (
-                        <section className="border border-accent-200 dark:border-accent-700 rounded-xl bg-accent-50/60 dark:bg-accent-900/10 p-4 flex flex-col gap-3">
-                          <header className="flex items-center justify-between gap-2">
-                            <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                              Topology comparison
-                            </h5>
-                            <span
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${selectedItem.attempt.topologyEvaluation.passed ? stepStatusClasses.passed : stepStatusClasses.failed}`}
-                            >
-                              {selectedItem.attempt.topologyEvaluation.passed ? 'Matched' : 'Mismatch'}
-                            </span>
-                          </header>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                Expected topology
-                              </span>
-                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {selectedItem.attempt.topologyEvaluation.expected || '—'}
-                              </span>
-                            </div>
-                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                Predicted topology
-                              </span>
-                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {selectedItem.attempt.topologyEvaluation.received || '—'}
-                              </span>
-                            </div>
-                            <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                Confidence
-                              </span>
-                              <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                {selectedItem.attempt.topologyEvaluation.metrics?.confidence != null
-                                  ? `${Math.round(
-                                      selectedItem.attempt.topologyEvaluation.metrics.confidence * 100
-                                    )}%`
-                                  : '—'}
-                              </span>
-                            </div>
-                            {selectedItem.attempt.topologyEvaluation.notes ? (
-                              <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-1 sm:col-span-2">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                  Notes
-                                </span>
-                                <span className="text-sm text-slate-700 dark:text-slate-300">
-                                  {selectedItem.attempt.topologyEvaluation.notes}
-                                </span>
-                              </div>
-                            ) : null}
-                          </div>
-                          {selectedItem.attempt.topologyPrediction ? (
-                            <section className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
-                              <header className="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
-                                <h6 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                  Raw topology response
-                                </h6>
-                              </header>
-                              <pre className="p-3 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
-{JSON.stringify(selectedItem.attempt.topologyPrediction, null, 2)}
-                              </pre>
-                            </section>
-                          ) : null}
-                        </section>
-                      ) : null}
-
-                      {selectedItem.attempt.steps?.length ? (
                         <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40">
-                          <header className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
-                            <h6 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                              Step breakdown
-                            </h6>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              {selectedItem.attempt.steps.length} step
-                              {selectedItem.attempt.steps.length === 1 ? '' : 's'}
-                            </span>
-                          </header>
-                          <div className="p-4 flex flex-col gap-4">
-                            {selectedItem.attempt.steps.map((step) => {
-                              const statusKey: 'passed' | 'failed' | 'completed' = step.evaluation
-                                ? step.evaluation.passed
-                                  ? 'passed'
-                                  : 'failed'
-                                : 'completed';
-                              const tokensText = step.usage?.totalTokens
-                                ? `${step.usage.totalTokens} (prompt ${step.usage.promptTokens ?? 0}, completion ${step.usage.completionTokens ?? 0})`
-                                : '—';
-                              const metadata = ((step.requestPayload as Record<string, unknown>)._metadata ?? {}) as {
-                                bindingId?: string;
-                                bindingName?: string;
-                                imageSummaryCount?: number;
-                              };
-                              return (
-                                <article
-                                  key={`${step.id}-${step.order}`}
-                                  className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col gap-3"
-                                >
-                                  <header className="flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedImageSection(!expandedImageSection)}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors rounded-xl"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                Image Processing
+                              </span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                {selectedImageSummaries.length} image{selectedImageSummaries.length === 1 ? '' : 's'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                selectedImageSummaries.every(s => s.status === 'ok')
+                                  ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                                  : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
+                              }`}>
+                                {selectedImageSummaries.every(s => s.status === 'ok') ? 'All successful' : `${selectedImageSummaries.filter(s => s.status !== 'ok').length} failed`}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                {expandedImageSection ? 'Click to collapse' : 'Click to expand'}
+                              </span>
+                            </div>
+                          </button>
+                          {expandedImageSection && (
+                            <div className="px-4 pb-4 pt-2 flex flex-col gap-3 border-t border-slate-200 dark:border-slate-700">
+                              {selectedImageSummaries.map((summary, index) => (
+                                <div key={summary.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col lg:flex-row gap-3">
+                                  <div className="flex-1 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Step {step.order + 1}
+                                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                        Image {index + 1} • {summary.image.source.toUpperCase()}
                                       </span>
-                                      <h6 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                        {step.label}
-                                      </h6>
-                                    </div>
-                                    <span
-                                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${stepStatusClasses[statusKey]}`}
-                                    >
-                                      {statusKey === 'completed'
-                                        ? 'Completed'
-                                        : statusKey === 'passed'
-                                        ? 'Passed'
-                                        : 'Failed'}
-                                    </span>
-                                  </header>
-                                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Latency
-                                      </span>
-                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
-                                        {Math.round(step.latencyMs)} ms
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${imageSummaryStatusClasses[summary.status]}`}>
+                                        {summary.status}
                                       </span>
                                     </div>
-                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Tokens
-                                      </span>
-                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
-                                        {tokensText}
-                                      </span>
-                                    </div>
-                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Binding
-                                      </span>
-                                      <span className="block text-sm font-medium text-slate-900 dark:text-slate-50">
-                                        {metadata.bindingName ?? metadata.bindingId ?? '—'}
-                                      </span>
-                                      {metadata.imageSummaryCount != null ? (
-                                        <span className="block text-xs text-slate-500 dark:text-slate-400">
-                                          {metadata.imageSummaryCount}{' '}
-                                          {metadata.imageSummaryCount === 1 ? 'image summary' : 'image summaries'}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-md p-2">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Prompt preview
-                                      </span>
-                                      <span className="block text-xs text-slate-700 dark:text-slate-300 break-words">
-                                        {step.prompt.slice(0, 140)}{step.prompt.length > 140 ? '…' : ''}
-                                      </span>
+                                    <img
+                                      src={summary.url}
+                                      alt={summary.image.altText || `Image ${index + 1}`}
+                                      className="max-w-full h-auto rounded border border-slate-200 dark:border-slate-700"
+                                      loading="lazy"
+                                    />
+                                    <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                      <div className="font-semibold">Vision Model Prompt:</div>
+                                      <div className="ml-2">
+                                        <p className="italic mb-1">System: "You are an expert at analyzing educational technical images including diagrams, graphs, tables, circuits, network topologies, mathematical figures, flowcharts, and data structures. Your goal is to provide comprehensive, detailed descriptions that fully explain the image content."</p>
+                                        <p className="italic">User: "This is an educational image. Provide a COMPREHENSIVE description including:</p>
+                                        <ul className="list-disc ml-4 mt-1">
+                                          <li>Type of image (diagram, graph, table, etc.)</li>
+                                          <li>Main components and their labels</li>
+                                          <li>Relationships and connections between elements</li>
+                                          <li>All text, numbers, labels, and annotations</li>
+                                          <li>Visual structure and layout</li>
+                                          <li>Arrows, lines, connectors and what they represent</li>
+                                          <li>All details needed to understand and answer questions</li>
+                                        </ul>
+                                        <p className="italic mt-1">Do NOT worry about response length - be as detailed as necessary. Focus on accuracy and completeness."</p>
+                                      </div>
                                     </div>
                                   </div>
-                                  {step.topologyPrediction ? (
-                                    <div className="bg-accent-50/60 dark:bg-accent-900/10 border border-accent-200 dark:border-accent-700 rounded-md p-3 flex flex-col gap-1">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-accent-700 dark:text-accent-300">
-                                        Topology output
+                                  <div className="flex-1 flex flex-col gap-2">
+                                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                      Vision Model Response
+                                    </span>
+                                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded p-2">
+                                      <div className="text-xs text-slate-700 dark:text-slate-300">
+                                        <div className="font-semibold mb-1">Description:</div>
+                                        <p className="whitespace-pre-wrap">{summary.text}</p>
+                                      </div>
+                                      {summary.confidence != null && (
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                          Confidence: {(summary.confidence * 100).toFixed(0)}%
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      ) : null}
+
+                      {/* Sequential Steps */}
+                      {selectedItem.attempt.steps && selectedItem.attempt.steps.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                          {[...selectedItem.attempt.steps]
+                            .sort((a, b) => a.order - b.order)
+                            .map((step) => {
+                              const stepKey = `${selectedItem.id}-${step.id}`;
+
+                              // Determine status and comparison based on step type
+                              let statusKey: 'passed' | 'failed' | 'completed' = 'completed';
+                              let comparisonText = '';
+
+                              if (step.id === 'topology-subject' || step.id === 'topology-topic' || step.id === 'topology-subtopic') {
+                                // For topology steps, use the evaluation from the step itself
+                                if (step.evaluation) {
+                                  statusKey = step.evaluation.passed ? 'passed' : 'failed';
+                                  comparisonText = step.evaluation.passed
+                                    ? step.evaluation.received || ''
+                                    : `${step.evaluation.expected} → ${step.evaluation.received}`;
+                                }
+                              } else if (step.id === 'answer') {
+                                // For answer step
+                                if (step.evaluation) {
+                                  statusKey = step.evaluation.passed ? 'passed' : 'failed';
+                                  comparisonText = step.evaluation.passed
+                                    ? step.evaluation.received || ''
+                                    : `${step.evaluation.expected} → ${step.evaluation.received}`;
+                                }
+                              } else {
+                                // Other steps
+                                if (step.evaluation) {
+                                  statusKey = step.evaluation.passed ? 'passed' : 'failed';
+                                  comparisonText = `${step.evaluation.expected} → ${step.evaluation.received}`;
+                                }
+                              }
+
+                              const shouldAutoExpand = statusKey === 'failed';
+                              const isExpanded = expandedSteps.has(stepKey) || shouldAutoExpand;
+
+                              return (
+                                <section
+                                  key={stepKey}
+                                  className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStepExpansion(stepKey)}
+                                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors rounded-xl"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                        Step {step.order + 1}: {step.label}
                                       </span>
-                                      <span className="text-sm text-slate-700 dark:text-slate-300">
-                                        {formatTopologyIds({
-                                          subjectId: step.topologyPrediction.subjectId,
-                                          topicId: step.topologyPrediction.topicId,
-                                          subtopicId: step.topologyPrediction.subtopicId,
-                                        })}
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${stepStatusClasses[statusKey]}`}>
+                                        {statusKey === 'passed' ? 'Pass' : statusKey === 'failed' ? 'Fail' : 'Complete'}
                                       </span>
                                     </div>
-                                  ) : null}
-                                  {step.modelResponse?.answer ? (
-                                    <div className="bg-success-50/70 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-md p-3 flex flex-col gap-1">
-                                      <span className="text-xs font-semibold uppercase tracking-wide text-success-700 dark:text-success-300">
-                                        Answer output
-                                      </span>
-                                      <span className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                                        {step.modelResponse.answer}
-                                      </span>
-                                      {step.modelResponse.explanation ? (
-                                        <span className="text-xs text-slate-600 dark:text-slate-300">
-                                          {step.modelResponse.explanation}
+                                    <div className="flex items-center gap-3">
+                                      {comparisonText && (
+                                        <span className="text-xs text-slate-600 dark:text-slate-400">
+                                          {comparisonText} {statusKey === 'passed' ? '✓' : statusKey === 'failed' ? '✗' : ''}
                                         </span>
-                                      ) : null}
+                                      )}
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {formatLatency(step.latencyMs)}
+                                      </span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {isExpanded ? '▼' : '▶'}
+                                      </span>
                                     </div>
-                                  ) : null}
-                                  {step.evaluation?.notes ? (
-                                    <p className="text-xs text-danger-600 dark:text-danger-400">
-                                      {step.evaluation.notes}
-                                    </p>
-                                  ) : null}
-                                  <section className="border border-slate-200 dark:border-slate-700 rounded-md">
-                                    <header className="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
-                                      <h6 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Raw response
-                                      </h6>
-                                    </header>
-                                    <pre className="p-3 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
-{step.responseText || '—'}
-                                    </pre>
-                                  </section>
-                                </article>
+                                  </button>
+
+                                  {isExpanded && (
+                                    <div className="px-4 pb-4 pt-2 flex flex-col gap-3 border-t border-slate-200 dark:border-slate-700">
+                                      {/* Prompt */}
+                                      <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                            Prompt
+                                          </span>
+                                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                                            {step.prompt.length} chars
+                                          </span>
+                                        </div>
+                                        <pre className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
+                                          {step.prompt}
+                                        </pre>
+                                      </div>
+
+                                      {/* Response */}
+                                      <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 block mb-2">
+                                          Response
+                                        </span>
+                                        {step.responseText ? (
+                                          <JsonOrText text={step.responseText} />
+                                        ) : (
+                                          <span className="text-xs text-slate-500 dark:text-slate-400">—</span>
+                                        )}
+                                      </div>
+
+                                      {/* Evaluation Details */}
+                                      {step.evaluation && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
+                                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 block mb-1">
+                                              Expected
+                                            </span>
+                                            <span className="text-sm text-slate-900 dark:text-slate-50">
+                                              {step.evaluation.expected || '—'}
+                                            </span>
+                                          </div>
+                                          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
+                                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 block mb-1">
+                                              Received
+                                            </span>
+                                            <span className="text-sm text-slate-900 dark:text-slate-50">
+                                              {step.evaluation.received || '—'}
+                                            </span>
+                                          </div>
+                                          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
+                                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 block mb-1">
+                                              Result
+                                            </span>
+                                            <span className={`text-sm font-semibold ${step.evaluation.passed ? 'text-success-700 dark:text-success-400' : 'text-danger-700 dark:text-danger-400'}`}>
+                                              {step.evaluation.passed ? 'Match' : 'Mismatch'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Metadata */}
+                                      {step.usage && (
+                                        <div className="text-xs text-slate-600 dark:text-slate-400">
+                                          Tokens: {step.usage.totalTokens || '—'} (prompt {step.usage.promptTokens || 0}, completion {step.usage.completionTokens || 0})
+                                        </div>
+                                      )}
+
+                                      {/* Official Solution - only show for answer step */}
+                                      {step.id === 'answer' && selectedDefinition?.solution && (
+                                        <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 block mb-2">
+                                            Official Solution
+                                          </span>
+                                          <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                            {selectedDefinition.solution}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </section>
                               );
                             })}
-                          </div>
-                        </section>
-                      ) : null}
-
-                      {selectedItem.attempt.modelResponse?.explanation ? (
-                        <section className="bg-accent-50/80 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-xl p-4 flex flex-col gap-2">
-                          <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            Model explanation
-                          </h5>
-                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                            {selectedItem.attempt.modelResponse.explanation}
+                        </div>
+                      ) : (
+                        <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900/40 p-4">
+                          <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+                            No step breakdown available for this attempt.
                           </p>
                         </section>
-                      ) : null}
-
-                      <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40">
-                        <header className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                          <h6 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            Raw response
-                          </h6>
-                        </header>
-                        <pre className="p-4 text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre-wrap">
-{selectedItem.attempt.responseText || '—'}
-                        </pre>
-                      </section>
+                      )}
                     </>
                   ) : (
                     <section className="border border-accent-200 dark:border-accent-700 rounded-xl bg-accent-50/70 dark:bg-accent-900/10 p-4">
@@ -1113,17 +1043,6 @@ const selectedDefinition = useMemo(() => {
                       </p>
                     </section>
                   )}
-
-                  {selectedDefinition?.solution ? (
-                    <section className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/40 p-4 flex flex-col gap-2">
-                      <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Official solution
-                      </h5>
-                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                        {selectedDefinition.solution}
-                      </p>
-                    </section>
-                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-slate-600 dark:text-slate-400">

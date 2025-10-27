@@ -125,7 +125,7 @@ export const preprocessQuestionImages = async ({
           {
             role: 'system',
             content:
-              'You are a meticulous OCR assistant. Extract readable text from images and keep formatting minimal.',
+              'You are an expert at analyzing educational technical images including diagrams, graphs, tables, circuits, network topologies, mathematical figures, flowcharts, and data structures. Your goal is to provide comprehensive, detailed descriptions that fully explain the image content so that someone who cannot see the image can understand it completely.',
           },
           {
             role: 'user',
@@ -133,7 +133,17 @@ export const preprocessQuestionImages = async ({
               {
                 type: 'input_text',
                 text:
-                  'Analyze the attached image and return JSON with keys "text" (string of extracted text) and "confidence" (number 0-1). If no text is present, return an empty string and a low confidence.',
+                  'This is an educational image that may contain a diagram, table, graph, or technical illustration. Analyze it thoroughly and return JSON with keys "text" (string) and "confidence" (number 0-1).\n\n' +
+                  'In the "text" field, provide a COMPREHENSIVE description including:\n' +
+                  '1. Type of image (e.g., network diagram, bar graph, circuit schematic, data table, flowchart)\n' +
+                  '2. Main components and their labels (list all visible elements)\n' +
+                  '3. Relationships and connections between elements (how components interact or relate)\n' +
+                  '4. All text, numbers, labels, and annotations visible in the image\n' +
+                  '5. Visual structure and layout (arrangement, hierarchy, grouping)\n' +
+                  '6. Any arrows, lines, or connectors and what they represent\n' +
+                  '7. Important details needed to fully understand and answer questions about this image\n\n' +
+                  'Do NOT worry about response length - be as detailed as necessary to fully explain the image. Focus on accuracy and completeness over brevity.\n\n' +
+                  'Set "confidence" based on image clarity and completeness of your description (0-1).',
               },
               {
                 type: 'input_image',
@@ -145,7 +155,7 @@ export const preprocessQuestionImages = async ({
           },
         ],
         temperature: Math.max(0, Math.min(binding.temperature ?? 0.1, 0.3)),
-        maxTokens: Math.min(binding.maxOutputTokens ?? 1024, 2048),
+        maxTokens: Math.min(binding.maxOutputTokens ?? 2048, 4096), // Allow longer descriptions for comprehensive image analysis
         preferJson: false,
       });
 

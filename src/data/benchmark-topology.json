@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-10-25T07:28:10.171Z",
+  "generatedAt": "2025-10-26T14:32:45.325Z",
   "subjects": [
     {
       "id": "68d24e621c69bbb6f527dabb",
@@ -690,12 +690,16 @@
               "name": "SubNetting in Classfull Addressing"
             },
             {
+              "id": "68da336231f60703d63f056d",
+              "name": "Super Netting in ClassFul Addressing"
+            },
+            {
               "id": "68da33575e8ee4416b6f5b3e",
               "name": "SubNetting In CIDR"
             },
             {
-              "id": "68da336231f60703d63f056d",
-              "name": "Super Netting in ClassFul Addressing"
+              "id": "68fb324e464341705ebd37f5",
+              "name": "SuperNetting In CIDR"
             },
             {
               "id": "68da33705e8ee4416b6f970a",
@@ -1512,6 +1516,10 @@
               "name": "Clock Per Instruction"
             },
             {
+              "id": "68fb93efa28d697ac613a6ca",
+              "name": "Direct Pipelining Questions"
+            },
+            {
               "id": "68da1fb131f60703d60eee6a",
               "name": "Structural Hazards"
             },
@@ -1589,7 +1597,7 @@
         },
         {
           "id": "68da1e6831f60703d60a8393",
-          "name": "Control Unit Design",
+          "name": "COA Additional Toipcs/Control Unit Design",
           "subtopics": [
             {
               "id": "68da20f631f60703d612ede9",
@@ -1618,6 +1626,10 @@
             {
               "id": "68da213f5e8ee4416b478b8c",
               "name": "Memory Extention"
+            },
+            {
+              "id": "68fc6fc1a28d697ac65577c7",
+              "name": "Miscellaneous Topics"
             },
             {
               "id": "68da214731f60703d613ea68",
@@ -2398,6 +2410,10 @@
               "name": "Fragmentation"
             },
             {
+              "id": "68fd916decd8bfea289b0d7f",
+              "name": "Size Address Translation"
+            },
+            {
               "id": "68da194531f60703d6fc26f8",
               "name": "Paging"
             },
@@ -2545,7 +2561,7 @@
             },
             {
               "id": "68da1da65e8ee4416b3d4a21",
-              "name": "Bit Victor Free Space Management"
+              "name": "Bit Vector Free Space Management"
             },
             {
               "id": "68da1dae31f60703d607a244",
