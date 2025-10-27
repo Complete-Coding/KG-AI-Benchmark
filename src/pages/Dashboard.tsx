@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CartesianGrid,
@@ -64,10 +64,18 @@ interface ProfilePerformance {
 }
 
 const Dashboard = () => {
-  const { loading, runs, profiles } = useBenchmarkContext();
+  const { loading, runs, profiles, datasets } = useBenchmarkContext();
+  const [selectedDatasetFilter, setSelectedDatasetFilter] = useState<string>('all');
 
   const profilePerformanceData = useMemo(() => {
-    const completedRuns = runs.filter((run) => run.status === 'completed');
+    // Filter runs by dataset if a specific dataset is selected
+    const filteredRuns = runs.filter((run) => {
+      if (run.status !== 'completed') return false;
+      if (selectedDatasetFilter === 'all') return true;
+      return run.datasetId === selectedDatasetFilter;
+    });
+
+    const completedRuns = filteredRuns;
 
     if (completedRuns.length === 0) {
       return [];
@@ -124,7 +132,7 @@ const Dashboard = () => {
       if (!b.lastRunAt) return -1;
       return b.lastRunAt.localeCompare(a.lastRunAt);
     });
-  }, [runs]);
+  }, [runs, selectedDatasetFilter]);
 
   // Prepare chart data with all profiles' trends
   const chartData = useMemo(() => {
@@ -228,6 +236,27 @@ const Dashboard = () => {
           Track model profile performance and accuracy trends over time.
         </p>
       </header>
+
+      {/* Dataset filter */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 transition-theme">
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Filter by dataset
+          </span>
+          <select
+            value={selectedDatasetFilter}
+            onChange={(event) => setSelectedDatasetFilter(event.target.value)}
+            className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl pl-3 pr-10 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] dark:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%239ca3af%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem_1.5rem] bg-[right_0.5rem_center] bg-no-repeat max-w-xs"
+          >
+            <option value="all">All Datasets</option>
+            {datasets.map((dataset) => (
+              <option key={dataset.id} value={dataset.id}>
+                {dataset.name} ({dataset.metadata.totalQuestions} questions)
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {/* Active runs indicator */}
       {activeRuns > 0 && (

@@ -15,6 +15,7 @@ import {
   ActiveRunStartPayload,
   ActiveRunState,
   BenchmarkAttempt,
+  BenchmarkDataset,
   BenchmarkRunQueue,
   BenchmarkStepConfig,
   BenchmarkQuestion,
@@ -33,10 +34,13 @@ import { questionDataset, questionDatasetSummary } from '@/data/questions';
 import { questionTopology, questionTopologyGeneratedAt } from '@/data/topology';
 import { defaultBenchmarkSteps, createEmptyRunMetrics, createDefaultTextBinding } from '@/data/defaults';
 import {
+  deleteDatasetRecord,
   deleteProfileRecord,
   deleteRunRecord,
+  loadDatasets,
   loadProfiles,
   loadRuns,
+  upsertDatasetRecord,
   upsertProfileRecord,
   upsertRunRecord,
 } from '@/services/storage';
@@ -54,6 +58,7 @@ interface BenchmarkState {
   initialized: boolean;
   loading: boolean;
   profiles: ModelProfile[];
+  datasets: BenchmarkDataset[];
   runs: BenchmarkRun[];
   discovery: ModelDiscoveryState;
   activeRun: ActiveRunState | null;
@@ -64,6 +69,7 @@ const initialState: BenchmarkState = {
   initialized: false,
   loading: true,
   profiles: [],
+  datasets: [],
   runs: [],
   discovery: {
     status: 'idle',
@@ -77,9 +83,11 @@ const initialState: BenchmarkState = {
 };
 
 type Action =
-  | { type: 'INITIALIZE'; payload: { profiles: ModelProfile[]; runs: BenchmarkRun[] } }
+  | { type: 'INITIALIZE'; payload: { profiles: ModelProfile[]; datasets: BenchmarkDataset[]; runs: BenchmarkRun[] } }
   | { type: 'UPSERT_PROFILE'; payload: ModelProfile }
   | { type: 'DELETE_PROFILE'; payload: string }
+  | { type: 'UPSERT_DATASET'; payload: BenchmarkDataset }
+  | { type: 'DELETE_DATASET'; payload: string }
   | { type: 'UPSERT_RUN'; payload: BenchmarkRun }
   | { type: 'DELETE_RUN'; payload: string }
   | { type: 'RECORD_DIAGNOSTIC'; payload: DiagnosticsResult }
@@ -340,6 +348,30 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
   };
 };
 
+const normalizeDataset = (dataset: Partial<BenchmarkDataset>, existing?: BenchmarkDataset): BenchmarkDataset => {
+  const now = new Date().toISOString();
+
+  return {
+    id: dataset.id ?? existing?.id ?? createId(),
+    name: dataset.name ?? existing?.name ?? 'Untitled Dataset',
+    description: dataset.description ?? existing?.description,
+    questionIds: dataset.questionIds ?? existing?.questionIds ?? [],
+    filters: {
+      types: dataset.filters?.types ?? existing?.filters?.types ?? [],
+      difficulty: dataset.filters?.difficulty ?? existing?.filters?.difficulty ?? [],
+      pyqYears: dataset.filters?.pyqYears ?? existing?.filters?.pyqYears ?? [],
+      search: dataset.filters?.search ?? existing?.filters?.search,
+    },
+    metadata: {
+      totalQuestions: dataset.metadata?.totalQuestions ?? existing?.metadata?.totalQuestions ?? 0,
+      hasImages: dataset.metadata?.hasImages ?? existing?.metadata?.hasImages ?? false,
+      questionTypeBreakdown: dataset.metadata?.questionTypeBreakdown ?? existing?.metadata?.questionTypeBreakdown ?? {},
+    },
+    createdAt: dataset.createdAt ?? existing?.createdAt ?? now,
+    updatedAt: dataset.updatedAt ?? now,
+  };
+};
+
 const normalizeRun = (run: Partial<BenchmarkRun>, existing?: BenchmarkRun): BenchmarkRun => {
   const now = new Date().toISOString();
   const baseDataset = existing?.dataset ?? {
@@ -508,6 +540,7 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
         initialized: true,
         loading: false,
         profiles: action.payload.profiles,
+        datasets: action.payload.datasets,
         runs: action.payload.runs,
         discovery: state.discovery,
         activeRun: state.activeRun,
@@ -532,6 +565,27 @@ const reducer = (state: BenchmarkState, action: Action): BenchmarkState => {
       return {
         ...state,
         profiles: state.profiles.filter((profile) => profile.id !== action.payload),
+      };
+    }
+    case 'UPSERT_DATASET': {
+      const index = state.datasets.findIndex((dataset) => dataset.id === action.payload.id);
+      const datasets = [...state.datasets];
+
+      if (index >= 0) {
+        datasets[index] = action.payload;
+      } else {
+        datasets.push(action.payload);
+      }
+
+      return {
+        ...state,
+        datasets,
+      };
+    }
+    case 'DELETE_DATASET': {
+      return {
+        ...state,
+        datasets: state.datasets.filter((dataset) => dataset.id !== action.payload),
       };
     }
     case 'UPSERT_RUN': {
@@ -833,6 +887,7 @@ interface BenchmarkContextValue {
   topology: QuestionTopologySubject[];
   topologyGeneratedAt?: string;
   profiles: ModelProfile[];
+  datasets: BenchmarkDataset[];
   runs: BenchmarkRun[];
   overview: DashboardOverview;
   discovery: ModelDiscoveryState;
@@ -842,6 +897,9 @@ interface BenchmarkContextValue {
   deleteProfile: (profileId: string) => void;
   recordDiagnostic: (diagnostic: DiagnosticsResult) => void;
   recordCompatibilityCheck: (profileId: string, result: CompatibilityCheckResult) => void;
+  upsertDataset: (dataset: Partial<BenchmarkDataset>) => BenchmarkDataset;
+  deleteDataset: (datasetId: string) => void;
+  getDatasetById: (datasetId: string) => BenchmarkDataset | undefined;
   upsertRun: (run: Partial<BenchmarkRun>) => BenchmarkRun;
   deleteRun: (runId: string) => void;
   getProfileById: (profileId: string) => ModelProfile | undefined;
@@ -867,7 +925,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
 
     const bootstrap = async () => {
-      const [profiles, runs] = await Promise.all([loadProfiles(), loadRuns()]);
+      const [profiles, datasets, runs] = await Promise.all([loadProfiles(), loadDatasets(), loadRuns()]);
 
       if (cancelled) {
         return;
@@ -952,6 +1010,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
         type: 'INITIALIZE',
         payload: {
           profiles: profiles.map((profile) => normalizeProfile(profile)),
+          datasets: datasets.map((dataset) => normalizeDataset(dataset)),
           runs: cleanedRuns,
         },
       });
@@ -1049,6 +1108,29 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       void upsertProfileRecord(updated);
     },
     [state.profiles]
+  );
+
+  const upsertDataset = useCallback(
+    (dataset: Partial<BenchmarkDataset>): BenchmarkDataset => {
+      const existing = dataset.id
+        ? state.datasets.find((item) => item.id === dataset.id)
+        : undefined;
+      const normalized = normalizeDataset(dataset, existing);
+      dispatch({ type: 'UPSERT_DATASET', payload: normalized });
+      void upsertDatasetRecord(normalized);
+      return normalized;
+    },
+    [state.datasets]
+  );
+
+  const deleteDataset = useCallback((datasetId: string) => {
+    dispatch({ type: 'DELETE_DATASET', payload: datasetId });
+    void deleteDatasetRecord(datasetId);
+  }, []);
+
+  const getDatasetById = useCallback(
+    (datasetId: string) => state.datasets.find((dataset) => dataset.id === datasetId),
+    [state.datasets]
   );
 
   const upsertRun = useCallback(
@@ -1255,6 +1337,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       topology: questionTopology,
       topologyGeneratedAt: questionTopologyGeneratedAt,
       profiles: state.profiles,
+      datasets: state.datasets,
       runs: state.runs,
       overview,
       discovery: state.discovery,
@@ -1264,6 +1347,9 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteProfile,
       recordDiagnostic,
       recordCompatibilityCheck,
+      upsertDataset,
+      deleteDataset,
+      getDatasetById,
       upsertRun,
       deleteRun,
       getProfileById,
@@ -1283,6 +1369,7 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       state.initialized,
       state.loading,
       state.profiles,
+      state.datasets,
       state.runs,
       state.discovery,
       state.activeRun,
@@ -1292,6 +1379,9 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       deleteProfile,
       recordDiagnostic,
       recordCompatibilityCheck,
+      upsertDataset,
+      deleteDataset,
+      getDatasetById,
       upsertRun,
       deleteRun,
       getProfileById,

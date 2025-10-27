@@ -6,6 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 const navigation = [
   { label: 'Dashboard', to: '/' },
   { label: 'Profiles', to: '/profiles' },
+  { label: 'Datasets', to: '/datasets' },
   { label: 'Runs', to: '/runs' },
 ];
 

@@ -1,8 +1,9 @@
-import { BenchmarkRun, ModelProfile } from '@/types/benchmark';
+import { BenchmarkDataset, BenchmarkRun, ModelProfile } from '@/types/benchmark';
 import { supabase } from '@/services/supabaseClient';
 import { createEmptyRunMetrics } from '@/data/defaults';
 
 const PROFILE_TABLE = 'profiles';
+const DATASET_TABLE = 'datasets';
 const RUN_TABLE = 'runs';
 
 interface ProfileRow {
@@ -23,6 +24,13 @@ interface RunRow {
   completed_at?: string | null;
 }
 
+interface DatasetRow {
+  id: string;
+  data: BenchmarkDataset;
+  updated_at?: string;
+  name?: string;
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -36,6 +44,15 @@ const isProfileRow = (value: unknown): value is ProfileRow => {
 };
 
 const isRunRow = (value: unknown): value is RunRow => {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  const { id, data } = value;
+  return typeof id === 'string' && isObject(data);
+};
+
+const isDatasetRow = (value: unknown): value is DatasetRow => {
   if (!isObject(value)) {
     return false;
   }
@@ -188,5 +205,61 @@ export const deleteRunRecord = async (runId: string) => {
     }
   } catch (error) {
     console.error('Unexpected error deleting run from Supabase', error);
+  }
+};
+
+export const loadDatasets = async (): Promise<BenchmarkDataset[]> => {
+  try {
+    const client = ensureClient();
+    const { data, error } = await client.from(DATASET_TABLE).select('id, data');
+
+    if (error) {
+      console.error('Failed to load datasets from Supabase', error);
+      return [];
+    }
+
+    const rows = Array.isArray(data) ? data.filter(isDatasetRow) : [];
+
+    return rows.map((row) => ({
+      ...row.data,
+      id: isObject(row.data) && typeof row.data.id === 'string' ? row.data.id : row.id,
+    }));
+  } catch (error) {
+    console.error('Unexpected error loading datasets from Supabase', error);
+    return [];
+  }
+};
+
+export const upsertDatasetRecord = async (dataset: BenchmarkDataset) => {
+  try {
+    const client = ensureClient();
+    const payload: DatasetRow & {
+      name?: string;
+    } = {
+      id: dataset.id,
+      data: dataset,
+      updated_at: new Date().toISOString(),
+      name: dataset.name,
+    };
+
+    const { error } = await client.from(DATASET_TABLE).upsert(payload);
+
+    if (error) {
+      console.error('Failed to upsert dataset in Supabase', error);
+    }
+  } catch (error) {
+    console.error('Unexpected error upserting dataset in Supabase', error);
+  }
+};
+
+export const deleteDatasetRecord = async (datasetId: string) => {
+  try {
+    const client = ensureClient();
+    const { error } = await client.from(DATASET_TABLE).delete().eq('id', datasetId);
+    if (error) {
+      console.error('Failed to delete dataset from Supabase', error);
+    }
+  } catch (error) {
+    console.error('Unexpected error deleting dataset from Supabase', error);
   }
 };

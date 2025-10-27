@@ -419,6 +419,26 @@ export interface BenchmarkRunMetrics {
   topologySubtopicFailedCount: number;
 }
 
+export interface BenchmarkDataset {
+  id: string;
+  name: string;
+  description?: string;
+  questionIds: string[];
+  filters: {
+    types: string[];
+    difficulty: string[];
+    pyqYears: string[];
+    search?: string;
+  };
+  metadata: {
+    totalQuestions: number;
+    hasImages: boolean;
+    questionTypeBreakdown: Record<string, number>;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BenchmarkRun {
   id: string;
   label: string;
@@ -430,8 +450,10 @@ export interface BenchmarkRun {
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
-  questionIds: string[];
+  datasetId: string;
   dataset: {
+    id: string;
+    name: string;
     label: string;
     totalQuestions: number;
     filters: string[];

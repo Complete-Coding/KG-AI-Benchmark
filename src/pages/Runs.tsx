@@ -114,45 +114,9 @@ const profileSupportsVision = (profile: ModelProfile): boolean => {
 interface LaunchRunPayload {
   profileIds: string[];  // Changed to array for multi-profile support
   label: string;
-  questionIds: string[];
-  filters: string[];
+  datasetId: string;  // Reference to selected dataset
 }
 
-const filterQuestions = (
-  questions: BenchmarkQuestion[],
-  filters: {
-    types: Set<string>;
-    difficulty: Set<string>;
-    search: string;
-    pyq: Set<string>;
-  }
-) => {
-  const searchTerm = filters.search.trim().toLowerCase();
-
-  return questions.filter((question) => {
-    if (filters.types.size > 0 && !filters.types.has(question.type)) {
-      return false;
-    }
-
-    if (filters.difficulty.size > 0 && !filters.difficulty.has(question.difficulty)) {
-      return false;
-    }
-
-    if (filters.pyq.size > 0) {
-      const year = question.metadata.pyq?.year ? String(question.metadata.pyq.year) : undefined;
-      if (!year || !filters.pyq.has(year)) {
-        return false;
-      }
-    }
-
-    if (!searchTerm) {
-      return true;
-    }
-
-    const haystack = `${question.prompt} ${question.instructions ?? ''}`.toLowerCase();
-    return haystack.includes(searchTerm);
-  });
-};
 
 /**
  * Format date as "25 Jun 2025, 3:45 PM"
@@ -173,12 +137,12 @@ interface NewRunPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onLaunch: (payload: LaunchRunPayload) => Promise<void>;
-  initialQuestionIds?: string[];
+  initialDatasetId?: string;
   initialLabel?: string;
 }
 
-const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLabel }: NewRunPanelProps) => {
-  const { profiles, questions, questionSummary } = useBenchmarkContext();
+const NewRunPanel = ({ isOpen, onClose, onLaunch, initialDatasetId, initialLabel }: NewRunPanelProps) => {
+  const { profiles, datasets, questions } = useBenchmarkContext();
 
   // Filter to only show compatibility-passed profiles
   const compatibleProfiles = useMemo(
@@ -195,38 +159,27 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
   const [runLabel, setRunLabel] = useState<string>(
     initialLabel ?? formatRunLabel(new Date())
   );
-  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(
-    () => new Set(initialQuestionIds ?? questions.map((question) => question.id))
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(
+    initialDatasetId ?? (datasets.length > 0 ? datasets[0].id : '')
   );
-  const [filters, setFilters] = useState({
-    types: new Set<string>(),
-    difficulty: new Set<string>(),
-    search: '',
-    pyq: new Set<string>(),
-  });
   const [launching, setLaunching] = useState(false);
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const filteredQuestions = useMemo(
-    () => filterQuestions(questions, filters),
-    [questions, filters]
+
+  // Get selected dataset and its questions
+  const selectedDataset = useMemo(
+    () => datasets.find((dataset) => dataset.id === selectedDatasetId),
+    [datasets, selectedDatasetId]
   );
-  const selectionHasImages = useMemo(() => {
-    if (selectedQuestionIds.size === 0) {
-      return false;
+
+  const datasetQuestions = useMemo(() => {
+    if (!selectedDataset) {
+      return [];
     }
-    for (const id of selectedQuestionIds) {
-      const question = questionLookup.get(id);
-      if (question?.metadata.hasImages) {
-        return true;
-      }
-    }
-    return false;
-  }, [selectedQuestionIds]);
-  const filteredHasImages = useMemo(
-    () => filteredQuestions.some((question) => question.metadata.hasImages),
-    [filteredQuestions]
-  );
-  const requiresVision = selectionHasImages;
+    return selectedDataset.questionIds
+      .map((id) => questionLookup.get(id))
+      .filter((question): question is BenchmarkQuestion => Boolean(question));
+  }, [selectedDataset]);
+
+  const requiresVision = selectedDataset?.metadata.hasImages ?? false;
   const supportedProfiles = useMemo(() => {
     if (!requiresVision) {
       return compatibleProfiles;
@@ -260,14 +213,14 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
   // Sync state with initial props when panel opens with rerun data
   useEffect(() => {
     if (isOpen) {
-      if (initialQuestionIds) {
-        setSelectedQuestionIds(new Set(initialQuestionIds));
+      if (initialDatasetId) {
+        setSelectedDatasetId(initialDatasetId);
       }
       if (initialLabel) {
         setRunLabel(initialLabel);
       }
     }
-  }, [isOpen, initialQuestionIds, initialLabel]);
+  }, [isOpen, initialDatasetId, initialLabel]);
 
   const toggleSet = (set: Set<string>, value: string) => {
     const next = new Set(set);
@@ -279,41 +232,13 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
     return next;
   };
 
-  const handleFilterToggle =
-    (type: 'types' | 'difficulty' | 'pyq', value: string) => () => {
-      setFilters((prev) => ({
-        ...prev,
-        [type]: toggleSet(prev[type], value),
-      }));
-    };
-
   const handleToggleProfile = (profileId: string) => () => {
     setSelectedProfileIds((prev) => toggleSet(prev, profileId));
   };
 
-  const handleSelectQuestion = (questionId: string) => () => {
-    setSelectedQuestionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(questionId)) {
-        next.delete(questionId);
-      } else {
-        next.add(questionId);
-      }
-      return next;
-    });
-  };
-
-  const handleSelectAll = () => {
-    setSelectedQuestionIds(new Set(filteredQuestions.map((question) => question.id)));
-  };
-
-  const handleClearSelection = () => {
-    setSelectedQuestionIds(new Set());
-  };
-
   const handleLaunch = async (event: FormEvent) => {
     event.preventDefault();
-    if (selectedProfileIds.size === 0 || selectedQuestionIds.size === 0) {
+    if (selectedProfileIds.size === 0 || !selectedDatasetId || !selectedDataset) {
       return;
     }
 
@@ -323,39 +248,13 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
       await onLaunch({
         profileIds: [...selectedProfileIds],
         label: runLabel,
-        questionIds: [...selectedQuestionIds],
-        filters: [
-          filters.types.size ? `Types: ${[...filters.types].join(', ')}` : null,
-          filters.difficulty.size ? `Difficulty: ${[...filters.difficulty].join(', ')}` : null,
-          filters.pyq.size ? `PYQ Year: ${[...filters.pyq].join(', ')}` : null,
-        ].filter(Boolean) as string[],
+        datasetId: selectedDatasetId,
       });
       onClose();
     } finally {
       setLaunching(false);
     }
   };
-
-  const uniqueTypes = useMemo(
-    () => Array.from(new Set(questions.map((question) => question.type))).sort(),
-    [questions]
-  );
-  const uniqueDifficulty = useMemo(
-    () => Array.from(new Set(questions.map((question) => question.difficulty))).sort(),
-    [questions]
-  );
-  const uniqueYears = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          questions
-            .map((question) => question.metadata.pyq?.year)
-            .filter((year): year is number => typeof year === 'number')
-            .map((year) => String(year))
-        )
-      ).sort(),
-    [questions]
-  );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Launch new benchmark">
@@ -524,184 +423,88 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
-          <button
-            type="button"
-            onClick={() => setFiltersExpanded(!filtersExpanded)}
-            className="flex items-center justify-between w-full px-4 py-3 font-semibold text-slate-900 dark:text-slate-50 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-xl transition-colors text-left"
-          >
-            <span>Filters</span>
-            <svg
-              className={`w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform ${filtersExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {filtersExpanded ? (
-            <div className="flex flex-col gap-4 px-4 pb-4">
-              <div className="flex flex-col gap-4">
-                <div>
-                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                    Type
-                  </strong>
-                  <div className="flex flex-wrap gap-2">
-                    {uniqueTypes.map((type) => (
-                      <label
-                        key={type}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.types.has(type)}
-                          onChange={handleFilterToggle('types', type)}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                        />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{type}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                    Difficulty
-                  </strong>
-                  <div className="flex flex-wrap gap-2">
-                    {uniqueDifficulty.map((difficulty) => (
-                      <label
-                        key={difficulty}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.difficulty.has(difficulty)}
-                          onChange={handleFilterToggle('difficulty', difficulty)}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                        />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{difficulty}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <strong className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                    PYQ year
-                  </strong>
-                  <div className="flex flex-wrap gap-2">
-                    {uniqueYears.map((year) => (
-                      <label
-                        key={year}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.pyq.has(year)}
-                          onChange={handleFilterToggle('pyq', year)}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                        />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{year}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <label className="flex flex-col">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                  Search
-                </span>
-                <input
-                  type="search"
-                  value={filters.search}
-                  onChange={(event) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      search: event.target.value,
-                    }))
-                  }
-                  placeholder="Search question text"
-                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme"
-                />
-              </label>
-            </div>
-          ) : null}
-        </div>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Dataset
+            </span>
+            {datasets.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400 py-3 px-4 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900/30">
+                No datasets available. Create a dataset first on the Datasets page.
+              </p>
+            ) : (
+              <select
+                value={selectedDatasetId}
+                onChange={(event) => setSelectedDatasetId(event.target.value)}
+                className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl pl-3 pr-10 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] dark:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%239ca3af%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem_1.5rem] bg-[right_0.5rem_center] bg-no-repeat"
+              >
+                {datasets.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.name} ({dataset.metadata.totalQuestions} questions)
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
 
-        <div className="flex flex-col gap-4">
-          <header className="flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900 dark:text-slate-50">
-              Select questions
-            </h3>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
-                onClick={handleSelectAll}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                className="border border-accent-400 dark:border-accent-500 bg-accent-500/8 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400 hover:bg-accent-500/16 dark:hover:bg-accent-500/20 font-semibold px-3 py-1.5 rounded-lg text-sm transition-all duration-200"
-                onClick={handleClearSelection}
-              >
-                Clear
-              </button>
+          {selectedDataset && (
+            <div className="bg-slate-50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Dataset details
+                </span>
+                {selectedDataset.metadata.hasImages && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400">
+                    Has images
+                  </span>
+                )}
+              </div>
+
+              {selectedDataset.description && (
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {selectedDataset.description}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(selectedDataset.metadata.questionTypeBreakdown).map(([type, count]) => (
+                  <span
+                    key={type}
+                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                  >
+                    {type}: {count}
+                  </span>
+                ))}
+              </div>
+
+              {selectedDataset.filters.types.length > 0 ||
+              selectedDataset.filters.difficulty.length > 0 ||
+              selectedDataset.filters.pyqYears.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Applied filters
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                    {selectedDataset.filters.types.length > 0 && (
+                      <span>Types: {selectedDataset.filters.types.join(', ')}</span>
+                    )}
+                    {selectedDataset.filters.difficulty.length > 0 && (
+                      <span>· Difficulty: {selectedDataset.filters.difficulty.join(', ')}</span>
+                    )}
+                    {selectedDataset.filters.pyqYears.length > 0 && (
+                      <span>· PYQ Years: {selectedDataset.filters.pyqYears.join(', ')}</span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {requiresVision && (
+                <p className="text-xs text-warning-700 dark:text-warning-400">
+                  This dataset includes image-based questions. Only profiles with vision support will be available.
+                </p>
+              )}
             </div>
-          </header>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Showing {filteredQuestions.length} questions from {questionSummary.label}. Selected{' '}
-            {selectedQuestionIds.size}.
-            {selectionHasImages ? (
-              <span className="ml-1 text-warning-700 dark:text-warning-400 font-semibold">
-                Includes image-based questions.
-              </span>
-            ) : filteredHasImages ? (
-              <span className="ml-1 text-slate-500 dark:text-slate-400">
-                (Images available in this filtered set.)
-              </span>
-            ) : null}
-          </p>
-          <ul className="max-h-96 overflow-y-auto flex flex-col gap-2 border border-slate-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/30">
-            {filteredQuestions.map((question) => {
-              const isSelected = selectedQuestionIds.has(question.id);
-              return (
-                <li
-                  key={question.id}
-                  className={`border rounded-lg p-3 transition-all ${
-                    isSelected
-                      ? 'border-accent-500 bg-accent-50 dark:bg-accent-900/20'
-                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-accent-300 dark:hover:border-accent-700'
-                  }`}
-                >
-                  <label className="flex gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={handleSelectQuestion(question.id)}
-                      className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 text-accent-600 focus:ring-2 focus:ring-accent-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {question.type} · {question.difficulty}
-                        </h4>
-                        {question.metadata.hasImages ? (
-                          <span className="text-[0.65rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300">
-                            Image
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
-                        {question.prompt}
-                      </p>
-                    </div>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
+          )}
         </div>
 
         <p className="bg-info-100 dark:bg-info-900/30 border border-info-300 dark:border-info-700 text-info-800 dark:text-info-400 px-4 py-3 rounded-xl text-sm">
@@ -715,7 +518,8 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialQuestionIds, initialLab
             disabled={
               launching ||
               selectedProfileIds.size === 0 ||
-              selectedQuestionIds.size === 0
+              !selectedDatasetId ||
+              datasets.length === 0
             }
           >
             {launching ? 'Starting…' : `Run benchmark${selectedProfileIds.size > 1 ? 's' : ''}`}
@@ -731,6 +535,7 @@ const Runs = () => {
     loading,
     runs,
     profiles,
+    datasets,
     questionSummary,
     upsertRun,
     deleteRun,
@@ -756,9 +561,8 @@ const Runs = () => {
   const [showNewRunPanel, setShowNewRunPanel] = useState(false);
   const [executingRunIds, setExecutingRunIds] = useState<Set<string>>(new Set());
   const [rerunData, setRerunData] = useState<{
-    questionIds: string[];
+    datasetId: string;
     label: string;
-    filters: string[];
   } | null>(null);
 
   // Ref to prevent race conditions in useEffect
@@ -766,7 +570,7 @@ const Runs = () => {
 
   // Check for rerun state from navigation
   useEffect(() => {
-    const state = location.state as { rerun?: { questionIds: string[]; label: string; filters: string[] } } | null;
+    const state = location.state as { rerun?: { datasetId: string; label: string } } | null;
     if (state?.rerun) {
       setRerunData(state.rerun);
       setShowNewRunPanel(true);
@@ -888,27 +692,32 @@ const Runs = () => {
 
     // Set rerun data and open the panel for profile selection
     setRerunData({
-      questionIds: run.questionIds,
+      datasetId: run.datasetId,
       label: `Rerun of ${run.label}`,
-      filters: run.dataset.filters ?? [],
     });
     setShowNewRunPanel(true);
   };
 
   const handleLaunchRun = (payload: LaunchRunPayload): Promise<void> => {
-    const { profileIds } = payload;
+    const { profileIds, datasetId } = payload;
 
     if (profileIds.length === 0) {
       throw new Error('No profiles selected');
     }
 
-    // Get selected questions (common for all runs)
-    const selectedQuestions = payload.questionIds
+    // Get the selected dataset
+    const dataset = datasets.find((d) => d.id === datasetId);
+    if (!dataset) {
+      throw new Error('Dataset not found');
+    }
+
+    // Get questions from the dataset
+    const selectedQuestions = dataset.questionIds
       .map((id) => questionLookup.get(id))
       .filter((question): question is BenchmarkQuestion => Boolean(question));
 
     if (selectedQuestions.length === 0) {
-      throw new Error('No questions selected');
+      throw new Error('No questions in dataset');
     }
 
     const now = new Date().toISOString();
@@ -927,6 +736,18 @@ const Runs = () => {
         ? `${payload.label} - ${profile.name} (${index + 1}/${profileIds.length})`
         : payload.label;
 
+      // Build filters string for display
+      const filtersDisplay: string[] = [];
+      if (dataset.filters.types.length > 0) {
+        filtersDisplay.push(`Types: ${dataset.filters.types.join(', ')}`);
+      }
+      if (dataset.filters.difficulty.length > 0) {
+        filtersDisplay.push(`Difficulty: ${dataset.filters.difficulty.join(', ')}`);
+      }
+      if (dataset.filters.pyqYears.length > 0) {
+        filtersDisplay.push(`PYQ Years: ${dataset.filters.pyqYears.join(', ')}`);
+      }
+
       const run = upsertRun({
         label: runLabel,
         profileId: profile.id,
@@ -934,11 +755,14 @@ const Runs = () => {
         profileModelId: profile.modelId,
         status: 'draft',  // Start as draft, will be updated by enqueueRun
         createdAt: now,
-        questionIds: payload.questionIds,
+        datasetId: dataset.id,
+        questionIds: dataset.questionIds,
         dataset: {
-          label: questionSummary.label,
+          id: dataset.id,
+          name: dataset.name,
+          label: dataset.name,
           totalQuestions: selectedQuestions.length,
-          filters: payload.filters,
+          filters: filtersDisplay,
         },
         metrics: createEmptyRunMetrics(),
         attempts: [],
@@ -1751,7 +1575,7 @@ const Runs = () => {
         isOpen={showNewRunPanel}
         onClose={handleCloseNewRunPanel}
         onLaunch={handleLaunchRun}
-        initialQuestionIds={rerunData?.questionIds}
+        initialDatasetId={rerunData?.datasetId}
         initialLabel={rerunData?.label}
       />
     </div>
