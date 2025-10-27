@@ -32,57 +32,140 @@ const formatLatency = (value: number) => {
   return `${Math.round(value)} ms`;
 };
 
+// Color palette for different profiles (up to 10 profiles)
+const PROFILE_COLORS = [
+  '#10b981', // green
+  '#6366f1', // indigo
+  '#f59e0b', // amber
+  '#ec4899', // pink
+  '#8b5cf6', // violet
+  '#14b8a6', // teal
+  '#f97316', // orange
+  '#06b6d4', // cyan
+  '#84cc16', // lime
+  '#a855f7', // purple
+];
+
+interface ProfilePerformance {
+  profileId: string;
+  profileName: string;
+  profileModelId: string;
+  totalRuns: number;
+  averageAccuracy: number;
+  averageTopologyAccuracy: number;
+  averageLatencyMs: number;
+  lastRunAt?: string;
+  trend: Array<{
+    timestamp: string;
+    accuracy: number;
+    topologyAccuracy: number;
+    latencyMs: number;
+  }>;
+}
+
 const Dashboard = () => {
-  const { loading, overview, questionSummary } = useBenchmarkContext();
+  const { loading, runs, profiles } = useBenchmarkContext();
 
-  const trendData = useMemo(() => {
-    const accuracyByRunId = new Map(
-      overview.accuracyTrend.map((point) => [point.runId, point])
-    );
-    const topologyAccuracyByRunId = new Map(
-      overview.topologyAccuracyTrend.map((point) => [point.runId, point])
-    );
+  const profilePerformanceData = useMemo(() => {
+    const completedRuns = runs.filter((run) => run.status === 'completed');
 
-    return overview.latencyTrend.map((latencyPoint) => {
-      const accuracyPoint = accuracyByRunId.get(latencyPoint.runId);
-      const topologyAccuracyPoint = topologyAccuracyByRunId.get(latencyPoint.runId);
-      const timestamp = new Date(latencyPoint.timestamp);
-      return {
-        timestamp: timestamp.toLocaleDateString(),
-        answerAccuracy: (accuracyPoint?.accuracy ?? 0) * 100,
-        topologyAccuracy: (topologyAccuracyPoint?.topologyAccuracy ?? 0) * 100,
-        latency: latencyPoint.latencyMs,
-      };
+    if (completedRuns.length === 0) {
+      return [];
+    }
+
+    // Group runs by profile
+    const runsByProfile = new Map<string, typeof completedRuns>();
+    completedRuns.forEach((run) => {
+      const existing = runsByProfile.get(run.profileId) || [];
+      runsByProfile.set(run.profileId, [...existing, run]);
     });
-  }, [overview]);
 
-  const summaryCards = [
-    {
-      title: 'Benchmark runs',
-      value: overview.totalRuns,
-      meta: overview.lastUpdated ? `Updated ${formatDateTime(overview.lastUpdated)}` : 'No runs yet',
-    },
-    {
-      title: 'Active runs',
-      value: overview.activeRuns,
-      meta: overview.activeRuns === 0 ? 'All runs idle' : 'Runs in progress',
-    },
-    {
-      title: 'Avg answer accuracy',
-      value: overview.totalRuns ? formatPercent(overview.averageAccuracy) : '—',
-      meta: 'Across completed runs',
-    },
-    {
-      title: 'Avg topology accuracy',
-      value: overview.totalRuns ? formatPercent(overview.averageTopologyAccuracy) : '—',
-      meta: 'Across completed runs',
-    },
-    {
-      title: 'Avg latency',
-      value: overview.totalRuns ? formatLatency(overview.averageLatencyMs) : '—',
-      meta: 'Across completed runs',
-    },
-  ];
+    // Compute performance metrics per profile
+    const profilePerformances: ProfilePerformance[] = [];
+
+    runsByProfile.forEach((profileRuns, profileId) => {
+      const sortedRuns = [...profileRuns].sort((a, b) => {
+        const aTime = a.completedAt ?? a.createdAt;
+        const bTime = b.completedAt ?? b.createdAt;
+        return aTime.localeCompare(bTime);
+      });
+
+      const totalRuns = profileRuns.length;
+      const averageAccuracy = profileRuns.reduce((acc, run) => acc + run.metrics.accuracy, 0) / totalRuns;
+      const averageTopologyAccuracy = profileRuns.reduce((acc, run) => acc + run.metrics.topologyAccuracy, 0) / totalRuns;
+      const averageLatencyMs = profileRuns.reduce((acc, run) => acc + run.metrics.averageLatencyMs, 0) / totalRuns;
+
+      const lastRun = sortedRuns[sortedRuns.length - 1];
+      const lastRunAt = lastRun?.completedAt ?? lastRun?.createdAt;
+
+      const trend = sortedRuns.map((run) => ({
+        timestamp: run.completedAt ?? run.createdAt,
+        accuracy: run.metrics.accuracy * 100,
+        topologyAccuracy: run.metrics.topologyAccuracy * 100,
+        latencyMs: run.metrics.averageLatencyMs,
+      }));
+
+      profilePerformances.push({
+        profileId,
+        profileName: profileRuns[0].profileName,
+        profileModelId: profileRuns[0].profileModelId,
+        totalRuns,
+        averageAccuracy,
+        averageTopologyAccuracy,
+        averageLatencyMs,
+        lastRunAt,
+        trend,
+      });
+    });
+
+    // Sort by last run date (most recent first)
+    return profilePerformances.sort((a, b) => {
+      if (!a.lastRunAt) return 1;
+      if (!b.lastRunAt) return -1;
+      return b.lastRunAt.localeCompare(a.lastRunAt);
+    });
+  }, [runs]);
+
+  // Prepare chart data with all profiles' trends
+  const chartData = useMemo(() => {
+    if (profilePerformanceData.length === 0) {
+      return [];
+    }
+
+    // Collect all unique timestamps across all profiles
+    const allTimestamps = new Set<string>();
+    profilePerformanceData.forEach(profile => {
+      profile.trend.forEach(point => {
+        allTimestamps.add(point.timestamp);
+      });
+    });
+
+    const sortedTimestamps = Array.from(allTimestamps).sort();
+
+    // Build chart data with one point per timestamp
+    return sortedTimestamps.map(timestamp => {
+      const dataPoint: Record<string, number | string> = {
+        timestamp: new Date(timestamp).toLocaleDateString(),
+        fullTimestamp: timestamp,
+      };
+
+      profilePerformanceData.forEach((profile, index) => {
+        const point = profile.trend.find(p => p.timestamp === timestamp);
+        if (point) {
+          dataPoint[`${profile.profileId}_accuracy`] = point.accuracy;
+          dataPoint[`${profile.profileId}_topologyAccuracy`] = point.topologyAccuracy;
+          dataPoint[`${profile.profileId}_latency`] = point.latencyMs;
+        }
+      });
+
+      return dataPoint;
+    });
+  }, [profilePerformanceData]);
+
+  const activeRuns = useMemo(() =>
+    runs.filter((run) => run.status === 'running' || run.status === 'queued').length,
+    [runs]
+  );
 
   if (loading) {
     return (
@@ -92,7 +175,7 @@ const Dashboard = () => {
             Dashboard
           </h1>
           <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-            Track recent benchmark activity, dataset coverage, and cross-run trends.
+            Track model profile performance and accuracy trends over time.
           </p>
         </header>
 
@@ -106,6 +189,35 @@ const Dashboard = () => {
     );
   }
 
+  if (profilePerformanceData.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
+            Dashboard
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
+            Track model profile performance and accuracy trends over time.
+          </p>
+        </header>
+
+        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-8 flex flex-col items-center gap-4">
+          <div className="text-slate-400 dark:text-slate-500 text-6xl">📊</div>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">No benchmark data yet</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-center max-w-md">
+            Run your first benchmark to see profile performance metrics and trends.
+          </p>
+          <Link
+            to="/runs"
+            className="mt-4 px-6 py-3 bg-accent-600 hover:bg-accent-700 text-white font-semibold rounded-lg transition-colors"
+          >
+            Launch new benchmark →
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -113,262 +225,196 @@ const Dashboard = () => {
           Dashboard
         </h1>
         <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-          Track recent benchmark activity, dataset coverage, and cross-run trends.
+          Track model profile performance and accuracy trends over time.
         </p>
       </header>
 
-      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
-        <header className="flex flex-col gap-2">
-          <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-50">
-            Overview
-          </h2>
-        </header>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-          {summaryCards.map((card) => (
-            <article
-              key={card.title}
-              className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 border border-slate-200 dark:border-slate-700 hover:-translate-y-1 hover:shadow-md transition-all duration-200"
-            >
-              <h3 className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                {card.title}
-              </h3>
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-slate-50">{card.value}</div>
-              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{card.meta}</span>
-            </article>
-          ))}
+      {/* Active runs indicator */}
+      {activeRuns > 0 && (
+        <div className="bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-2 h-2 bg-accent-600 dark:bg-accent-400 rounded-full animate-pulse"></div>
+          <span className="text-sm font-medium text-accent-900 dark:text-accent-100">
+            {activeRuns} benchmark{activeRuns === 1 ? '' : 's'} running
+          </span>
         </div>
-      </section>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-4 sm:gap-5 lg:gap-6">
-        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
-          <header className="flex flex-col gap-2">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Performance trends
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
-              Answer accuracy, topology accuracy, and latency across completed runs.
-            </p>
-          </header>
-          <div className="w-full h-64 sm:h-80">
-            {trendData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-sm sm:text-base text-slate-500 dark:text-slate-400 bg-accent-500/6 dark:bg-accent-500/10 rounded-xl px-4">
-                Run a benchmark to see trend data.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
-                  <XAxis dataKey="timestamp" tick={{ fill: '#52606d' }} />
-                  <YAxis
-                    yAxisId="left"
-                    tickFormatter={(value: number) => `${Math.round(value)} ms`}
-                    tick={{ fill: '#52606d' }}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickFormatter={(value: number) => `${Math.round(value)}%`}
-                    tick={{ fill: '#52606d' }}
-                  />
-                  <Tooltip
-                    formatter={(value: number | string, name) => {
-                      if (typeof value === 'number') {
-                        return name === 'Latency'
-                          ? `${Math.round(value)} ms`
-                          : `${value.toFixed(1)}%`;
-                      }
-
-                      return value;
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="latency"
-                    stroke="#6366f1"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Latency"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="answerAccuracy"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Answer Accuracy"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="topologyAccuracy"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Topology Accuracy"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </section>
-
-        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
-          <header className="flex flex-col gap-2">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Dataset snapshot
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
-              Showing the latest {questionSummary.total} curated questions used for benchmarking.
-            </p>
-          </header>
-          <div className="flex flex-col gap-4">
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50">
-                {questionSummary.label}
-              </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Generated at {formatDateTime(questionSummary.generatedAt)}
-              </p>
-            </div>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
-                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Total pool
-                </dt>
-                <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
-                  {questionSummary.stats.poolSize ?? '—'}
-                </dd>
-              </div>
-              <div className="bg-accent-500/6 dark:bg-accent-500/10 rounded-xl p-3">
-                <dt className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Without images
-                </dt>
-                <dd className="text-lg font-semibold text-slate-900 dark:text-slate-50 mt-1">
-                  {questionSummary.stats.poolWithoutImages ?? '—'}
-                </dd>
-              </div>
-            </dl>
-            <div>
-              <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-2">
-                Filters applied
-              </h4>
-              <ul className="flex flex-wrap gap-2">
-                {questionSummary.filters.map((filter) => (
-                  <li
-                    key={filter}
-                    className="bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm text-slate-700 dark:text-slate-300"
-                  >
-                    {filter}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-2">
-                Question types
-              </h4>
-              <ul className="flex flex-wrap gap-2">
-                {Object.entries(questionSummary.stats.countsByType ?? {}).map(([type, count]) => (
-                  <li
-                    key={type}
-                    className="flex items-center justify-between gap-3 min-w-[140px] bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full text-sm"
-                  >
-                    <span className="text-slate-700 dark:text-slate-300">{type}</span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-50">{count}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <Link
-            className="self-start font-semibold text-accent-700 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 transition-colors"
-            to="/runs"
-          >
-            Launch new benchmark →
-          </Link>
-        </section>
-      </div>
-
+      {/* Profile performance charts */}
       <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
         <header className="flex flex-col gap-2">
           <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Recent runs
+            Performance trends by profile
           </h2>
           <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
-            Latest completed runs by profile and completion timestamp.
+            Compare how different model profiles perform over time on the same dataset.
           </p>
         </header>
-        {overview.latestRuns.length === 0 ? (
-          <p className="p-4 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-center text-sm sm:text-base">
-            No completed runs yet. Create a run from the Runs tab.
-          </p>
-        ) : (
-          <div className="overflow-x-auto -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6">
-            <table className="w-full min-w-[600px] border-collapse text-sm sm:text-[0.95rem]">
-              <thead className="text-left text-slate-600 dark:text-slate-400 font-semibold text-xs sm:text-sm">
-                <tr>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Run
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Model profile
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Accuracy
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Avg latency
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                    Completed
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.latestRuns.map((run) => (
-                  <tr
-                    key={run.runId}
-                    className="hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors cursor-pointer"
-                  >
-                    <th
-                      scope="row"
-                      className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700"
-                    >
-                      <Link
-                        to={`/runs/${run.runId}`}
-                        className="font-semibold text-slate-900 dark:text-slate-50 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
-                      >
-                        {run.label}
-                      </Link>
-                    </th>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          {run.profileName}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {run.profileModelId}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {formatPercent(run.accuracy)}
-                    </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {formatLatency(run.averageLatencyMs)}
-                    </td>
-                    <td className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {formatDateTime(run.completedAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+        {/* Two charts: Answer Accuracy and Topology Accuracy */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* Answer Accuracy Chart */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+              Answer Accuracy
+            </h3>
+            <div className="w-full h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                  <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(value: number) => `${Math.round(value)}%`}
+                    tick={{ fill: '#52606d', fontSize: 11 }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    formatter={(value: number | string) => {
+                      if (typeof value === 'number') {
+                        return `${value.toFixed(1)}%`;
+                      }
+                      return value;
+                    }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  {profilePerformanceData.map((profile, index) => (
+                    <Line
+                      key={profile.profileId}
+                      type="monotone"
+                      dataKey={`${profile.profileId}_accuracy`}
+                      stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      name={profile.profileName}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        )}
+
+          {/* Topology Accuracy Chart */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+              Topology Accuracy
+            </h3>
+            <div className="w-full h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                  <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(value: number) => `${Math.round(value)}%`}
+                    tick={{ fill: '#52606d', fontSize: 11 }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    formatter={(value: number | string) => {
+                      if (typeof value === 'number') {
+                        return `${value.toFixed(1)}%`;
+                      }
+                      return value;
+                    }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  {profilePerformanceData.map((profile, index) => (
+                    <Line
+                      key={profile.profileId}
+                      type="monotone"
+                      dataKey={`${profile.profileId}_topologyAccuracy`}
+                      stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      name={profile.profileName}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Profile performance cards */}
+      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
+        <header className="flex flex-col gap-2">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            Profile performance summary
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
+            Average metrics across all completed runs for each profile.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {profilePerformanceData.map((profile, index) => (
+            <article
+              key={profile.profileId}
+              className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-5 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div
+                  className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
+                  style={{ backgroundColor: PROFILE_COLORS[index % PROFILE_COLORS.length] }}
+                ></div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-50 text-lg truncate">
+                    {profile.profileName}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                    {profile.profileModelId}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                    Runs
+                  </div>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+                    {profile.totalRuns}
+                  </div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                    Answer
+                  </div>
+                  <div className="text-2xl font-bold text-success-700 dark:text-success-400">
+                    {formatPercent(profile.averageAccuracy)}
+                  </div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                    Topology
+                  </div>
+                  <div className="text-2xl font-bold text-warning-700 dark:text-warning-400">
+                    {formatPercent(profile.averageTopologyAccuracy)}
+                  </div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                    Latency
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                    {formatLatency(profile.averageLatencyMs)}
+                  </div>
+                </div>
+              </div>
+
+              {profile.lastRunAt && (
+                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Last run: {formatDateTime(profile.lastRunAt)}
+                  </span>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );
