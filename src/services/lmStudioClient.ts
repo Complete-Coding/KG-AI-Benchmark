@@ -336,23 +336,43 @@ const buildPayload = (jsonFormat: JsonFormatType | null) => {
     }
   }
 
-  // Both JSON formats failed - throw error (no plain text fallback)
+  // Both JSON formats failed - determine if it's truly a JSON mode issue or other error
   const finalError = result.data ?? (await result.raw.text());
   const errorMessage = typeof finalError === 'string' ? finalError : JSON.stringify(finalError);
 
-  // Log detailed error information for debugging
-  console.error('[JSON MODE ERROR]', {
-    status: result.status,
-    schemaType,
-    preferJson: prefersJson,
-    error: errorMessage,
-    triedJsonObject: true,
-    triedJsonSchema: jsonError.isError && jsonError.needsSchema && schemaType ? true : false,
-  });
+  // Check if this is actually a JSON mode compatibility issue or a different error
+  const isActualJsonError = jsonError.isError ||
+    /json mode|response[_-]?format/i.test(errorMessage);
+  const isModelLoadError = result.status === 404 ||
+    /model.*not.*found|failed to load model|insufficient.*resources/i.test(errorMessage);
 
-  throw new Error(
-    `JSON mode required but not supported: ${result.status} - ${errorMessage}`
-  );
+  // Log appropriate error based on type
+  if (isModelLoadError) {
+    console.error('[MODEL LOAD ERROR]', {
+      status: result.status,
+      error: errorMessage,
+    });
+  } else {
+    console.error('[JSON MODE ERROR]', {
+      status: result.status,
+      schemaType,
+      preferJson: prefersJson,
+      error: errorMessage,
+      triedJsonObject: true,
+      triedJsonSchema: jsonError.isError && jsonError.needsSchema && schemaType ? true : false,
+    });
+  }
+
+  // Throw appropriate error message
+  if (isModelLoadError) {
+    throw new Error(
+      `Model loading failed: ${result.status} - ${errorMessage}`
+    );
+  } else {
+    throw new Error(
+      `JSON mode required but not supported: ${result.status} - ${errorMessage}`
+    );
+  }
 };
 
 export const fetchModels = async (
